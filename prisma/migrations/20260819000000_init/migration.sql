@@ -322,8 +322,6 @@ CREATE UNIQUE INDEX "RecruiterProfile_userId_key" ON "RecruiterProfile"("userId"
 CREATE UNIQUE INDEX "RecruiterProfile_slug_key" ON "RecruiterProfile"("slug");
 
 -- CreateIndex
-CREATE INDEX "RecruiterProfile_tier_isBanned_idx" ON "RecruiterProfile"("tier", "isBanned");
-
 -- CreateIndex
 CREATE UNIQUE INDEX "RecruiterProfile_userId_userRole_key" ON "RecruiterProfile"("userId", "userRole");
 
@@ -382,11 +380,15 @@ CREATE INDEX "Engagement_recruiterId_confirmedAt_idx" ON "Engagement"("recruiter
 CREATE UNIQUE INDEX "Engagement_id_isConfirmed_key" ON "Engagement"("id", "isConfirmed");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Engagement_id_freelancerId_key" ON "Engagement"("id", "freelancerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Engagement_id_recruiterId_key" ON "Engagement"("id", "recruiterId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Engagement_recruiterId_freelancerId_jobId_key" ON "Engagement"("recruiterId", "freelancerId", "jobId");
 
 -- CreateIndex
-CREATE INDEX "Review_engagementId_idx" ON "Review"("engagementId");
-
 -- CreateIndex
 CREATE INDEX "Review_subjectFreelancerId_createdAt_idx" ON "Review"("subjectFreelancerId", "createdAt" DESC);
 
@@ -421,7 +423,7 @@ CREATE INDEX "Report_targetType_targetId_idx" ON "Report"("targetType", "targetI
 CREATE INDEX "Conversation_jobId_idx" ON "Conversation"("jobId");
 
 -- CreateIndex
-CREATE INDEX "ConversationParticipant_userId_isArchived_lastMessageAt_idx" ON "ConversationParticipant"("userId", "isArchived", "lastMessageAt" DESC);
+CREATE INDEX "ConversationParticipant_inbox_idx" ON "ConversationParticipant"("userId", "isArchived", "lastMessageAt" DESC, "conversationId" DESC);
 
 -- CreateIndex
 CREATE INDEX "Message_conversationId_createdAt_idx" ON "Message"("conversationId", "createdAt");
@@ -475,7 +477,7 @@ ALTER TABLE "Engagement" ADD CONSTRAINT "Engagement_freelancerId_fkey" FOREIGN K
 ALTER TABLE "Engagement" ADD CONSTRAINT "Engagement_recruiterId_fkey" FOREIGN KEY ("recruiterId") REFERENCES "RecruiterProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Review" ADD CONSTRAINT "Review_engagementId_engagementIsConfirmed_fkey" FOREIGN KEY ("engagementId", "engagementIsConfirmed") REFERENCES "Engagement"("id", "isConfirmed") ON DELETE CASCADE ON UPDATE RESTRICT;
+ALTER TABLE "Review" ADD CONSTRAINT "Review_engagementId_engagementIsConfirmed_fkey" FOREIGN KEY ("engagementId", "engagementIsConfirmed") REFERENCES "Engagement"("id", "isConfirmed") ON DELETE RESTRICT ON UPDATE RESTRICT;
 
 -- AddForeignKey
 ALTER TABLE "Review" ADD CONSTRAINT "Review_authorFreelancerId_fkey" FOREIGN KEY ("authorFreelancerId") REFERENCES "FreelancerProfile"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -518,8 +520,14 @@ ALTER TABLE "Message" ADD CONSTRAINT "Message_senderId_fkey" FOREIGN KEY ("sende
 -- Constraints Prisma cannot express.
 --
 -- Prisma's differ does not model CHECK constraints, triggers, or column
--- generation expressions, so everything below survives future `migrate dev`
--- runs without being dropped or re-emitted.
+-- generation expressions, so those survive future `migrate dev` runs without
+-- being dropped or re-emitted.
+--
+-- EXCEPTIONS — the differ DOES track foreign keys and indexes, so two things
+-- below are visible to it and future `migrate dev` runs WILL generate DROP
+-- statements for them. Hand-delete those DROPs from any generated migration:
+--   1. The four review party-binding FKs (review_*_is_engagement_party)
+--   2. The partial index "RecruiterProfile_banned_bannedAt_idx"
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- ── Role integrity ─────────────────────────────────────────────────────────
@@ -623,6 +631,44 @@ ALTER TABLE "Review"
 ALTER TABLE "Review"
   ADD CONSTRAINT "review_author_and_subject_are_opposite_sides"
   CHECK (("authorFreelancerId" IS NOT NULL) = ("subjectRecruiterId" IS NOT NULL));
+
+-- The author and subject must be the engagement's OWN parties. The plain FKs
+-- to the profile tables only prove the profiles exist; without these, any
+-- freelancer could author a review on any confirmed engagement (and each
+-- distinct third-party author would slip past the one-review-per-party
+-- uniques). Composite FKs into Engagement(id, freelancerId / recruiterId)
+-- close that: MATCH SIMPLE semantics make the NULL side of each pair a no-op,
+-- and the exactly-one CHECKs above guarantee the correct pair fires per row.
+-- Prisma cannot model these (the columns already belong to other relations) —
+-- see the EXCEPTIONS note in the section header.
+ALTER TABLE "Review"
+  ADD CONSTRAINT "review_author_freelancer_is_engagement_party"
+  FOREIGN KEY ("engagementId", "authorFreelancerId")
+  REFERENCES "Engagement"("id", "freelancerId") ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+ALTER TABLE "Review"
+  ADD CONSTRAINT "review_author_recruiter_is_engagement_party"
+  FOREIGN KEY ("engagementId", "authorRecruiterId")
+  REFERENCES "Engagement"("id", "recruiterId") ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+ALTER TABLE "Review"
+  ADD CONSTRAINT "review_subject_freelancer_is_engagement_party"
+  FOREIGN KEY ("engagementId", "subjectFreelancerId")
+  REFERENCES "Engagement"("id", "freelancerId") ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+ALTER TABLE "Review"
+  ADD CONSTRAINT "review_subject_recruiter_is_engagement_party"
+  FOREIGN KEY ("engagementId", "subjectRecruiterId")
+  REFERENCES "Engagement"("id", "recruiterId") ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+-- ── Moderation transparency ────────────────────────────────────────────────
+-- The public /removed-employers page: isBanned = true ORDER BY bannedAt DESC.
+-- Partial, so the unbanned majority costs nothing on writes and the index
+-- holds only banned rows. Prisma cannot model partial indexes — see the
+-- EXCEPTIONS note in the section header.
+CREATE INDEX "RecruiterProfile_banned_bannedAt_idx"
+  ON "RecruiterProfile"("bannedAt" DESC)
+  WHERE "isBanned" = true;
 
 -- ── Application integrity ──────────────────────────────────────────────────
 ALTER TABLE "Application"

@@ -62,6 +62,8 @@ const FLAG_TERMS: ReadonlyArray<readonly [string, FlagReason]> = [
   ["unpaid trial", "LONG_UNPAID_TEST"],
   ["test task", "LONG_UNPAID_TEST"],
   ["western union", "OFF_PLATFORM_PAYMENT"],
+  ["paypal", "OFF_PLATFORM_PAYMENT"],
+  ["venmo", "OFF_PLATFORM_PAYMENT"],
   ["telegram", "OFF_PLATFORM_PAYMENT"],
   ["whatsapp", "OFF_PLATFORM_PAYMENT"],
   ["crypto", "OFF_PLATFORM_PAYMENT"],

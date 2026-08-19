@@ -153,7 +153,10 @@ model RecruiterProfile {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, userRole])
-  @@index([tier, isBanned])
+  // The public /removed-employers page (isBanned = true ORDER BY bannedAt DESC)
+  // is served by a partial index Prisma cannot model — see the raw SQL section
+  // of the init migration ("RecruiterProfile_banned_bannedAt_idx"). Browse never
+  // reads tier from this table; it uses the denormalized Job.recruiterTier.
 }
 
 // ─────────────────────────────────────────────
@@ -376,6 +379,12 @@ model Engagement {
 
   // Target of Review's composite FK.
   @@unique([id, isConfirmed])
+  // Targets of Review's party-binding composite FKs (raw SQL in the init
+  // migration): they make it impossible for anyone but this engagement's own
+  // freelancer/recruiter to appear as a review's author or subject. Trivially
+  // satisfied (id is the PK) — they exist purely as FK targets.
+  @@unique([id, freelancerId])
+  @@unique([id, recruiterId])
   // Defence in depth against self-promotion to TRUSTED. Note jobId is nullable
   // and Postgres treats NULLs as distinct, so this does not fully close the
   // hole — the load-bearing fix is counting DISTINCT freelancerId in the
@@ -392,9 +401,11 @@ model Review {
   // @@unique([id, isConfirmed]), this composite FK makes a review against an
   // unconfirmed engagement have no FK target — the insert fails at the
   // database, from any client. onUpdate: Restrict means un-confirming an
-  // engagement that already has reviews errors rather than orphaning them.
+  // engagement that already has reviews errors rather than orphaning them, and
+  // onDelete: Restrict means deleting one errors rather than silently erasing
+  // reputation history.
   engagementIsConfirmed Boolean    @default(true)
-  engagement            Engagement @relation(fields: [engagementId, engagementIsConfirmed], references: [id, isConfirmed], onDelete: Cascade, onUpdate: Restrict)
+  engagement            Engagement @relation(fields: [engagementId, engagementIsConfirmed], references: [id, isConfirmed], onDelete: Restrict, onUpdate: Restrict)
 
   id String @id @default(cuid())
 
@@ -419,10 +430,16 @@ model Review {
   updatedAt DateTime @updatedAt
 
   // One review per party per engagement. NULLs are distinct in Postgres, so
-  // these two constraints do not collide with each other.
+  // these two constraints do not collide with each other. "Per party" is made
+  // literal by four composite FKs in the init migration's raw SQL section —
+  // (engagementId, author/subject columns) -> Engagement(id, freelancerId /
+  // recruiterId) — so only the engagement's own parties can author or be the
+  // subject of its reviews. Prisma cannot model those FKs (the scalar fields
+  // already belong to other relations), and unlike the CHECK constraints it
+  // DOES track FKs: a future `prisma migrate dev` will propose dropping them.
+  // Hand-delete those DROP statements from any generated migration.
   @@unique([engagementId, authorFreelancerId])
   @@unique([engagementId, authorRecruiterId])
-  @@index([engagementId])
   @@index([subjectFreelancerId, createdAt(sort: Desc)])
   @@index([subjectRecruiterId, createdAt(sort: Desc)])
 }
@@ -516,7 +533,11 @@ model ConversationParticipant {
   joinedAt DateTime @default(now())
 
   @@id([conversationId, userId])
-  @@index([userId, isArchived, lastMessageAt(sort: Desc)])
+  // conversationId is the tiebreaker: lastMessageAt is transaction-timestamped,
+  // so bulk writes produce ties, and a keyset cursor over a non-total order
+  // skips or duplicates rows. The inbox query must ORDER BY
+  // (lastMessageAt DESC, conversationId DESC) to match.
+  @@index([userId, isArchived, lastMessageAt(sort: Desc), conversationId(sort: Desc)], map: "ConversationParticipant_inbox_idx")
 }
 
 model Message {

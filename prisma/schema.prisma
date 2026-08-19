@@ -1,0 +1,537 @@
+// Talent4u — Prisma schema
+// Settle this BEFORE building features. Everything downstream depends on it.
+//
+// Prisma 7: connection URLs live in prisma.config.ts, not here.
+//
+// Constraints Prisma cannot express (CHECK constraints, the generated tsvector
+// column) are applied as raw SQL in prisma/migrations/. Prisma's differ does not
+// track CHECK constraints or column generation expressions, so they survive
+// subsequent migrations. Search for "constraints.sql" comments below — every
+// invariant enforced outside this file is annotated at its model.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+// Users
+// ─────────────────────────────────────────────
+
+enum UserRole {
+  FREELANCER
+  RECRUITER
+  ADMIN
+}
+
+model User {
+  // This IS the Supabase Auth user id (auth.users.id). Not generated here —
+  // set explicitly at signup from the Supabase session. Keeping them identical
+  // makes session -> profile a single indexed lookup with no mapping column.
+  id             String    @id @db.Uuid
+  email          String    @unique
+  role           UserRole
+  emailVerified  DateTime?
+  billingCountry String? // drives regional pricing
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  freelancer    FreelancerProfile?
+  recruiter     RecruiterProfile?
+  subscription  Subscription?
+  sentMessages  Message[]                 @relation("MessageSender")
+  reports       Report[]                  @relation("ReportedBy")
+  conversations ConversationParticipant[]
+
+  // Referenced by the composite FK on each profile table. This is what makes
+  // "a FREELANCER user cannot own a RecruiterProfile" true at the database
+  // level, and what makes role immutable while a profile exists (the profile's
+  // FK is onUpdate: Restrict, so changing User.role errors).
+  @@unique([id, role])
+}
+
+// ─────────────────────────────────────────────
+// Freelancer
+// ─────────────────────────────────────────────
+
+enum FreelancerVerification {
+  NONE
+  ID_VERIFIED
+  ID_AND_WORK_VERIFIED
+}
+
+model FreelancerProfile {
+  id       String   @id @default(cuid())
+  userId   String   @unique @db.Uuid
+  // Pinned to FREELANCER by a CHECK constraint; see constraints.sql.
+  userRole UserRole @default(FREELANCER)
+  user     User     @relation(fields: [userId, userRole], references: [id, role], onDelete: Cascade, onUpdate: Restrict)
+
+  slug          String @unique // public SEO URL
+  displayName   String
+  headline      String // "Senior Shopify Developer"
+  bio           String @db.Text
+  hourlyRateUsd Int?
+  country       String
+  timezone      String
+  avatarUrl     String?
+
+  verification FreelancerVerification @default(NONE)
+  githubUrl    String?
+  portfolioUrl String?
+  linkedinUrl  String?
+
+  isOpenToWork Boolean @default(true)
+  // Denormalized "is Pro". Single writer: the Stripe webhook handler.
+  // Kept denormalized because candidate-search ranking cannot afford a join
+  // through User -> Subscription on every query.
+  searchBoost  Boolean @default(false)
+
+  // GENERATED ALWAYS AS (...) STORED over headline + bio; see constraints.sql.
+  // Never written by application code. Queried via $queryRaw in lib/db/.
+  searchVector Unsupported("tsvector")?
+
+  skills          SkillOnFreelancer[]
+  applications    Application[]
+  engagements     Engagement[]
+  reviewsGiven    Review[]            @relation("ReviewAuthorFreelancer")
+  reviewsReceived Review[]            @relation("ReviewSubjectFreelancer")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, userRole])
+  @@index([isOpenToWork, country])
+  @@index([searchVector], type: Gin)
+}
+
+// ─────────────────────────────────────────────
+// Recruiter
+// ─────────────────────────────────────────────
+
+enum RecruiterTier {
+  UNVERIFIED // email only — labeled publicly, 1 post max, cannot initiate messages
+  VERIFIED // domain email + company reg + linkedin
+  TRUSTED // VERIFIED + 3 confirmed engagements with DISTINCT freelancers
+}
+
+model RecruiterProfile {
+  id       String   @id @default(cuid())
+  userId   String   @unique @db.Uuid
+  // Pinned to RECRUITER by a CHECK constraint; see constraints.sql.
+  userRole UserRole @default(RECRUITER)
+  user     User     @relation(fields: [userId, userRole], references: [id, role], onDelete: Cascade, onUpdate: Restrict)
+
+  slug           String  @unique
+  companyName    String
+  companyDomain  String?
+  registrationNo String?
+  linkedinUrl    String?
+  websiteUrl     String?
+  logoUrl        String?
+  description    String? @db.Text
+  country        String
+
+  tier         RecruiterTier @default(UNVERIFIED)
+  verifiedAt   DateTime?
+  // Banning also transitions every job to REMOVED in the same transaction,
+  // which is what actually removes them from browse.
+  isBanned     Boolean       @default(false)
+  bannedReason String?
+  bannedAt     DateTime?
+
+  jobs            Job[]
+  engagements     Engagement[]
+  reviewsGiven    Review[]     @relation("ReviewAuthorRecruiter")
+  reviewsReceived Review[]     @relation("ReviewSubjectRecruiter")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, userRole])
+  @@index([tier, isBanned])
+}
+
+// ─────────────────────────────────────────────
+// Jobs
+// ─────────────────────────────────────────────
+
+enum JobStatus {
+  DRAFT
+  PENDING_REVIEW // tripped a safety flag
+  ACTIVE
+  CLOSED
+  REMOVED
+}
+
+enum EngagementType {
+  HOURLY
+  FIXED
+  PART_TIME
+  FULL_TIME
+}
+
+model Job {
+  id          String           @id @default(cuid())
+  slug        String           @unique // SEO URL
+  recruiterId String
+  // Restrict, not Cascade: deleting a recruiter must never silently delete
+  // freelancers' application history (which the 30-day quota counts).
+  recruiter   RecruiterProfile @relation(fields: [recruiterId], references: [id], onDelete: Restrict)
+
+  title       String
+  description String   @db.Text
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  engagementType EngagementType
+  budgetMinUsd   Int?
+  budgetMaxUsd   Int?
+  isRemote       Boolean        @default(true)
+  location       String?
+
+  status JobStatus @default(DRAFT)
+  // Write-once. Re-publishing would reset the Pro early-access window and
+  // re-bump the job to the top of browse. Enforced in lib/services/jobs.ts.
+  // ACTIVE implies NOT NULL; see constraints.sql.
+  publishedAt DateTime?
+  isFeatured  Boolean   @default(false)
+  closedAt    DateTime?
+
+  // Denormalized from RecruiterProfile.tier. CLAUDE.md requires the tier badge
+  // on every job card, so browse would otherwise join recruiters on every page
+  // render. Single writer: the tier-promotion service.
+  recruiterTier RecruiterTier @default(UNVERIFIED)
+
+  skills        SkillOnJob[]
+  applications  Application[]
+  flags         SafetyFlag[]
+  conversations Conversation[]
+  engagements   Engagement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Public browse. Equality on status, range on publishedAt (the early-access
+  // filter), then id to make the cursor a total order — without id, ties in
+  // publishedAt make cursor pagination duplicate and skip rows.
+  @@index([status, publishedAt(sort: Desc), id(sort: Desc)])
+  // Browse filtered by category.
+  @@index([status, categoryId, publishedAt(sort: Desc)])
+  // Recruiter dashboard, and the active-post-limit count on every publish.
+  @@index([recruiterId, status])
+}
+
+model Category {
+  id   String @id @default(cuid())
+  slug String @unique
+  name String
+
+  jobs   Job[]
+  skills Skill[]
+}
+
+model Skill {
+  id         String   @id @default(cuid())
+  slug       String   @unique
+  name       String
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  jobs        SkillOnJob[]
+  freelancers SkillOnFreelancer[]
+
+  @@index([categoryId])
+}
+
+model SkillOnJob {
+  jobId   String
+  skillId String
+  job     Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([jobId, skillId])
+  // The PK index cannot serve `WHERE skillId = $1` — its leading column is
+  // jobId. Without this, filtering browse by skill sequentially scans.
+  @@index([skillId])
+}
+
+model SkillOnFreelancer {
+  freelancerId String
+  skillId      String
+  yearsExp     Int?
+  freelancer   FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  skill        Skill             @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([freelancerId, skillId])
+  // Same reason as SkillOnJob: candidate search filters by skillId.
+  @@index([skillId])
+}
+
+// ─────────────────────────────────────────────
+// Applications  (quota is enforced here)
+// ─────────────────────────────────────────────
+
+enum ApplicationStatus {
+  SUBMITTED
+  VIEWED
+  SHORTLISTED
+  REJECTED
+  WITHDRAWN
+}
+
+model Application {
+  id           String            @id @default(cuid())
+  jobId        String
+  freelancerId String
+  // Restrict: a recruiter deleting a job must not refund the freelancer's quota.
+  job          Job               @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  freelancer   FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+
+  coverLetter     String            @db.Text
+  proposedRateUsd Int?
+  status          ApplicationStatus @default(SUBMITTED)
+  viewedAt        DateTime?
+  recruiterNote   String?           @db.Text // Growth tier and above
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([jobId, freelancerId]) // one application per job
+  // Rolling 30-day quota count. WITHDRAWN rows still count — otherwise
+  // apply/withdraw/repeat is unlimited applications.
+  @@index([freelancerId, createdAt])
+  @@index([jobId, status])
+}
+
+// ─────────────────────────────────────────────
+// Billing
+// ─────────────────────────────────────────────
+
+enum PlanTier {
+  FREE
+  FREELANCER_PRO
+  RECRUITER_GROWTH
+  RECRUITER_TEAM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+}
+
+model Subscription {
+  id     String @id @default(cuid())
+  userId String @unique @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  plan                 PlanTier           @default(FREE)
+  status               SubscriptionStatus @default(ACTIVE)
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  priceRegion          String? // purchasing-power band
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// Trust: engagements, reviews, moderation
+// ─────────────────────────────────────────────
+
+// Mutual confirmation — our substitute for payment data.
+// Neither party can review until BOTH have confirmed.
+model Engagement {
+  id           String            @id @default(cuid())
+  jobId        String?
+  job          Job?              @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  freelancerId String
+  recruiterId  String
+  freelancer   FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Restrict)
+  recruiter    RecruiterProfile  @relation(fields: [recruiterId], references: [id], onDelete: Restrict)
+
+  statedRateUsd Int?
+  durationWeeks Int?
+
+  freelancerConfirmed Boolean   @default(false)
+  recruiterConfirmed  Boolean   @default(false)
+  // Both derived from the two booleans, kept consistent by a CHECK constraint
+  // (see constraints.sql) so no row can claim confirmation it does not have.
+  // isConfirmed exists as a non-nullable mirror of `confirmedAt IS NOT NULL`
+  // purely so Review can point a composite FK at it.
+  isConfirmed         Boolean   @default(false)
+  confirmedAt         DateTime?
+
+  reviews   Review[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Target of Review's composite FK.
+  @@unique([id, isConfirmed])
+  // Defence in depth against self-promotion to TRUSTED. Note jobId is nullable
+  // and Postgres treats NULLs as distinct, so this does not fully close the
+  // hole — the load-bearing fix is counting DISTINCT freelancerId in the
+  // promotion service.
+  @@unique([recruiterId, freelancerId, jobId])
+  @@index([freelancerId, confirmedAt])
+  // TRUSTED promotion: count DISTINCT freelancerId where confirmedAt IS NOT NULL.
+  @@index([recruiterId, confirmedAt])
+}
+
+model Review {
+  engagementId String
+  // Always true, enforced by CHECK. Together with Engagement's
+  // @@unique([id, isConfirmed]), this composite FK makes a review against an
+  // unconfirmed engagement have no FK target — the insert fails at the
+  // database, from any client. onUpdate: Restrict means un-confirming an
+  // engagement that already has reviews errors rather than orphaning them.
+  engagementIsConfirmed Boolean    @default(true)
+  engagement            Engagement @relation(fields: [engagementId, engagementIsConfirmed], references: [id, isConfirmed], onDelete: Cascade, onUpdate: Restrict)
+
+  id String @id @default(cuid())
+
+  // Exactly one author is set; CHECK enforces it (see constraints.sql).
+  authorFreelancerId String?
+  authorRecruiterId  String?
+  authorFreelancer   FreelancerProfile? @relation("ReviewAuthorFreelancer", fields: [authorFreelancerId], references: [id], onDelete: Cascade)
+  authorRecruiter    RecruiterProfile?  @relation("ReviewAuthorRecruiter", fields: [authorRecruiterId], references: [id], onDelete: Cascade)
+
+  // Denormalized subject. Without this, "reviews received by this freelancer"
+  // — rendered on an SEO-critical public profile — has to walk
+  // Review -> Engagement -> freelancerId with no index to support it.
+  // Exactly one is set; CHECK enforces it.
+  subjectFreelancerId String?
+  subjectRecruiterId  String?
+  subjectFreelancer   FreelancerProfile? @relation("ReviewSubjectFreelancer", fields: [subjectFreelancerId], references: [id], onDelete: Cascade)
+  subjectRecruiter    RecruiterProfile?  @relation("ReviewSubjectRecruiter", fields: [subjectRecruiterId], references: [id], onDelete: Cascade)
+
+  rating    Int // 1-5, enforced by CHECK
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One review per party per engagement. NULLs are distinct in Postgres, so
+  // these two constraints do not collide with each other.
+  @@unique([engagementId, authorFreelancerId])
+  @@unique([engagementId, authorRecruiterId])
+  @@index([engagementId])
+  @@index([subjectFreelancerId, createdAt(sort: Desc)])
+  @@index([subjectRecruiterId, createdAt(sort: Desc)])
+}
+
+enum FlagReason {
+  UPFRONT_PAYMENT
+  LONG_UNPAID_TEST
+  OFF_PLATFORM_PAYMENT
+  SUSPECTED_SCAM
+  SPAM
+  OTHER
+}
+
+enum FlagStatus {
+  OPEN
+  CLEARED
+  UPHELD
+}
+
+model SafetyFlag {
+  id        String   @id @default(cuid())
+  jobId     String?
+  job       Job?     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  messageId String?
+  message   Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  reason      FlagReason
+  status      FlagStatus @default(OPEN)
+  isAutomated Boolean    @default(true)
+  matchedTerm String?
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@index([status, createdAt])
+  @@index([jobId])
+  @@index([messageId])
+}
+
+model Report {
+  id           String  @id @default(cuid())
+  reportedById String  @db.Uuid
+  reportedBy   User    @relation("ReportedBy", fields: [reportedById], references: [id], onDelete: Cascade)
+  targetType   String // "job" | "user" | "message"
+  targetId     String
+  reason       String
+  details      String? @db.Text
+
+  status    FlagStatus @default(OPEN)
+  createdAt DateTime   @default(now())
+
+  @@index([status, createdAt])
+  @@index([reportedById])
+  @@index([targetType, targetId])
+}
+
+// ─────────────────────────────────────────────
+// Messaging
+// ─────────────────────────────────────────────
+
+model Conversation {
+  id    String  @id @default(cuid())
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  participants  ConversationParticipant[]
+  messages      Message[]
+  lastMessageAt DateTime                  @default(now())
+  createdAt     DateTime                  @default(now())
+
+  @@index([jobId])
+}
+
+// Replaces Conversation.participantIds String[]. A scalar array has no
+// referential integrity, cannot be joined to User (so rendering participant
+// names is an N+1 by construction), and has nowhere to store per-participant
+// state — unread position, archived, muted.
+model ConversationParticipant {
+  conversationId String
+  userId         String       @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  lastReadAt DateTime?
+  isArchived Boolean   @default(false)
+  // Mirrored from Conversation.lastMessageAt, updated in the same transaction
+  // that inserts a message. This is what makes "my conversations, newest
+  // first, paginated" a single index scan with no sort.
+  lastMessageAt DateTime @default(now())
+
+  joinedAt DateTime @default(now())
+
+  @@id([conversationId, userId])
+  @@index([userId, isArchived, lastMessageAt(sort: Desc)])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String       @db.Uuid
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  body      String   @db.Text
+  isFlagged Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  flags SafetyFlag[]
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+}

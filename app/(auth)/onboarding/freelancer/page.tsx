@@ -1,22 +1,20 @@
 import { redirect } from "next/navigation";
 
 import { getCurrentProfile, requireRole } from "@/lib/auth/guards";
+import { listSkillsGroupedByCategory } from "@/lib/db/freelancer";
 
-import { signOut } from "../../actions";
+import { FreelancerOnboardingForm } from "./onboarding-form";
 
 export default async function FreelancerOnboardingPage() {
   const { user } = await requireRole("FREELANCER");
   const profile = await getCurrentProfile();
   if (profile) redirect("/dashboard/freelancer");
 
+  const skillGroups = await listSkillsGroupedByCategory();
+
   return (
-    <main>
-      <h1>Welcome, freelancer</h1>
-      <p>Signed in as {user.email}.</p>
-      <p>Profile setup (headline, bio, skills, rate) ships in Phase 1.</p>
-      <form action={signOut}>
-        <button type="submit">Sign out</button>
-      </form>
+    <main className="flex-1">
+      <FreelancerOnboardingForm email={user.email} skillGroups={skillGroups} />
     </main>
   );
 }

@@ -1,8 +1,22 @@
 import { cache } from "react";
 
+import type { PlanTier } from "@/lib/generated/prisma/enums";
 import type { RecruiterOnboardingInput } from "@/lib/validations/recruiter";
 
 import { prisma } from "./client";
+
+/**
+ * The plan a recruiter's entitlements derive from. Only a live subscription
+ * (ACTIVE or TRIALING) counts — PAST_DUE and CANCELED fall back to FREE.
+ */
+export async function getRecruiterPlan(userId: string): Promise<PlanTier> {
+  const sub = await prisma.subscription.findUnique({
+    where: { userId },
+    select: { plan: true, status: true },
+  });
+  if (!sub) return "FREE";
+  return sub.status === "ACTIVE" || sub.status === "TRIALING" ? sub.plan : "FREE";
+}
 
 /**
  * Prisma access for recruiter profiles. Business logic (slug generation, role

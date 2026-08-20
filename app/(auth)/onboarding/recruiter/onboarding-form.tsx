@@ -9,10 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { COUNTRIES } from "@/lib/geo/countries";
 import { LOGO_ACCEPT } from "@/lib/validations/recruiter";
 
-import {
-  initialRecruiterOnboardingState,
-  submitRecruiterOnboarding,
-} from "./actions";
+import { submitRecruiterOnboarding, type RecruiterOnboardingState } from "./actions";
+
+const initialRecruiterOnboardingState: RecruiterOnboardingState = {
+  fieldErrors: {},
+  formError: null,
+};
 
 const STEPS = ["Company", "Verification"] as const;
 

@@ -1,12 +1,17 @@
-import type { FreelancerVerification, RecruiterTier } from "@/lib/generated/prisma/enums";
+import type {
+  FreelancerVerification,
+  JobStatus,
+  RecruiterTier,
+} from "@/lib/generated/prisma/enums";
 
 /**
- * Verification/tier badge specs. Pure so the mapping is unit-tested and shared
- * by every surface. CLAUDE.md requires the recruiter tier label to be visible
- * everywhere and never softened — an UNVERIFIED company is always labeled.
+ * Verification/tier/status badge specs. Pure so the mappings are unit-tested
+ * and shared by every surface. CLAUDE.md requires the recruiter tier label to
+ * be visible everywhere and never softened — an UNVERIFIED company is always
+ * labeled.
  */
 
-export type BadgeTone = "muted" | "blue" | "gold" | "green";
+export type BadgeTone = "muted" | "blue" | "gold" | "green" | "red";
 
 export type BadgeSpec = {
   label: string;
@@ -36,6 +41,26 @@ export function recruiterTierBadge(tier: RecruiterTier): BadgeSpec {
         tone: "muted",
         title: "Email only. This employer has not completed verification.",
       };
+  }
+}
+
+export function jobStatusBadge(status: JobStatus): BadgeSpec {
+  switch (status) {
+    case "ACTIVE":
+      return { label: "Active", tone: "green", title: "Live and receiving applications." };
+    case "PENDING_REVIEW":
+      return {
+        label: "In review",
+        tone: "gold",
+        title: "Held by the automated safety check for human review. It still occupies a post slot.",
+      };
+    case "DRAFT":
+      return { label: "Draft", tone: "muted", title: "Not published. Only you can see it." };
+    case "CLOSED":
+      return { label: "Closed", tone: "muted", title: "No longer accepting applications." };
+    case "REMOVED":
+    default:
+      return { label: "Removed", tone: "red", title: "Removed by moderation." };
   }
 }
 

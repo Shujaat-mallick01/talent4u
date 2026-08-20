@@ -17,10 +17,8 @@ export type RecruiterOnboardingState = {
   formError: string | null;
 };
 
-export const initialRecruiterOnboardingState: RecruiterOnboardingState = {
-  fieldErrors: {},
-  formError: null,
-};
+// NOTE: a "use server" file may only export async functions (plus erased
+// types) — the initial form state object lives in onboarding-form.tsx.
 
 const str = (formData: FormData, key: string): string => {
   const v = formData.get(key);

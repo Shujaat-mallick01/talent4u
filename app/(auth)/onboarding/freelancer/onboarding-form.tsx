@@ -9,10 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { COUNTRIES } from "@/lib/geo/countries";
 import type { SkillCategoryGroup } from "@/lib/db/freelancer";
 
-import {
-  initialFreelancerOnboardingState,
-  submitFreelancerOnboarding,
-} from "./actions";
+import { submitFreelancerOnboarding, type FreelancerOnboardingState } from "./actions";
+
+const initialFreelancerOnboardingState: FreelancerOnboardingState = {
+  fieldErrors: {},
+  formError: null,
+};
 
 const STEPS = ["About you", "Work details", "Skills"] as const;
 

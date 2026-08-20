@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import type { FreelancerOnboardingInput } from "@/lib/validations/freelancer";
 
 import { prisma } from "./client";
@@ -6,6 +8,73 @@ import { prisma } from "./client";
  * Prisma access for freelancer profiles. No business logic lives here — the
  * service layer owns slug generation, role checks, and orchestration.
  */
+
+/**
+ * The full public freelancer profile for /freelancers/[slug]. Selects only
+ * public fields — never the user's email or any private column. Reviews are
+ * those RECEIVED (authored by the recruiter side of a confirmed engagement):
+ * the latest 20 for display, plus an accurate aggregate (average + total) so
+ * the rating summary and JSON-LD are correct past 20 reviews.
+ *
+ * cache() dedupes the call so generateMetadata and the page share one query
+ * per request instead of two.
+ */
+export const getPublicFreelancerBySlug = cache(async (slug: string) => {
+  const profile = await prisma.freelancerProfile.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      slug: true,
+      displayName: true,
+      headline: true,
+      bio: true,
+      country: true,
+      timezone: true,
+      hourlyRateUsd: true,
+      avatarUrl: true,
+      verification: true,
+      githubUrl: true,
+      portfolioUrl: true,
+      linkedinUrl: true,
+      isOpenToWork: true,
+      createdAt: true,
+      skills: {
+        select: {
+          yearsExp: true,
+          skill: { select: { slug: true, name: true, category: { select: { name: true } } } },
+        },
+        orderBy: { skill: { name: "asc" } },
+      },
+      reviewsReceived: {
+        select: {
+          id: true,
+          rating: true,
+          body: true,
+          createdAt: true,
+          // isBanned so the page can drop a delisted employer's name/link —
+          // banning does not delete the recruiter row or its reviews.
+          authorRecruiter: { select: { companyName: true, slug: true, isBanned: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
+    },
+  });
+  if (!profile) return null;
+
+  const stats = await prisma.review.aggregate({
+    where: { subjectFreelancerId: profile.id },
+    _avg: { rating: true },
+    _count: { _all: true },
+  });
+
+  return {
+    ...profile,
+    reviewStats: { average: stats._avg.rating, count: stats._count._all },
+  };
+});
+
+export type PublicFreelancer = NonNullable<Awaited<ReturnType<typeof getPublicFreelancerBySlug>>>;
 
 export type SkillOption = { slug: string; name: string };
 export type SkillCategoryGroup = {

@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import type { RecruiterOnboardingInput } from "@/lib/validations/recruiter";
 
 import { prisma } from "./client";
@@ -6,6 +8,59 @@ import { prisma } from "./client";
  * Prisma access for recruiter profiles. Business logic (slug generation, role
  * checks, logo upload) lives in the service layer.
  */
+
+/**
+ * The full public company profile for /companies/[slug]. Public fields only.
+ * Reviews are those RECEIVED (authored by the freelancer side): latest 20 for
+ * display plus an accurate aggregate. Also returns the count of currently-
+ * ACTIVE jobs. cache() dedupes the metadata + page calls into one query.
+ */
+export const getPublicRecruiterBySlug = cache(async (slug: string) => {
+  const company = await prisma.recruiterProfile.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      slug: true,
+      companyName: true,
+      companyDomain: true,
+      websiteUrl: true,
+      linkedinUrl: true,
+      logoUrl: true,
+      description: true,
+      country: true,
+      tier: true,
+      verifiedAt: true,
+      isBanned: true,
+      createdAt: true,
+      reviewsReceived: {
+        select: {
+          id: true,
+          rating: true,
+          body: true,
+          createdAt: true,
+          authorFreelancer: { select: { displayName: true, slug: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
+      _count: { select: { jobs: { where: { status: "ACTIVE" } } } },
+    },
+  });
+  if (!company) return null;
+
+  const stats = await prisma.review.aggregate({
+    where: { subjectRecruiterId: company.id },
+    _avg: { rating: true },
+    _count: { _all: true },
+  });
+
+  return {
+    ...company,
+    reviewStats: { average: stats._avg.rating, count: stats._count._all },
+  };
+});
+
+export type PublicRecruiter = NonNullable<Awaited<ReturnType<typeof getPublicRecruiterBySlug>>>;
 
 /** Existing recruiter slugs equal to `base` or starting with `base-`. */
 export async function findRecruiterSlugsLike(base: string): Promise<Set<string>> {

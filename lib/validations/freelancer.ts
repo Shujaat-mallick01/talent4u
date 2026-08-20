@@ -1,38 +1,13 @@
 import { z } from "zod";
 
 import { COUNTRY_CODES } from "@/lib/geo/countries";
+import { optionalHostUrl, optionalHttpsUrl } from "./url";
 
 /**
  * Freelancer onboarding input. This is the authority on what a valid profile
  * submission is — the form mirrors these rules for UX, but the server trusts
  * only what this schema accepts, because the caller may be curl.
  */
-
-// Optional URL that must be HTTPS. Empty string and whitespace collapse to
-// null so a blank field is "not provided", not an invalid value.
-const optionalHttpsUrl = (message: string) =>
-  z
-    .string()
-    .trim()
-    .transform((v) => (v === "" ? null : v))
-    .nullable()
-    .refine(
-      (v) => v === null || (URL.canParse(v) && new URL(v).protocol === "https:"),
-      message,
-    );
-
-// An optional HTTPS URL further constrained to a given host (or a subdomain
-// of it), so a "GitHub" link is actually GitHub — part of the trust model's
-// "linked proof of work".
-const optionalHostUrl = (host: string, message: string) =>
-  optionalHttpsUrl(message).refine((v) => {
-    // The inner https refine already reports an unparseable value; skip the
-    // host check here so we never call new URL() on one and throw (that
-    // TypeError would escape safeParse and 500 the action).
-    if (v === null || !URL.canParse(v)) return true;
-    const h = new URL(v).hostname.toLowerCase();
-    return h === host || h.endsWith(`.${host}`);
-  }, message);
 
 export const freelancerSkillSchema = z.object({
   slug: z

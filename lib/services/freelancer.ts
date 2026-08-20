@@ -7,6 +7,8 @@ import {
 import { getUserAuthState } from "@/lib/db/users";
 import type { FreelancerOnboardingInput } from "@/lib/validations/freelancer";
 
+import { conflictField, pickAvailableSlug, slugify as slugifyBase } from "./slug";
+
 /**
  * Freelancer profile business logic. Callers (a Server Action today) pass an
  * already-Zod-validated input; this layer re-checks the invariants that need
@@ -23,39 +25,10 @@ export type OnboardFreelancerResult =
 // else is an unexpected conflict.
 const SLUG_RETRY_LIMIT = 5;
 
-function conflictField(error: Prisma.PrismaClientKnownRequestError): "slug" | "userId" | "other" {
-  const target = (error.meta as { target?: unknown } | undefined)?.target;
-  const text = Array.isArray(target) ? target.join(",") : String(target ?? "");
-  if (text.includes("slug")) return "slug";
-  if (text.includes("userId")) return "userId";
-  return "other";
-}
+/** A display name → slug base, falling back to "freelancer" when empty. */
+export const slugify = (displayName: string): string => slugifyBase(displayName, "freelancer");
 
-/** Turns a display name into a URL-safe slug base (never empty). */
-export function slugify(displayName: string): string {
-  const base = displayName
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "") // strip diacritics
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-")
-    .slice(0, 60)
-    .replace(/-+$/g, "");
-  return base || "freelancer";
-}
-
-/**
- * The first free slug in the sequence base, base-2, base-3, … given the set
- * of slugs already taken for that base. Deterministic and gap-filling.
- */
-export function pickAvailableSlug(base: string, taken: ReadonlySet<string>): string {
-  if (!taken.has(base)) return base;
-  for (let n = 2; ; n += 1) {
-    const candidate = `${base}-${n}`;
-    if (!taken.has(candidate)) return candidate;
-  }
-}
+export { pickAvailableSlug };
 
 export async function generateUniqueFreelancerSlug(displayName: string): Promise<string> {
   const base = slugify(displayName);

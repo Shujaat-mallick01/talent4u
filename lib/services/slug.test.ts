@@ -1,6 +1,23 @@
 import { describe, expect, it } from "vitest";
 
-import { pickAvailableSlug, slugify } from "./slug";
+import { isPlausibleSlug, pickAvailableSlug, slugify } from "./slug";
+
+describe("isPlausibleSlug", () => {
+  it("accepts every slug we mint", () => {
+    expect(isPlausibleSlug("jane-cooper")).toBe(true);
+    expect(isPlausibleSlug("acme-commerce-ltd-2")).toBe(true);
+    expect(isPlausibleSlug(slugify("Some Job Title Here!", "job"))).toBe(true);
+  });
+
+  it("rejects request garbage that would 500 at the database", () => {
+    expect(isPlausibleSlug(`abc${String.fromCharCode(0)}def`)).toBe(false); // NUL — Postgres 22021
+    expect(isPlausibleSlug("")).toBe(false);
+    expect(isPlausibleSlug("UPPER-case")).toBe(false);
+    expect(isPlausibleSlug("space here")).toBe(false);
+    expect(isPlausibleSlug("unicode-héllo")).toBe(false);
+    expect(isPlausibleSlug("a".repeat(200))).toBe(false);
+  });
+});
 
 describe("slugify", () => {
   it("lowercases and hyphenates", () => {

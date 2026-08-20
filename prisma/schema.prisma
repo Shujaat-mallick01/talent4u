@@ -205,9 +205,12 @@ model Job {
   isFeatured  Boolean   @default(false)
   closedAt    DateTime?
 
-  // Denormalized from RecruiterProfile.tier. CLAUDE.md requires the tier badge
-  // on every job card, so browse would otherwise join recruiters on every page
-  // render. Single writer: the tier-promotion service.
+  // Denormalized from RecruiterProfile.tier so the browse ?tier= filter is an
+  // indexed column. Current writers: publishJobTx (snapshots at publish) and
+  // the seed. OBLIGATION for the Phase 4 tier-promotion service: fan the new
+  // tier out to this column for the recruiter's ACTIVE/PENDING_REVIEW jobs in
+  // the same transaction as the profile tier change, or the filter goes
+  // stale. Badges render the LIVE joined recruiter.tier, not this column.
   recruiterTier RecruiterTier @default(UNVERIFIED)
 
   skills        SkillOnJob[]

@@ -1,4 +1,7 @@
+import { cache } from "react";
+
 import type { Prisma } from "@/lib/generated/prisma/client";
+import { isPlausibleSlug } from "@/lib/services/slug";
 import type { JobBrowseFilters } from "@/lib/validations/job-browse";
 
 import { prisma } from "./client";
@@ -90,7 +93,10 @@ export async function browseJobs(filters: JobBrowseFilters, earlyAccessCutoff: D
       recruiterTier: true,
       category: { select: { slug: true, name: true } },
       skills: { select: { skill: { select: { slug: true, name: true } } }, take: 6 },
-      recruiter: { select: { slug: true, companyName: true, logoUrl: true } },
+      // Live tier alongside the denormalized recruiterTier: the card badge
+      // renders the live value at zero extra query cost (the join is already
+      // here); the ?tier= FILTER stays on the indexed snapshot column.
+      recruiter: { select: { slug: true, companyName: true, logoUrl: true, tier: true } },
     },
   });
 
@@ -117,3 +123,56 @@ export async function browseJobs(filters: JobBrowseFilters, earlyAccessCutoff: D
 }
 
 export type BrowseJobRow = Awaited<ReturnType<typeof browseJobs>>["jobs"][number];
+
+/**
+ * The full public job for /jobs/[slug]. Public columns only; the LIVE
+ * recruiter tier is joined (the denormalized Job.recruiterTier serves browse
+ * cards; the detail page shows the truthful current state). Visibility rules
+ * (status / window / banned) are decided by the caller via
+ * decideJobVisibility — this returns any job so metadata and the page can
+ * make the same decision from one cached fetch.
+ *
+ * The applicant count is a deliberate separate query: a relation _count in
+ * the select compiles into an unfiltered whole-table aggregate.
+ */
+export const getPublicJobBySlug = cache(async (slug: string) => {
+  if (!isPlausibleSlug(slug)) return null;
+  const job = await prisma.job.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      description: true,
+      status: true,
+      engagementType: true,
+      budgetMinUsd: true,
+      budgetMaxUsd: true,
+      isRemote: true,
+      location: true,
+      publishedAt: true,
+      closedAt: true,
+      category: { select: { slug: true, name: true } },
+      skills: {
+        select: { skill: { select: { slug: true, name: true } } },
+        orderBy: { skill: { name: "asc" } },
+      },
+      recruiter: {
+        select: {
+          slug: true,
+          companyName: true,
+          logoUrl: true,
+          tier: true,
+          isBanned: true,
+          country: true,
+        },
+      },
+    },
+  });
+  if (!job) return null;
+
+  const applicationCount = await prisma.application.count({ where: { jobId: job.id } });
+  return { ...job, applicationCount };
+});
+
+export type PublicJob = NonNullable<Awaited<ReturnType<typeof getPublicJobBySlug>>>;

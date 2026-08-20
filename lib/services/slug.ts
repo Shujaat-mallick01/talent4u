@@ -33,6 +33,14 @@ export function pickAvailableSlug(base: string, taken: ReadonlySet<string>): str
 }
 
 /**
+ * True when a request-supplied slug could possibly exist. Every slug we mint
+ * is [a-z0-9-] (slugify + optional -N suffix, <=60 chars base). Anything else
+ * — notably a %00-decoded NUL byte, which Postgres rejects with error 22021 —
+ * must short-circuit to a 404 instead of reaching the database and 500ing.
+ */
+export const isPlausibleSlug = (slug: string): boolean => /^[a-z0-9-]{1,80}$/.test(slug);
+
+/**
  * Which unique constraint a P2002 fired on. Onboarding uses this to tell a
  * retryable slug race apart from a genuine "this account already onboarded"
  * (userId) conflict.

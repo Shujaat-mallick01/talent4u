@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getCurrentProfile, requireRole } from "@/lib/auth/guards";
@@ -17,9 +18,9 @@ export default async function FreelancerDashboardPage() {
         Signed in as {user.email} ({current.profile.displayName})
       </p>
       <p>
-        <a href="/jobs" className="underline">
+        <Link href="/jobs" className="underline">
           Browse open jobs
-        </a>{" "}
+        </Link>{" "}
         — applications and messaging ship in Phase 3.
       </p>
       <form action={signOut}>

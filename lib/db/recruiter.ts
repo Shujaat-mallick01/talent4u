@@ -1,5 +1,6 @@
 import { cache } from "react";
 
+import { isPlausibleSlug } from "@/lib/services/slug";
 import type { RecruiterOnboardingInput } from "@/lib/validations/recruiter";
 
 import { prisma } from "./client";
@@ -16,6 +17,7 @@ import { prisma } from "./client";
  * ACTIVE jobs. cache() dedupes the metadata + page calls into one query.
  */
 export const getPublicRecruiterBySlug = cache(async (slug: string) => {
+  if (!isPlausibleSlug(slug)) return null;
   const company = await prisma.recruiterProfile.findUnique({
     where: { slug },
     select: {

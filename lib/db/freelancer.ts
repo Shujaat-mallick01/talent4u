@@ -1,5 +1,6 @@
 import { cache } from "react";
 
+import { isPlausibleSlug } from "@/lib/services/slug";
 import type { FreelancerOnboardingInput } from "@/lib/validations/freelancer";
 
 import { prisma } from "./client";
@@ -20,6 +21,7 @@ import { prisma } from "./client";
  * per request instead of two.
  */
 export const getPublicFreelancerBySlug = cache(async (slug: string) => {
+  if (!isPlausibleSlug(slug)) return null;
   const profile = await prisma.freelancerProfile.findUnique({
     where: { slug },
     select: {

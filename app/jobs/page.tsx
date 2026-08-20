@@ -288,8 +288,10 @@ export default async function JobsBrowsePage({
                           >
                             {job.recruiter.companyName}
                           </Link>
-                          {/* The tier label is on every card, always. */}
-                          <ProfileBadge spec={recruiterTierBadge(job.recruiterTier)} />
+                          {/* The tier label is on every card, always — the
+                              LIVE tier from the joined recruiter (the ?tier=
+                              filter uses the indexed snapshot column). */}
+                          <ProfileBadge spec={recruiterTierBadge(job.recruiter.tier)} />
                         </p>
                       </div>
                       <span className="whitespace-nowrap text-xs text-muted-foreground">

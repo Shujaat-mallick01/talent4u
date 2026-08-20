@@ -178,7 +178,14 @@ export async function updateApplicationStatusForRecruiter(args: {
       where: { id: applicationId, job: { recruiterId } },
       select: { status: true, viewedAt: true },
     });
-    if (!current || !allowedFrom.includes(current.status)) return false;
+    if (!current) return false;
+    // Duplicate decide (double-click, stale tab): the owned row already sits
+    // at the target, so report success rather than a false "may have been
+    // withdrawn" error. Non-owned ids still read null above and fail
+    // identically, so ids remain unprobeable. `to` is only SHORTLISTED or
+    // REJECTED, so WITHDRAWN stays terminal.
+    if (current.status === to) return true;
+    if (!allowedFrom.includes(current.status)) return false;
     await tx.application.update({
       where: { id: applicationId },
       data: {

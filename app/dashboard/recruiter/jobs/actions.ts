@@ -7,6 +7,7 @@ import {
   setApplicationNoteForUser,
   setApplicationStatusForUser,
 } from "@/lib/services/application";
+import { isPlausibleId } from "@/lib/services/slug";
 import {
   closeJobForUser,
   createJobDraftForUser,
@@ -145,9 +146,6 @@ export async function closeExistingJob(formData: FormData): Promise<void> {
   redirect(`${DASHBOARD}?notice=closed`);
 }
 
-/** Cuid-shaped ids only — anything else 404s without touching the database. */
-const plausibleId = (v: string): boolean => /^[a-z0-9]{1,40}$/i.test(v);
-
 const inboxPath = (jobId: string): string =>
   `/dashboard/recruiter/jobs/${jobId}/applications`;
 
@@ -156,7 +154,7 @@ export async function decideApplication(formData: FormData): Promise<void> {
   const jobId = str(formData, "jobId");
   const applicationId = str(formData, "applicationId");
   const decision = applicationDecisionSchema.safeParse(formData.get("decision"));
-  if (!plausibleId(jobId) || !plausibleId(applicationId) || !decision.success) {
+  if (!isPlausibleId(jobId) || !isPlausibleId(applicationId) || !decision.success) {
     redirect(`${DASHBOARD}?notice=not_found`);
   }
 
@@ -175,8 +173,13 @@ export async function saveApplicationNote(formData: FormData): Promise<void> {
   const jobId = str(formData, "jobId");
   const applicationId = str(formData, "applicationId");
   const note = recruiterNoteSchema.safeParse(str(formData, "note"));
-  if (!plausibleId(jobId) || !plausibleId(applicationId) || !note.success) {
+  if (!isPlausibleId(jobId) || !isPlausibleId(applicationId)) {
     redirect(`${DASHBOARD}?notice=not_found`);
+  }
+  // A too-long note is a user mistake, not a missing job: send them back to
+  // the inbox with a message that names the fix.
+  if (!note.success) {
+    redirect(`${inboxPath(jobId)}?notice=note_too_long`);
   }
 
   const result = await setApplicationNoteForUser(user.id, applicationId, note.data);

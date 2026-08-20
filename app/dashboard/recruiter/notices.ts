@@ -6,6 +6,16 @@
 
 export type JobNotice = { tone: "success" | "warning" | "error"; message: string };
 
+/**
+ * Brand-token classes per notice tone. Status colours are status-only and
+ * flip automatically under .dark, so no dark: variants are needed.
+ */
+export const NOTICE_CLASSES: Record<JobNotice["tone"], string> = {
+  success: "border-success/40 bg-success/10 text-success",
+  warning: "border-warning/40 bg-warning/10 text-warning",
+  error: "border-destructive/40 bg-destructive/10 text-destructive",
+};
+
 const int = (v: string | undefined, fallback: number): number => {
   const n = Number(v);
   return Number.isInteger(n) && n >= 0 && n <= 10000 ? n : fallback;
@@ -68,6 +78,11 @@ export function resolveInboxNotice(notice: string | undefined): JobNotice | null
       return { tone: "success", message: "Application marked as not selected." };
     case "note_saved":
       return { tone: "success", message: "Note saved. Only your team ever sees notes." };
+    case "note_too_long":
+      return {
+        tone: "error",
+        message: "Notes are limited to 2,000 characters. Trim it and save again.",
+      };
     case "note_plan_required":
       return {
         tone: "error",

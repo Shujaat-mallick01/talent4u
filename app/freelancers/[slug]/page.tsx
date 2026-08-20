@@ -87,7 +87,7 @@ export default async function FreelancerProfilePage({
             <h1 className="text-2xl font-semibold tracking-tight">{profile.displayName}</h1>
             <ProfileBadge spec={badge} />
             {profile.isOpenToWork ? (
-              <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+              <span className="inline-flex items-center rounded-[2px] border border-success/40 bg-success/10 px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-success">
                 Open to work
               </span>
             ) : null}

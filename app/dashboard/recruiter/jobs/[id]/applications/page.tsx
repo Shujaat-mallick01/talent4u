@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { ProfileBadge } from "@/components/profile/profile-badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { getCurrentProfile, requireRole } from "@/lib/auth/guards";
+import { requireRole } from "@/lib/auth/guards";
 import { timeAgo } from "@/lib/format/time";
 import { countryName } from "@/lib/geo/countries";
 import {
@@ -14,7 +14,7 @@ import {
 } from "@/lib/profile/badges";
 import { getJobInboxForUser } from "@/lib/services/application";
 
-import { resolveInboxNotice } from "../../../notices";
+import { NOTICE_CLASSES, resolveInboxNotice } from "../../../notices";
 import { decideApplication, saveApplicationNote } from "../../actions";
 
 /**
@@ -31,13 +31,14 @@ export default async function JobApplicationsPage({
   searchParams: Promise<{ notice?: string }>;
 }) {
   const { user } = await requireRole("RECRUITER");
-  const current = await getCurrentProfile();
-  if (!current || current.role !== "RECRUITER") redirect("/onboarding/recruiter");
 
   const { id } = await params;
+  // The service owns the remaining walls (profile, banned, ownership), so
+  // there is no duplicate profile query here.
   const inbox = await getJobInboxForUser(user.id, id);
   if (!inbox.ok) {
     if (inbox.reason === "not-found") notFound();
+    if (inbox.reason === "no-recruiter-profile") redirect("/onboarding/recruiter");
     redirect("/dashboard/recruiter");
   }
 
@@ -74,11 +75,7 @@ export default async function JobApplicationsPage({
         {notice ? (
           <p
             role="status"
-            className={`mb-6 rounded-[2px] border px-3 py-2 text-sm ${
-              notice.tone === "success"
-                ? "border-success/40 bg-success/10 text-success"
-                : "border-destructive/40 bg-destructive/10 text-destructive"
-            }`}
+            className={`mb-6 rounded-[2px] border px-3 py-2 text-sm ${NOTICE_CLASSES[notice.tone]}`}
           >
             {notice.message}
           </p>
@@ -170,6 +167,7 @@ export default async function JobApplicationsPage({
                           name="note"
                           defaultValue={app.recruiterNote ?? ""}
                           rows={2}
+                          maxLength={2000}
                           placeholder="Only your team sees this."
                           className="min-h-16"
                         />

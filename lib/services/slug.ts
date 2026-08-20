@@ -41,6 +41,14 @@ export function pickAvailableSlug(base: string, taken: ReadonlySet<string>): str
 export const isPlausibleSlug = (slug: string): boolean => /^[a-z0-9-]{1,80}$/.test(slug);
 
 /**
+ * True when a request-supplied database id could possibly exist. Ids are
+ * cuids, so anything outside [a-z0-9] cannot match — and must short-circuit
+ * to a 404 rather than reaching Postgres, which rejects a NUL byte with
+ * error 22021 (a 500).
+ */
+export const isPlausibleId = (id: string): boolean => /^[a-z0-9]{1,40}$/i.test(id);
+
+/**
  * Which unique constraint a P2002 fired on. Onboarding uses this to tell a
  * retryable slug race apart from a genuine "this account already onboarded"
  * (userId) conflict.

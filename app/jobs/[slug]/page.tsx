@@ -236,7 +236,7 @@ export default async function JobDetailPage({
           {company.tier === "UNVERIFIED" ? (
             <p
               role="alert"
-              className="mt-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300"
+              className="mt-4 rounded-[2px] border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning"
             >
               <strong>Unverified employer.</strong> This company has confirmed an email address and
               nothing else. Never pay to apply, never do long unpaid test work, and keep
@@ -280,7 +280,7 @@ export default async function JobDetailPage({
         {view === "full" && applyContext ? (
           <section id="apply" className="border-t border-border py-6">
             {notice === "applied" ? (
-              <p role="status" className="mb-4 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+              <p role="status" className="mb-4 rounded-[2px] border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
                 Application sent. The employer will see it in their inbox — you can track its
                 status from your dashboard.
               </p>
@@ -322,7 +322,7 @@ export default async function JobDetailPage({
                     </Link>
                   </div>
                 ) : applyContext.kind === "quota-exhausted" ? (
-                  <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
+                  <div className="rounded-[2px] border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
                     <p className="font-medium">
                       You&apos;ve used all {applyContext.limit} free applications for this rolling
                       30-day period.

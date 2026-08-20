@@ -70,7 +70,7 @@ export function ApplyForm({
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <p className={`text-xs ${lowQuota ? "font-medium text-amber-700 dark:text-amber-400" : "text-muted-foreground"}`}>
+        <p className={`text-xs ${lowQuota ? "font-medium text-warning" : "text-muted-foreground"}`}>
           {state.quotaExhausted
             ? "No free applications left in your rolling 30-day window"
             : remaining === null

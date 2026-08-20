@@ -8,7 +8,12 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        // Light hover deepens to Deep Red per the brand spec (white label
+        // 7.68:1); the stock /80 lightening dropped it to 3.9:1, under AA.
+        // Dark keeps /80 — there --destructive equals --primary, so Deep Red
+        // would remove hover feedback entirely.
+        default:
+          "bg-primary text-primary-foreground hover:bg-destructive dark:hover:bg-primary/80 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         outline:
           "border-border bg-input/30 hover:bg-input/50 hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
         secondary:

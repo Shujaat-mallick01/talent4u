@@ -17,7 +17,7 @@ export function StarRating({
       className="inline-flex items-center gap-1.5 text-sm"
       aria-label={`Rated ${value.toFixed(1)} out of 5${hideCount ? "" : ` from ${count} ${count === 1 ? "review" : "reviews"}`}`}
     >
-      <span aria-hidden className="tracking-tight text-amber-500">
+      <span aria-hidden className="tracking-tight text-foreground">
         {"★".repeat(full)}
         <span className="text-muted-foreground/40">{"★".repeat(5 - full)}</span>
       </span>

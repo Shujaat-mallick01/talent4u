@@ -10,7 +10,7 @@ import { jobStatusBadge, recruiterTierBadge } from "@/lib/profile/badges";
 import { jobSlotsForPlan } from "@/lib/pricing/plans";
 
 import { signOut } from "../../(auth)/actions";
-import { resolveJobNotice } from "./notices";
+import { NOTICE_CLASSES, resolveJobNotice } from "./notices";
 import { closeExistingJob, publishExistingJob, withdrawHeldJob } from "./jobs/actions";
 
 const PLAN_LABEL: Record<string, string> = {
@@ -41,12 +41,7 @@ export default async function RecruiterDashboardPage({
   const cap = jobSlotsForPlan(plan);
   const notice = resolveJobNotice(params);
 
-  const noticeClasses =
-    notice?.tone === "success"
-      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-      : notice?.tone === "warning"
-        ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
-        : "border-destructive/40 bg-destructive/10 text-destructive";
+  const noticeClasses = notice ? NOTICE_CLASSES[notice.tone] : "";
 
   return (
     <main className="flex-1">
@@ -73,7 +68,7 @@ export default async function RecruiterDashboardPage({
         </header>
 
         {notice ? (
-          <p role="status" className={`mb-6 rounded-md border px-3 py-2 text-sm ${noticeClasses}`}>
+          <p role="status" className={`mb-6 rounded-[2px] border px-3 py-2 text-sm ${noticeClasses}`}>
             {notice.message}
           </p>
         ) : null}

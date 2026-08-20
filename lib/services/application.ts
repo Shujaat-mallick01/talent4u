@@ -22,6 +22,8 @@ import {
 } from "@/lib/pricing/plans";
 import type { ApplyToJobInput } from "@/lib/validations/application";
 
+import { isPlausibleId } from "./slug";
+
 /**
  * Application business logic. CLAUDE.md non-negotiable: free tier is 12
  * applications per rolling 30 days, enforced HERE (service layer, inside a
@@ -194,6 +196,10 @@ export type InboxResult =
  * what the freelancer will see reflected in their own status.
  */
 export async function getJobInboxForUser(userId: string, jobId: string): Promise<InboxResult> {
+  // An implausible id cannot match a row and must not reach Postgres (a NUL
+  // byte there is a 500, not a 404).
+  if (!isPlausibleId(jobId)) return { ok: false, reason: "not-found" };
+
   const standing = await recruiterStanding(userId);
   if (!standing.ok) return standing;
 

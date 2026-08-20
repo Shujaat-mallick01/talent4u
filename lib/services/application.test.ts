@@ -34,6 +34,8 @@ vi.mock("@/lib/db/users", () => ({
 import {
   applyToJobTx,
   countApplicationsSince,
+  getJobWithApplicationsForRecruiter,
+  markSubmittedApplicationsViewed,
   nthOldestApplicationSince,
   setApplicationNoteForRecruiter,
   updateApplicationStatusForRecruiter,
@@ -49,6 +51,7 @@ import {
   applyToJob,
   canRecruiterTransition,
   getApplicationQuotaStatus,
+  getJobInboxForUser,
   notesAllowedForPlan,
   recruiterTransitionSources,
   setApplicationNoteForUser,
@@ -336,5 +339,80 @@ describe("setApplicationStatusForUser", () => {
       ok: false,
       reason: "invalid-transition",
     });
+  });
+});
+
+describe("getJobInboxForUser", () => {
+  const mockRecruiter = vi.mocked(getRecruiterProfileByUserId);
+  const mockMarkViewed = vi.mocked(markSubmittedApplicationsViewed);
+  const mockGetInbox = vi.mocked(getJobWithApplicationsForRecruiter);
+  const recruiter = (over: Record<string, unknown> = {}) =>
+    ({ id: "rec_1", isBanned: false, ...over }) as Awaited<
+      ReturnType<typeof getRecruiterProfileByUserId>
+    >;
+  const inboxJob = () =>
+    ({ id: "job_1", applications: [] }) as unknown as Awaited<
+      ReturnType<typeof getJobWithApplicationsForRecruiter>
+    >;
+
+  it("rejects an implausible id before touching the database", async () => {
+    // A NUL byte would make Postgres throw 22021 — a 500, not a 404.
+    const result = await getJobInboxForUser(USER_ID, `abc${String.fromCharCode(0)}def`);
+    expect(result).toEqual({ ok: false, reason: "not-found" });
+    expect(mockRecruiter).not.toHaveBeenCalled();
+    expect(mockMarkViewed).not.toHaveBeenCalled();
+  });
+
+  it("refuses a caller with no recruiter profile", async () => {
+    mockRecruiter.mockResolvedValue(null);
+    expect(await getJobInboxForUser(USER_ID, "job1")).toEqual({
+      ok: false,
+      reason: "no-recruiter-profile",
+    });
+    expect(mockMarkViewed).not.toHaveBeenCalled();
+  });
+
+  it("refuses a banned recruiter", async () => {
+    mockRecruiter.mockResolvedValue(recruiter({ isBanned: true }));
+    expect(await getJobInboxForUser(USER_ID, "job1")).toEqual({ ok: false, reason: "banned" });
+    expect(mockMarkViewed).not.toHaveBeenCalled();
+  });
+
+  it("marks SUBMITTED applications viewed BEFORE reading the list, scoped to the owner", async () => {
+    mockRecruiter.mockResolvedValue(recruiter());
+    mockPlan.mockResolvedValue("RECRUITER_GROWTH");
+    mockMarkViewed.mockResolvedValue(2);
+    mockGetInbox.mockResolvedValue(inboxJob());
+
+    const result = await getJobInboxForUser(USER_ID, "job1");
+    expect(result.ok).toBe(true);
+    expect(mockMarkViewed).toHaveBeenCalledWith("job1", "rec_1");
+    expect(mockGetInbox).toHaveBeenCalledWith("job1", "rec_1");
+    // Ordering matters: the recruiter must see what the freelancer will see.
+    expect(mockMarkViewed.mock.invocationCallOrder[0]).toBeLessThan(
+      mockGetInbox.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("reports not-found for a job the recruiter does not own", async () => {
+    mockRecruiter.mockResolvedValue(recruiter());
+    mockPlan.mockResolvedValue("FREE");
+    mockMarkViewed.mockResolvedValue(0);
+    mockGetInbox.mockResolvedValue(null);
+    expect(await getJobInboxForUser(USER_ID, "job1")).toEqual({ ok: false, reason: "not-found" });
+  });
+
+  it("reports the notes entitlement from the plan", async () => {
+    mockRecruiter.mockResolvedValue(recruiter());
+    mockMarkViewed.mockResolvedValue(0);
+    mockGetInbox.mockResolvedValue(inboxJob());
+
+    mockPlan.mockResolvedValue("FREE");
+    const free = await getJobInboxForUser(USER_ID, "job1");
+    expect(free.ok && free.canUseNotes).toBe(false);
+
+    mockPlan.mockResolvedValue("RECRUITER_TEAM");
+    const team = await getJobInboxForUser(USER_ID, "job1");
+    expect(team.ok && team.canUseNotes).toBe(true);
   });
 });

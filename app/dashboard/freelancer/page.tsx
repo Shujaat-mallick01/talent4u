@@ -73,7 +73,7 @@ export default async function FreelancerDashboardPage() {
                 </p>
               </div>
               {quota.limit !== null && (quota.remaining ?? 0) <= 3 ? (
-                <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-800 dark:text-amber-300">
+                <p className="rounded-[2px] border border-warning/40 bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning">
                   Running low — Pro removes the limit ($6/mo, billing launches soon)
                 </p>
               ) : null}

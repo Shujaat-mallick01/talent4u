@@ -23,6 +23,19 @@ export function earlyAccessCutoffFor(plan: PlanTier | null, now: Date): Date | n
   return new Date(now.getTime() - EARLY_ACCESS_HOURS * 60 * 60 * 1000);
 }
 
+/** The application quota's rolling window, in days. */
+export const APPLICATION_WINDOW_DAYS = 30;
+
+/**
+ * How many applications a freelancer plan allows per rolling 30 days.
+ * null = unlimited. CLAUDE.md: free tier 12 per rolling 30 days, Pro
+ * unlimited. Withdrawal does NOT refund quota — every application ever
+ * submitted inside the window counts, whatever its status.
+ */
+export function applicationQuotaForPlan(plan: PlanTier): number | null {
+  return plan === "FREELANCER_PRO" ? null : 12;
+}
+
 /**
  * How many job-post slots a recruiter plan gets. A slot is occupied by an
  * ACTIVE or PENDING_REVIEW job (a flagged post awaiting review still holds

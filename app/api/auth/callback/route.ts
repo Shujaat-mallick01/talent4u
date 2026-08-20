@@ -4,7 +4,12 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 
 import { createSupabaseServerClient } from "@/lib/auth/supabase";
 import { homeFor } from "@/lib/auth/route-guard";
-import { createUserWithRole, getUserAuthState, markEmailVerified } from "@/lib/db/users";
+import {
+  createUserWithRole,
+  getUserAuthState,
+  getUserAuthStateFresh,
+  markEmailVerified,
+} from "@/lib/db/users";
 import { sanitizeNextPath, selectableRoleSchema, type AuthNotice } from "@/lib/validations/auth";
 
 /**
@@ -65,7 +70,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       state = created.state;
     } else {
       // Lost a create race, or the email belongs to another account.
-      state = await getUserAuthState(data.user.id);
+      // Fresh (uncached) read: this runs AFTER the create attempt in the same
+      // request, so the memoized pre-create null must not be reused.
+      state = await getUserAuthStateFresh(data.user.id);
       if (!state) return fail("email_conflict");
     }
   }

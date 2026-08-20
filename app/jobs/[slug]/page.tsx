@@ -6,15 +6,21 @@ import { notFound } from "next/navigation";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
 import { Button } from "@/components/ui/button";
+import type { ApplicationStatus } from "@/lib/generated/prisma/enums";
+import { getApplicationForJob } from "@/lib/db/application";
 import { getPublicJobBySlug, type PublicJob } from "@/lib/db/job-browse";
+import { getFreelancerProfileByUserId, getUserAuthState } from "@/lib/db/users";
 import { timeAgo } from "@/lib/format/time";
 import { countryName } from "@/lib/geo/countries";
 import { decideJobVisibility, jobPostingJsonLd, type JobViewState } from "@/lib/jobs/jsonld";
-import { recruiterTierBadge } from "@/lib/profile/badges";
+import { applicationStatusBadge, recruiterTierBadge } from "@/lib/profile/badges";
 import { jsonLdScript } from "@/lib/profile/jsonld";
 import { getSession } from "@/lib/auth/session";
+import { getApplicationQuotaStatus } from "@/lib/services/application";
 import { resolveEarlyAccessCutoff } from "@/lib/services/job-browse";
 import { SITE_URL } from "@/lib/site-url";
+
+import { ApplyForm } from "./apply-form";
 
 /**
  * Public job detail. SEO-critical, fully server-rendered, works logged-out.
@@ -92,16 +98,56 @@ export async function generateMetadata({
   };
 }
 
-export default async function JobDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+type ApplyContext =
+  | { kind: "logged-out" }
+  | { kind: "finish-signup" }
+  | { kind: "not-freelancer" }
+  | { kind: "needs-onboarding" }
+  | { kind: "already-applied"; status: ApplicationStatus; appliedAt: Date }
+  | { kind: "can-apply"; remaining: number | null }
+  | { kind: "quota-exhausted"; limit: number; nextSlotFreesAt: Date | null };
+
+async function resolveApplyContext(jobId: string): Promise<ApplyContext> {
+  const session = await getSession();
+  if (!session) return { kind: "logged-out" };
+  const account = await getUserAuthState(session.userId);
+  if (!account) return { kind: "finish-signup" };
+  if (account.role !== "FREELANCER") return { kind: "not-freelancer" };
+  if (!account.hasProfile) return { kind: "needs-onboarding" };
+
+  const profile = await getFreelancerProfileByUserId(session.userId);
+  if (!profile) return { kind: "needs-onboarding" };
+
+  const existing = await getApplicationForJob(profile.id, jobId);
+  if (existing) {
+    return { kind: "already-applied", status: existing.status, appliedAt: existing.createdAt };
+  }
+
+  const quota = await getApplicationQuotaStatus(session.userId);
+  if ("reason" in quota) return { kind: "needs-onboarding" };
+  if (quota.remaining !== null && quota.remaining <= 0) {
+    return { kind: "quota-exhausted", limit: quota.limit ?? 0, nextSlotFreesAt: quota.nextSlotFreesAt };
+  }
+  return { kind: "can-apply", remaining: quota.remaining };
+}
+
+export default async function JobDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ notice?: string }>;
+}) {
   const { slug } = await params;
   const loaded = await loadJobView(slug);
   if (!loaded) notFound();
 
   const { job, view } = loaded;
   const tier = recruiterTierBadge(job.recruiter.tier);
-  const session = await getSession();
   const company = job.recruiter;
   const budget = budgetLabel(job);
+  const { notice } = await searchParams;
+  const applyContext = view === "full" ? await resolveApplyContext(job.id) : null;
 
   const jsonLd =
     view === "full" && job.publishedAt
@@ -231,21 +277,66 @@ export default async function JobDetailPage({ params }: { params: Promise<{ slug
           </section>
         ) : null}
 
-        {view === "full" ? (
-          <section className="border-t border-border py-6">
+        {view === "full" && applyContext ? (
+          <section id="apply" className="border-t border-border py-6">
+            {notice === "applied" ? (
+              <p role="status" className="mb-4 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+                Application sent. The employer will see it in their inbox — you can track its
+                status from your dashboard.
+              </p>
+            ) : null}
+            {notice === "already_applied" ? (
+              <p role="status" className="mb-4 rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+                You&apos;ve already applied to this job.
+              </p>
+            ) : null}
+
             <div className="rounded-lg border border-border bg-card p-5">
               <h2 className="text-sm font-semibold">Apply for this job</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Applying is free and Talent4u takes 0% of what you earn. In-platform applications
-                open in Phase 3 — create your freelancer profile now so you&apos;re ready.
+                Applying is free and Talent4u takes 0% of what you earn.
               </p>
-              <div className="mt-3">
-                {session ? (
+              <div className="mt-4">
+                {applyContext.kind === "logged-out" ? (
+                  <Button render={<Link href="/signup">Create a free account to apply</Link>} />
+                ) : applyContext.kind === "finish-signup" ? (
+                  <Button render={<Link href="/onboarding">Finish signing up to apply</Link>} />
+                ) : applyContext.kind === "not-freelancer" ? (
                   <p className="text-sm text-muted-foreground">
-                    You&apos;re signed in — applications open here soon.
+                    You&apos;re signed in as an employer — only freelancer accounts can apply.
                   </p>
+                ) : applyContext.kind === "needs-onboarding" ? (
+                  <Button
+                    render={
+                      <Link href="/onboarding/freelancer">Complete your profile to apply</Link>
+                    }
+                  />
+                ) : applyContext.kind === "already-applied" ? (
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <ProfileBadge spec={applicationStatusBadge(applyContext.status)} />
+                    <span className="text-muted-foreground">
+                      Applied {timeAgo(applyContext.appliedAt)}.
+                    </span>
+                    <Link href="/dashboard/freelancer" className="underline hover:text-foreground">
+                      Track it on your dashboard
+                    </Link>
+                  </div>
+                ) : applyContext.kind === "quota-exhausted" ? (
+                  <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
+                    <p className="font-medium">
+                      You&apos;ve used all {applyContext.limit} free applications for this rolling
+                      30-day period.
+                    </p>
+                    <p className="mt-1">
+                      {applyContext.nextSlotFreesAt
+                        ? `Your next slot frees on ${applyContext.nextSlotFreesAt.toLocaleDateString("en", { month: "short", day: "numeric" })}. `
+                        : ""}
+                      Pro ($6/mo) removes the limit and adds 6-hour early access — billing launches
+                      soon.
+                    </p>
+                  </div>
                 ) : (
-                  <Button render={<Link href={`/signup`}>Create a free account</Link>} />
+                  <ApplyForm jobSlug={job.slug} remaining={applyContext.remaining} />
                 )}
               </div>
             </div>

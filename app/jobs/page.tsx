@@ -56,7 +56,8 @@ export async function generateMetadata({
     filters.cursor ? encodeJobBrowseCursor(filters.cursor) : undefined,
   ).toString();
   return {
-    title: "Browse jobs — Talent4u",
+    // The root layout's title template appends the brand.
+    title: "Browse jobs",
     description: DESCRIPTION,
     alternates: { canonical: query ? `${SITE_URL}/jobs?${query}` : `${SITE_URL}/jobs` },
     robots: { index: true, follow: true },

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/auth/supabase";
 import { getSession } from "@/lib/auth/session";
 import { homeFor } from "@/lib/auth/route-guard";
-import { createUserWithRole, getUserAuthState } from "@/lib/db/users";
+import { createUserWithRole, getUserAuthState, getUserAuthStateFresh } from "@/lib/db/users";
 import {
   roleChoiceSchema,
   sanitizeNextPath,
@@ -151,7 +151,9 @@ export async function chooseRole(formData: FormData): Promise<void> {
   // id, route by its existing role. If not, the conflict was on email — a
   // different account owns this address — so explain the dead-end rather than
   // bouncing back to a chooser that will fail identically forever.
-  const existing = await getUserAuthState(session.userId);
+  // Fresh (uncached): this re-read follows the failed create in the same
+  // request and must see the true current row, not a memoized null.
+  const existing = await getUserAuthStateFresh(session.userId);
   if (existing) redirect(homeFor(existing.role, existing.hasProfile));
   backTo("/onboarding", { error: "email_conflict" });
 }

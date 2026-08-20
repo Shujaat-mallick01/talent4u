@@ -106,6 +106,14 @@ export async function applyToJobTx(args: {
   );
 }
 
+/** This freelancer's application to this job, if any. */
+export async function getApplicationForJob(freelancerId: string, jobId: string) {
+  return prisma.application.findUnique({
+    where: { jobId_freelancerId: { jobId, freelancerId } },
+    select: { id: true, status: true, createdAt: true },
+  });
+}
+
 export async function listApplicationsForFreelancer(freelancerId: string) {
   return prisma.application.findMany({
     where: { freelancerId },

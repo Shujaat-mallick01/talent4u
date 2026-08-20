@@ -1,4 +1,5 @@
 import type {
+  ApplicationStatus,
   FreelancerVerification,
   JobStatus,
   RecruiterTier,
@@ -61,6 +62,22 @@ export function jobStatusBadge(status: JobStatus): BadgeSpec {
     case "REMOVED":
     default:
       return { label: "Removed", tone: "red", title: "Removed by moderation." };
+  }
+}
+
+export function applicationStatusBadge(status: ApplicationStatus): BadgeSpec {
+  switch (status) {
+    case "SUBMITTED":
+      return { label: "Submitted", tone: "muted", title: "Waiting for the employer to review." };
+    case "VIEWED":
+      return { label: "Viewed", tone: "blue", title: "The employer has seen your application." };
+    case "SHORTLISTED":
+      return { label: "Shortlisted", tone: "green", title: "You're on the shortlist." };
+    case "REJECTED":
+      return { label: "Not selected", tone: "red", title: "The employer went another way." };
+    case "WITHDRAWN":
+    default:
+      return { label: "Withdrawn", tone: "muted", title: "You withdrew this application." };
   }
 }
 

@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import type { PlanTier, UserRole } from "@/lib/generated/prisma/enums";
 import { Prisma } from "@/lib/generated/prisma/client";
 
@@ -29,7 +31,12 @@ export type UserAuthState = {
   hasProfile: boolean;
 };
 
-export async function getUserAuthState(id: string): Promise<UserAuthState | null> {
+/**
+ * Uncached variant for re-reads AFTER a mutation in the same request (e.g.
+ * recovering from a create race in the auth callback) — the cached wrapper
+ * below would return the memoized pre-mutation result there.
+ */
+export async function getUserAuthStateFresh(id: string): Promise<UserAuthState | null> {
   const user = await prisma.user.findUnique({
     where: { id },
     select: {
@@ -54,6 +61,12 @@ export async function getUserAuthState(id: string): Promise<UserAuthState | null
           : true, // ADMIN has no profile concept; never "incomplete"
   };
 }
+
+/**
+ * Request-cached: the header, guards, and page bodies all consult this in one
+ * render — one PK query per request instead of three.
+ */
+export const getUserAuthState = cache(getUserAuthStateFresh);
 
 export type CreateUserResult =
   | { ok: true; state: UserAuthState }

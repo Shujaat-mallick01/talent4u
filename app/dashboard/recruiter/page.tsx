@@ -5,7 +5,7 @@ import { ProfileBadge } from "@/components/profile/profile-badge";
 import { Button } from "@/components/ui/button";
 import { getCurrentProfile, requireRole } from "@/lib/auth/guards";
 import { countOccupiedSlots, listJobsForRecruiter } from "@/lib/db/job";
-import { getRecruiterPlan } from "@/lib/db/recruiter";
+import { getUserPlan } from "@/lib/db/users";
 import { jobStatusBadge, recruiterTierBadge } from "@/lib/profile/badges";
 import { jobSlotsForPlan } from "@/lib/pricing/plans";
 
@@ -34,7 +34,7 @@ export default async function RecruiterDashboardPage({
 
   const [jobs, plan, used, params] = await Promise.all([
     listJobsForRecruiter(current.profile.id),
-    getRecruiterPlan(user.id),
+    getUserPlan(user.id),
     countOccupiedSlots(current.profile.id),
     searchParams,
   ]);

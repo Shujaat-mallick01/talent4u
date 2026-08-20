@@ -9,6 +9,14 @@ export async function listCategories(): Promise<{ id: string; slug: string; name
   });
 }
 
+/** Flat alphabetical skill list for the browse filter sidebar. */
+export async function listSkillsForFilter(): Promise<{ slug: string; name: string }[]> {
+  return prisma.skill.findMany({
+    orderBy: { name: "asc" },
+    select: { slug: true, name: true },
+  });
+}
+
 export async function getCategoryIdBySlug(slug: string): Promise<string | null> {
   const row = await prisma.category.findUnique({ where: { slug }, select: { id: true } });
   return row?.id ?? null;

@@ -16,7 +16,12 @@ export default async function FreelancerDashboardPage() {
       <p>
         Signed in as {user.email} ({current.profile.displayName})
       </p>
-      <p>Job browse, applications, and messages ship in Phases 2–3.</p>
+      <p>
+        <a href="/jobs" className="underline">
+          Browse open jobs
+        </a>{" "}
+        — applications and messaging ship in Phase 3.
+      </p>
       <form action={signOut}>
         <button type="submit">Sign out</button>
       </form>

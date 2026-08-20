@@ -27,12 +27,15 @@ vi.mock("@/lib/db/job", () => ({
   getEditableJobForRecruiter: vi.fn(),
   withdrawHeldJobForRecruiter: vi.fn(),
 }));
-vi.mock("@/lib/db/recruiter", () => ({ getRecruiterPlan: vi.fn() }));
+
 vi.mock("@/lib/db/taxonomy", () => ({
   getCategoryIdBySlug: vi.fn(),
   findSkillsBySlugs: vi.fn(),
 }));
-vi.mock("@/lib/db/users", () => ({ getRecruiterProfileByUserId: vi.fn() }));
+vi.mock("@/lib/db/users", () => ({
+  getRecruiterProfileByUserId: vi.fn(),
+  getUserPlan: vi.fn(),
+}));
 
 import {
   closeJobForRecruiter,
@@ -43,9 +46,9 @@ import {
   updateDraftJob,
   withdrawHeldJobForRecruiter,
 } from "@/lib/db/job";
-import { getRecruiterPlan } from "@/lib/db/recruiter";
+
 import { findSkillsBySlugs, getCategoryIdBySlug } from "@/lib/db/taxonomy";
-import { getRecruiterProfileByUserId } from "@/lib/db/users";
+import { getRecruiterProfileByUserId, getUserPlan } from "@/lib/db/users";
 import { scanTextForSafetyFlags } from "@/lib/services/safety";
 
 import {
@@ -65,7 +68,7 @@ const mockSkills = vi.mocked(findSkillsBySlugs);
 const mockSlugsLike = vi.mocked(findJobSlugsLike);
 const mockCreate = vi.mocked(createDraftJob);
 const mockPublishTx = vi.mocked(publishJobTx);
-const mockPlan = vi.mocked(getRecruiterPlan);
+const mockPlan = vi.mocked(getUserPlan);
 const mockClose = vi.mocked(closeJobForRecruiter);
 
 const USER_ID = "00000000-0000-4000-8000-000000000003";

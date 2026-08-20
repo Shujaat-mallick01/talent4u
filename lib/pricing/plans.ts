@@ -7,6 +7,23 @@ import type { PlanTier } from "@/lib/generated/prisma/enums";
  */
 
 /**
+ * How long a newly published job stays visible ONLY to Pro freelancers.
+ * Implemented as a query filter on publishedAt (never a cron): non-Pro and
+ * logged-out viewers see jobs where publishedAt <= now() - this many hours.
+ */
+export const EARLY_ACCESS_HOURS = 6;
+
+/**
+ * The publishedAt cutoff a viewer's browse query must apply, or null when
+ * the viewer sees everything. Pure so the entitlement is unit-testable:
+ * only an active FREELANCER_PRO plan clears the window.
+ */
+export function earlyAccessCutoffFor(plan: PlanTier | null, now: Date): Date | null {
+  if (plan === "FREELANCER_PRO") return null;
+  return new Date(now.getTime() - EARLY_ACCESS_HOURS * 60 * 60 * 1000);
+}
+
+/**
  * How many job-post slots a recruiter plan gets. A slot is occupied by an
  * ACTIVE or PENDING_REVIEW job (a flagged post awaiting review still holds
  * its slot, so the queue cannot be stuffed for free). null = unlimited.

@@ -1,7 +1,21 @@
-import type { UserRole } from "@/lib/generated/prisma/enums";
+import type { PlanTier, UserRole } from "@/lib/generated/prisma/enums";
 import { Prisma } from "@/lib/generated/prisma/client";
 
 import { prisma } from "./client";
+
+/**
+ * The plan a user's entitlements derive from (any role — recruiter post caps,
+ * freelancer Pro early access). Only a live subscription (ACTIVE or TRIALING)
+ * counts — PAST_DUE and CANCELED fall back to FREE.
+ */
+export async function getUserPlan(userId: string): Promise<PlanTier> {
+  const sub = await prisma.subscription.findUnique({
+    where: { userId },
+    select: { plan: true, status: true },
+  });
+  if (!sub) return "FREE";
+  return sub.status === "ACTIVE" || sub.status === "TRIALING" ? sub.plan : "FREE";
+}
 
 /**
  * Everything the auth layer needs to know about an account in one indexed

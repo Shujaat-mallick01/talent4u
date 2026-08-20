@@ -9,9 +9,8 @@ import {
   updateDraftJob,
   withdrawHeldJobForRecruiter,
 } from "@/lib/db/job";
-import { getRecruiterPlan } from "@/lib/db/recruiter";
 import { findSkillsBySlugs, getCategoryIdBySlug } from "@/lib/db/taxonomy";
-import { getRecruiterProfileByUserId } from "@/lib/db/users";
+import { getRecruiterProfileByUserId, getUserPlan } from "@/lib/db/users";
 import { jobSlotsForPlan } from "@/lib/pricing/plans";
 import type { JobPostInput } from "@/lib/validations/job";
 
@@ -149,7 +148,7 @@ export async function publishJobForUser(userId: string, jobId: string): Promise<
   const standing = await recruiterStanding(userId);
   if (!standing.ok) return standing;
 
-  const plan = await getRecruiterPlan(userId);
+  const plan = await getUserPlan(userId);
   const cap = jobSlotsForPlan(plan);
 
   let result: Awaited<ReturnType<typeof publishJobTx>>;

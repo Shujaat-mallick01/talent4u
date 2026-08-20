@@ -50,7 +50,17 @@ export default async function RecruiterDashboardPage({
           <div>
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl font-semibold tracking-tight">{current.profile.companyName}</h1>
-              <ProfileBadge spec={recruiterTierBadge(current.profile.tier)} />
+              <Link href="/dashboard/recruiter/verification" title="Verification status">
+                <ProfileBadge spec={recruiterTierBadge(current.profile.tier)} />
+              </Link>
+              {current.profile.tier === "UNVERIFIED" ? (
+                <Link
+                  href="/dashboard/recruiter/verification"
+                  className="font-mono text-[11px] uppercase tracking-[0.12em] text-primary hover:underline"
+                >
+                  Get verified →
+                </Link>
+              ) : null}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               {PLAN_LABEL[plan] ?? "Free"} plan · {used} of {cap === null ? "unlimited" : cap} active

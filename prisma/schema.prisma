@@ -138,6 +138,12 @@ model RecruiterProfile {
 
   tier         RecruiterTier @default(UNVERIFIED)
   verifiedAt   DateTime?
+  // Set when the recruiter submits for verification review; cleared on an
+  // admin decision. UNVERIFIED + non-null = pending in the admin queue.
+  verificationSubmittedAt DateTime?
+  // The admin's reason when a submission is rejected, shown back to the
+  // recruiter so they know what to fix.
+  verificationNote        String?   @db.Text
   // Banning also transitions every job to REMOVED in the same transaction,
   // which is what actually removes them from browse.
   isBanned     Boolean       @default(false)

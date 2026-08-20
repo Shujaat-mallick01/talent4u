@@ -72,6 +72,31 @@ export const recruiterOnboardingSchema = z.object({
 
 export type RecruiterOnboardingInput = z.infer<typeof recruiterOnboardingSchema>;
 
+/**
+ * The three fields VERIFIED is decided on, editable after onboarding — a
+ * recruiter who skipped them (they are optional there) or had a submission
+ * returned must be able to fix them, or verification is unreachable.
+ */
+export const recruiterVerificationDetailsSchema = z.object({
+  companyDomain: optionalDomain,
+  registrationNo: optionalText(2, 50, "That registration number looks wrong."),
+  linkedinUrl: optionalHostUrl(
+    "linkedin.com",
+    "Enter a valid LinkedIn URL (https://linkedin.com/…).",
+  ),
+});
+
+export type RecruiterVerificationDetailsInput = z.infer<
+  typeof recruiterVerificationDetailsSchema
+>;
+
+/** An admin's rejection reason, shown back to the recruiter. */
+export const verificationNoteSchema = z
+  .string()
+  .trim()
+  .min(10, "Give the recruiter something actionable — at least 10 characters.")
+  .max(1000, "Keep the reason under 1,000 characters.");
+
 export type LogoValidationResult =
   | { ok: true; file: File | null }
   | { ok: false; message: string };

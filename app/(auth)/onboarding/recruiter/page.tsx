@@ -4,23 +4,16 @@ import { getCurrentProfile, requireRole } from "@/lib/auth/guards";
 
 import { RecruiterOnboardingForm } from "./onboarding-form";
 
-// Consumer providers are not a company domain, so don't prefill from them.
-const CONSUMER_EMAIL_DOMAINS = new Set([
-  "gmail.com",
-  "outlook.com",
-  "hotmail.com",
-  "yahoo.com",
-  "icloud.com",
-  "proton.me",
-  "protonmail.com",
-  "aol.com",
-]);
+import { isConsumerEmailDomain } from "@/lib/config/consumer-email-domains";
 
+// Consumer providers are not a company domain, so don't prefill from them.
+// The list is shared with verification (one source of truth) — a domain that
+// would never satisfy the badge must never be suggested here either.
 function companyDomainHint(email: string): string | null {
   const at = email.lastIndexOf("@");
   if (at === -1) return null;
   const domain = email.slice(at + 1).toLowerCase();
-  return domain && !CONSUMER_EMAIL_DOMAINS.has(domain) ? domain : null;
+  return domain && !isConsumerEmailDomain(domain) ? domain : null;
 }
 
 export default async function RecruiterOnboardingPage() {

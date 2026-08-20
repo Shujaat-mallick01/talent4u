@@ -1,21 +1,24 @@
 import type { BadgeSpec, BadgeTone } from "@/lib/profile/badges";
 import { cn } from "@/lib/utils";
 
+// BRANDGUIDE status pill: 2px radius, 11px uppercase Plex Mono, 1px border,
+// tinted background. Status colours are status-only, never decorative, and
+// pills never rely on colour alone — the label always carries the meaning.
 const TONE: Record<BadgeTone, string> = {
   muted: "border-border bg-muted text-muted-foreground",
-  blue: "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  gold: "border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-400",
-  green: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  blue: "border-info/40 bg-info/10 text-info",
+  gold: "border-warning/40 bg-warning/10 text-warning",
+  green: "border-success/40 bg-success/10 text-success",
   red: "border-destructive/40 bg-destructive/10 text-destructive",
 };
 
-/** Verification / tier badge. The label is always shown, never softened. */
+/** Verification / tier / status badge. The label is always shown, never softened. */
 export function ProfileBadge({ spec }: { spec: BadgeSpec }) {
   return (
     <span
       title={spec.title}
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+        "inline-flex items-center rounded-[2px] border px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.12em]",
         TONE[spec.tone],
       )}
     >

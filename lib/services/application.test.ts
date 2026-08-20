@@ -19,10 +19,15 @@ vi.mock("@/lib/db/application", () => ({
   applyToJobTx: vi.fn(),
   countApplicationsSince: vi.fn(),
   nthOldestApplicationSince: vi.fn(),
+  getJobWithApplicationsForRecruiter: vi.fn(),
+  markSubmittedApplicationsViewed: vi.fn(),
+  setApplicationNoteForRecruiter: vi.fn(),
+  updateApplicationStatusForRecruiter: vi.fn(),
 }));
 vi.mock("@/lib/db/job-browse", () => ({ getPublicJobBySlug: vi.fn() }));
 vi.mock("@/lib/db/users", () => ({
   getFreelancerProfileByUserId: vi.fn(),
+  getRecruiterProfileByUserId: vi.fn(),
   getUserPlan: vi.fn(),
 }));
 
@@ -30,13 +35,24 @@ import {
   applyToJobTx,
   countApplicationsSince,
   nthOldestApplicationSince,
+  setApplicationNoteForRecruiter,
+  updateApplicationStatusForRecruiter,
 } from "@/lib/db/application";
 import { getPublicJobBySlug } from "@/lib/db/job-browse";
-import { getFreelancerProfileByUserId, getUserPlan } from "@/lib/db/users";
+import {
+  getFreelancerProfileByUserId,
+  getRecruiterProfileByUserId,
+  getUserPlan,
+} from "@/lib/db/users";
 
 import {
   applyToJob,
+  canRecruiterTransition,
   getApplicationQuotaStatus,
+  notesAllowedForPlan,
+  recruiterTransitionSources,
+  setApplicationNoteForUser,
+  setApplicationStatusForUser,
   windowStartFrom,
 } from "./application";
 
@@ -214,6 +230,111 @@ describe("applyToJob", () => {
     expect(await applyToJob(USER_ID, "some-job", input, NOW)).toEqual({
       ok: false,
       reason: "job-not-available",
+    });
+  });
+});
+
+describe("recruiter transition matrix", () => {
+  it("allows the documented moves and nothing else", () => {
+    expect(canRecruiterTransition("SUBMITTED", "VIEWED")).toBe(true);
+    expect(canRecruiterTransition("SUBMITTED", "SHORTLISTED")).toBe(true);
+    expect(canRecruiterTransition("SUBMITTED", "REJECTED")).toBe(true);
+    expect(canRecruiterTransition("VIEWED", "SHORTLISTED")).toBe(true);
+    expect(canRecruiterTransition("VIEWED", "REJECTED")).toBe(true);
+    expect(canRecruiterTransition("SHORTLISTED", "REJECTED")).toBe(true);
+    expect(canRecruiterTransition("REJECTED", "SHORTLISTED")).toBe(true);
+  });
+
+  it("makes WITHDRAWN terminal for the recruiter", () => {
+    for (const to of ["VIEWED", "SHORTLISTED", "REJECTED", "SUBMITTED"] as const) {
+      expect(canRecruiterTransition("WITHDRAWN", to)).toBe(false);
+    }
+  });
+
+  it("never returns to SUBMITTED", () => {
+    for (const from of ["VIEWED", "SHORTLISTED", "REJECTED", "WITHDRAWN"] as const) {
+      expect(canRecruiterTransition(from, "SUBMITTED")).toBe(false);
+    }
+  });
+
+  it("computes the legal sources for each decision", () => {
+    expect(recruiterTransitionSources("SHORTLISTED").sort()).toEqual(
+      ["REJECTED", "SUBMITTED", "VIEWED"].sort(),
+    );
+    expect(recruiterTransitionSources("REJECTED").sort()).toEqual(
+      ["SHORTLISTED", "SUBMITTED", "VIEWED"].sort(),
+    );
+  });
+});
+
+describe("notesAllowedForPlan", () => {
+  it("gates notes to Growth and Team", () => {
+    expect(notesAllowedForPlan("FREE")).toBe(false);
+    expect(notesAllowedForPlan("FREELANCER_PRO")).toBe(false);
+    expect(notesAllowedForPlan("RECRUITER_GROWTH")).toBe(true);
+    expect(notesAllowedForPlan("RECRUITER_TEAM")).toBe(true);
+  });
+});
+
+describe("setApplicationNoteForUser", () => {
+  const mockRecruiter = vi.mocked(getRecruiterProfileByUserId);
+  const mockSetNote = vi.mocked(setApplicationNoteForRecruiter);
+  const recruiter = (over: Record<string, unknown> = {}) =>
+    ({ id: "rec_1", isBanned: false, ...over }) as Awaited<
+      ReturnType<typeof getRecruiterProfileByUserId>
+    >;
+
+  it("refuses the Free plan with a typed plan-required error (server-side wall)", async () => {
+    mockRecruiter.mockResolvedValue(recruiter());
+    mockPlan.mockResolvedValue("FREE");
+    expect(await setApplicationNoteForUser(USER_ID, "app_1", "great fit")).toEqual({
+      ok: false,
+      reason: "plan-required",
+    });
+    expect(mockSetNote).not.toHaveBeenCalled();
+  });
+
+  it("saves for Growth, ownership-scoped", async () => {
+    mockRecruiter.mockResolvedValue(recruiter());
+    mockPlan.mockResolvedValue("RECRUITER_GROWTH");
+    mockSetNote.mockResolvedValue(true);
+    expect(await setApplicationNoteForUser(USER_ID, "app_1", "great fit")).toEqual({ ok: true });
+    expect(mockSetNote).toHaveBeenCalledWith("app_1", "rec_1", "great fit");
+  });
+
+  it("refuses a banned recruiter", async () => {
+    mockRecruiter.mockResolvedValue(recruiter({ isBanned: true }));
+    expect(await setApplicationNoteForUser(USER_ID, "app_1", "x")).toEqual({
+      ok: false,
+      reason: "banned",
+    });
+  });
+});
+
+describe("setApplicationStatusForUser", () => {
+  const mockRecruiter = vi.mocked(getRecruiterProfileByUserId);
+  const mockUpdate = vi.mocked(updateApplicationStatusForRecruiter);
+  const recruiter = () =>
+    ({ id: "rec_1", isBanned: false }) as Awaited<ReturnType<typeof getRecruiterProfileByUserId>>;
+
+  it("passes the legal source-statuses into the ownership-scoped update", async () => {
+    mockRecruiter.mockResolvedValue(recruiter());
+    mockPlan.mockResolvedValue("FREE");
+    mockUpdate.mockResolvedValue(true);
+    expect(await setApplicationStatusForUser(USER_ID, "app_1", "SHORTLISTED")).toEqual({ ok: true });
+    const args = mockUpdate.mock.calls[0][0];
+    expect(args.recruiterId).toBe("rec_1");
+    expect(args.to).toBe("SHORTLISTED");
+    expect([...args.allowedFrom].sort()).toEqual(["REJECTED", "SUBMITTED", "VIEWED"].sort());
+  });
+
+  it("maps a refused update (not owned / withdrawn / raced) to invalid-transition", async () => {
+    mockRecruiter.mockResolvedValue(recruiter());
+    mockPlan.mockResolvedValue("FREE");
+    mockUpdate.mockResolvedValue(false);
+    expect(await setApplicationStatusForUser(USER_ID, "app_1", "REJECTED")).toEqual({
+      ok: false,
+      reason: "invalid-transition",
     });
   });
 });

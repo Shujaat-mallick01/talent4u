@@ -106,6 +106,104 @@ export async function applyToJobTx(args: {
   );
 }
 
+/**
+ * A recruiter's inbox for one of their jobs: the job (ownership-scoped — a
+ * jobId the recruiter does not own resolves to null) plus every application
+ * with the applicant's public profile fields. recruiterNote is selected here
+ * because this query only ever serves the owning recruiter.
+ */
+export async function getJobWithApplicationsForRecruiter(jobId: string, recruiterId: string) {
+  return prisma.job.findFirst({
+    where: { id: jobId, recruiterId },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      status: true,
+      applications: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          coverLetter: true,
+          proposedRateUsd: true,
+          status: true,
+          viewedAt: true,
+          createdAt: true,
+          recruiterNote: true,
+          freelancer: {
+            select: {
+              slug: true,
+              displayName: true,
+              headline: true,
+              country: true,
+              hourlyRateUsd: true,
+              verification: true,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+/**
+ * Marks every SUBMITTED application on an owned job as VIEWED. Idempotent —
+ * safe to run on every inbox render.
+ */
+export async function markSubmittedApplicationsViewed(
+  jobId: string,
+  recruiterId: string,
+): Promise<number> {
+  const updated = await prisma.application.updateMany({
+    where: { jobId, status: "SUBMITTED", job: { recruiterId } },
+    data: { status: "VIEWED", viewedAt: new Date() },
+  });
+  return updated.count;
+}
+
+/**
+ * Applies a recruiter-initiated status change, guarded by ownership AND the
+ * set of statuses the transition is legal FROM (computed by the service from
+ * the transition matrix) — an illegal or raced transition updates 0 rows.
+ */
+export async function updateApplicationStatusForRecruiter(args: {
+  applicationId: string;
+  recruiterId: string;
+  to: "SHORTLISTED" | "REJECTED";
+  allowedFrom: readonly string[];
+}): Promise<boolean> {
+  const { applicationId, recruiterId, to, allowedFrom } = args;
+  return prisma.$transaction(async (tx) => {
+    const current = await tx.application.findFirst({
+      where: { id: applicationId, job: { recruiterId } },
+      select: { status: true, viewedAt: true },
+    });
+    if (!current || !allowedFrom.includes(current.status)) return false;
+    await tx.application.update({
+      where: { id: applicationId },
+      data: {
+        status: to,
+        // Deciding on an application implies having seen it.
+        viewedAt: current.viewedAt ?? new Date(),
+      },
+    });
+    return true;
+  });
+}
+
+/** Sets/clears the private recruiter note on an owned application. */
+export async function setApplicationNoteForRecruiter(
+  applicationId: string,
+  recruiterId: string,
+  note: string | null,
+): Promise<boolean> {
+  const updated = await prisma.application.updateMany({
+    where: { id: applicationId, job: { recruiterId } },
+    data: { recruiterNote: note },
+  });
+  return updated.count > 0;
+}
+
 /** This freelancer's application to this job, if any. */
 export async function getApplicationForJob(freelancerId: string, jobId: string) {
   return prisma.application.findUnique({

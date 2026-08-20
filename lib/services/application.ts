@@ -1,12 +1,20 @@
-import type { PlanTier } from "@/lib/generated/prisma/enums";
+import type { ApplicationStatus, PlanTier } from "@/lib/generated/prisma/enums";
 import { Prisma } from "@/lib/generated/prisma/client";
 import {
   applyToJobTx,
   countApplicationsSince,
+  getJobWithApplicationsForRecruiter,
+  markSubmittedApplicationsViewed,
   nthOldestApplicationSince,
+  setApplicationNoteForRecruiter,
+  updateApplicationStatusForRecruiter,
 } from "@/lib/db/application";
 import { getPublicJobBySlug } from "@/lib/db/job-browse";
-import { getFreelancerProfileByUserId, getUserPlan } from "@/lib/db/users";
+import {
+  getFreelancerProfileByUserId,
+  getRecruiterProfileByUserId,
+  getUserPlan,
+} from "@/lib/db/users";
 import {
   APPLICATION_WINDOW_DAYS,
   applicationQuotaForPlan,
@@ -134,4 +142,111 @@ export async function applyToJob(
     applicationId: result.applicationId,
     remaining: quota === null ? null : Math.max(0, quota - result.used),
   };
+}
+
+// ── Recruiter inbox ──────────────────────────────────────────────────────────
+
+/**
+ * Which statuses a recruiter may move an application BETWEEN. WITHDRAWN is
+ * freelancer-owned and terminal for the recruiter; nothing returns to
+ * SUBMITTED. Pure, so the whole matrix is unit-tested.
+ */
+const RECRUITER_TRANSITIONS: Record<ApplicationStatus, readonly ApplicationStatus[]> = {
+  SUBMITTED: ["VIEWED", "SHORTLISTED", "REJECTED"],
+  VIEWED: ["SHORTLISTED", "REJECTED"],
+  SHORTLISTED: ["REJECTED"],
+  REJECTED: ["SHORTLISTED"], // recruiters change their minds
+  WITHDRAWN: [],
+};
+
+export function canRecruiterTransition(from: ApplicationStatus, to: ApplicationStatus): boolean {
+  return RECRUITER_TRANSITIONS[from].includes(to);
+}
+
+/** Every status the given target may legally be reached FROM. */
+export function recruiterTransitionSources(to: ApplicationStatus): ApplicationStatus[] {
+  return (Object.keys(RECRUITER_TRANSITIONS) as ApplicationStatus[]).filter((from) =>
+    canRecruiterTransition(from, to),
+  );
+}
+
+type RecruiterStanding =
+  | { ok: true; recruiterId: string; plan: PlanTier }
+  | { ok: false; reason: "no-recruiter-profile" | "banned" };
+
+async function recruiterStanding(userId: string): Promise<RecruiterStanding> {
+  const profile = await getRecruiterProfileByUserId(userId);
+  if (!profile) return { ok: false, reason: "no-recruiter-profile" };
+  if (profile.isBanned) return { ok: false, reason: "banned" };
+  const plan = await getUserPlan(userId);
+  return { ok: true, recruiterId: profile.id, plan };
+}
+
+export type InboxJob = NonNullable<Awaited<ReturnType<typeof getJobWithApplicationsForRecruiter>>>;
+
+export type InboxResult =
+  | { ok: true; job: InboxJob; canUseNotes: boolean }
+  | { ok: false; reason: "no-recruiter-profile" | "banned" | "not-found" };
+
+/**
+ * The inbox for one owned job. Opening it marks every SUBMITTED application
+ * VIEWED (idempotent) BEFORE the list is read, so what the recruiter sees is
+ * what the freelancer will see reflected in their own status.
+ */
+export async function getJobInboxForUser(userId: string, jobId: string): Promise<InboxResult> {
+  const standing = await recruiterStanding(userId);
+  if (!standing.ok) return standing;
+
+  await markSubmittedApplicationsViewed(jobId, standing.recruiterId);
+  const job = await getJobWithApplicationsForRecruiter(jobId, standing.recruiterId);
+  if (!job) return { ok: false, reason: "not-found" };
+
+  return { ok: true, job, canUseNotes: notesAllowedForPlan(standing.plan) };
+}
+
+/** Recruiter notes are Growth tier and above (CLAUDE.md). */
+export function notesAllowedForPlan(plan: PlanTier): boolean {
+  return plan === "RECRUITER_GROWTH" || plan === "RECRUITER_TEAM";
+}
+
+export type InboxActionResult =
+  | { ok: true }
+  | { ok: false; reason: "no-recruiter-profile" | "banned" | "not-found" | "invalid-transition" }
+  | { ok: false; reason: "plan-required" };
+
+/** Shortlist or reject — the only recruiter-initiated decisions. */
+export async function setApplicationStatusForUser(
+  userId: string,
+  applicationId: string,
+  to: "SHORTLISTED" | "REJECTED",
+): Promise<InboxActionResult> {
+  const standing = await recruiterStanding(userId);
+  if (!standing.ok) return standing;
+
+  const done = await updateApplicationStatusForRecruiter({
+    applicationId,
+    recruiterId: standing.recruiterId,
+    to,
+    allowedFrom: recruiterTransitionSources(to),
+  });
+  // 0 rows: not owned, not found, or an illegal/raced transition — all
+  // surface identically so ids cannot be probed.
+  return done ? { ok: true } : { ok: false, reason: "invalid-transition" };
+}
+
+/**
+ * Sets or clears the private recruiter note. Growth tier and above, enforced
+ * HERE — the UI hiding the field is cosmetic (CLAUDE.md).
+ */
+export async function setApplicationNoteForUser(
+  userId: string,
+  applicationId: string,
+  note: string | null,
+): Promise<InboxActionResult> {
+  const standing = await recruiterStanding(userId);
+  if (!standing.ok) return standing;
+  if (!notesAllowedForPlan(standing.plan)) return { ok: false, reason: "plan-required" };
+
+  const done = await setApplicationNoteForRecruiter(applicationId, standing.recruiterId, note);
+  return done ? { ok: true } : { ok: false, reason: "not-found" };
 }

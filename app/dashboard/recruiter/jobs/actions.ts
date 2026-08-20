@@ -4,6 +4,10 @@ import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/guards";
 import {
+  setApplicationNoteForUser,
+  setApplicationStatusForUser,
+} from "@/lib/services/application";
+import {
   closeJobForUser,
   createJobDraftForUser,
   publishJobForUser,
@@ -11,6 +15,10 @@ import {
   withdrawJobForUser,
   type JobActionFailure,
 } from "@/lib/services/job";
+import {
+  applicationDecisionSchema,
+  recruiterNoteSchema,
+} from "@/lib/validations/application";
 import { jobPostSchema } from "@/lib/validations/job";
 
 /**
@@ -135,6 +143,51 @@ export async function closeExistingJob(formData: FormData): Promise<void> {
   const result = await closeJobForUser(user.id, jobId);
   if (!result.ok) return failureRedirect(result);
   redirect(`${DASHBOARD}?notice=closed`);
+}
+
+/** Cuid-shaped ids only — anything else 404s without touching the database. */
+const plausibleId = (v: string): boolean => /^[a-z0-9]{1,40}$/i.test(v);
+
+const inboxPath = (jobId: string): string =>
+  `/dashboard/recruiter/jobs/${jobId}/applications`;
+
+export async function decideApplication(formData: FormData): Promise<void> {
+  const { user } = await requireRole("RECRUITER");
+  const jobId = str(formData, "jobId");
+  const applicationId = str(formData, "applicationId");
+  const decision = applicationDecisionSchema.safeParse(formData.get("decision"));
+  if (!plausibleId(jobId) || !plausibleId(applicationId) || !decision.success) {
+    redirect(`${DASHBOARD}?notice=not_found`);
+  }
+
+  const result = await setApplicationStatusForUser(user.id, applicationId, decision.data);
+  if (!result.ok) {
+    if (result.reason === "banned") redirect(`${DASHBOARD}?notice=banned`);
+    redirect(`${inboxPath(jobId)}?notice=decision_failed`);
+  }
+  redirect(
+    `${inboxPath(jobId)}?notice=${decision.data === "SHORTLISTED" ? "shortlisted" : "rejected"}`,
+  );
+}
+
+export async function saveApplicationNote(formData: FormData): Promise<void> {
+  const { user } = await requireRole("RECRUITER");
+  const jobId = str(formData, "jobId");
+  const applicationId = str(formData, "applicationId");
+  const note = recruiterNoteSchema.safeParse(str(formData, "note"));
+  if (!plausibleId(jobId) || !plausibleId(applicationId) || !note.success) {
+    redirect(`${DASHBOARD}?notice=not_found`);
+  }
+
+  const result = await setApplicationNoteForUser(user.id, applicationId, note.data);
+  if (!result.ok) {
+    if (result.reason === "plan-required") {
+      redirect(`${inboxPath(jobId)}?notice=note_plan_required`);
+    }
+    if (result.reason === "banned") redirect(`${DASHBOARD}?notice=banned`);
+    redirect(`${inboxPath(jobId)}?notice=decision_failed`);
+  }
+  redirect(`${inboxPath(jobId)}?notice=note_saved`);
 }
 
 export async function withdrawHeldJob(formData: FormData): Promise<void> {

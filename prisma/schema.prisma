@@ -290,6 +290,9 @@ enum ApplicationStatus {
   WITHDRAWN
 }
 
+// Recruiter-side transitions are validated in lib/services/application.ts
+// (canRecruiterTransition); WITHDRAWN is freelancer-owned and terminal.
+
 model Application {
   id           String            @id @default(cuid())
   jobId        String

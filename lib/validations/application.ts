@@ -21,3 +21,13 @@ export const applyToJobSchema = z.object({
 });
 
 export type ApplyToJobInput = z.infer<typeof applyToJobSchema>;
+
+/** Private recruiter note (Growth+). Empty collapses to null (= clear it). */
+export const recruiterNoteSchema = z
+  .string()
+  .trim()
+  .max(2000, "Keep notes under 2,000 characters.")
+  .transform((v) => (v === "" ? null : v));
+
+/** Recruiter-initiated decisions — the only statuses an action may request. */
+export const applicationDecisionSchema = z.enum(["SHORTLISTED", "REJECTED"]);

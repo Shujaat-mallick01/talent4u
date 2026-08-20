@@ -58,3 +58,28 @@ export function resolveJobNotice(params: {
       return null;
   }
 }
+
+/** Notices for the per-job application inbox, as validated codes. */
+export function resolveInboxNotice(notice: string | undefined): JobNotice | null {
+  switch (notice) {
+    case "shortlisted":
+      return { tone: "success", message: "Application shortlisted." };
+    case "rejected":
+      return { tone: "success", message: "Application marked as not selected." };
+    case "note_saved":
+      return { tone: "success", message: "Note saved. Only your team ever sees notes." };
+    case "note_plan_required":
+      return {
+        tone: "error",
+        message:
+          "Notes are part of the Growth plan ($79/mo) — along with candidate search and pipelines. Billing launches soon.",
+      };
+    case "decision_failed":
+      return {
+        tone: "error",
+        message: "That change wasn't possible — the application may have been withdrawn.",
+      };
+    default:
+      return null;
+  }
+}

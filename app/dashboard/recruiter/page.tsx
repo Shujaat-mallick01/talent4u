@@ -106,8 +106,13 @@ export default async function RecruiterDashboardPage({
                           ? `Published ${dateFmt.format(job.publishedAt)}`
                           : `Created ${dateFmt.format(job.createdAt)}`}
                         {" · "}
-                        {job._count.applications}{" "}
-                        {job._count.applications === 1 ? "application" : "applications"}
+                        <Link
+                          href={`/dashboard/recruiter/jobs/${job.id}/applications`}
+                          className="underline hover:text-foreground"
+                        >
+                          {job._count.applications}{" "}
+                          {job._count.applications === 1 ? "application" : "applications"}
+                        </Link>
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

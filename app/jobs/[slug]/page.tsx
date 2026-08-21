@@ -6,6 +6,8 @@ import { notFound } from "next/navigation";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
 import { Button } from "@/components/ui/button";
+import { IconArrowLeft } from "@/components/ui/icon";
+import { Notice } from "@/components/ui/notice";
 import type { ApplicationStatus } from "@/lib/generated/prisma/enums";
 import { getApplicationForJob } from "@/lib/db/application";
 import { getPublicJobBySlug, type PublicJob } from "@/lib/db/job-browse";
@@ -30,6 +32,13 @@ import { ApplyForm } from "./apply-form";
  * The early-access window applies here exactly as on browse — an inside-window
  * job 404s for non-Pro viewers, or sharing a URL would bypass the window.
  * CLOSED jobs render as an archived page: noindex, no JobPosting JSON-LD.
+ *
+ * Layout follows the console model: the post reads down the left column at a
+ * capped measure, and every fact a decision needs — employer, tier, budget,
+ * engagement, location — sits in a ruled right-hand panel that stays on screen
+ * while you read, with the apply action at the bottom of it. Outcome notices
+ * are the first thing under the breadcrumb: a sent application must announce
+ * itself above the fold, not five screens down.
  */
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
@@ -43,6 +52,12 @@ const canonical = (slug: string) => `${SITE_URL}/jobs/${slug}`;
 
 const truncate = (text: string, max: number) =>
   text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
+
+const shortDate = (d: Date) => d.toLocaleDateString("en", { month: "short", day: "numeric" });
+
+/** A bare Link carries no focus ring of its own, so every one here gets these. */
+const LINK =
+  "rounded-[2px] underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 // cache()-wrapped so generateMetadata and the page share one execution —
 // one job fetch, one cutoff sample, provably identical visibility decisions.
@@ -134,6 +149,20 @@ async function resolveApplyContext(jobId: string): Promise<ApplyContext> {
   return { kind: "can-apply", remaining: quota.remaining };
 }
 
+/** One row of the ruled fact panel: mono label left, tabular value right. */
+function Fact({ term, value, first }: { term: string; value: string; first?: boolean }) {
+  return (
+    <div
+      className={`flex items-baseline justify-between gap-4 px-4 py-2.5 ${
+        first ? "" : "border-t border-border"
+      }`}
+    >
+      <dt className="t-label shrink-0 text-muted-foreground">{term}</dt>
+      <dd className="t-data min-w-0 text-right break-words">{value}</dd>
+    </div>
+  );
+}
+
 export default async function JobDetailPage({
   params,
   searchParams,
@@ -157,6 +186,12 @@ export default async function JobDetailPage({
     applyContext?.kind === "quota-exhausted"
       ? upsellLine("FREELANCER_PRO", await getViewerBand())
       : null;
+
+  // Signing in or up from here comes back to this job instead of dumping the
+  // reader on a dashboard. The auth pages sanitize and forward ?next=.
+  const returnTo = encodeURIComponent(`/jobs/${job.slug}`);
+  const engagement = ENGAGEMENT_LABEL[job.engagementType] ?? job.engagementType;
+  const location = job.isRemote ? "Remote" : (job.location ?? "On-site");
 
   const jsonLd =
     view === "full" && job.publishedAt
@@ -190,167 +225,276 @@ export default async function JobDetailPage({
         />
       ) : null}
 
-      <div className="mx-auto w-full max-w-3xl px-6 py-10">
-        <nav className="mb-4 text-sm text-muted-foreground">
-          <Link href="/jobs" className="hover:text-foreground hover:underline">
-            ← All jobs
+      <div className="mx-auto w-full max-w-5xl px-6 py-8">
+        <nav aria-label="Breadcrumb" className="mb-6">
+          <Link
+            href="/jobs"
+            className="inline-flex items-center gap-1.5 rounded-[2px] text-[15px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            <IconArrowLeft className="size-4" />
+            All jobs
           </Link>
         </nav>
 
+        {/* Outcomes first. A sent application announces itself here, above the
+            title — not below three screens of job description. */}
+        {view === "full" && notice === "applied" ? (
+          <Notice tone="success" className="mb-6">
+            Application sent to {company.companyName}.{" "}
+            <Link href="/dashboard/freelancer" className={LINK}>
+              Track its status on your dashboard
+            </Link>
+            .
+          </Notice>
+        ) : null}
+        {view === "full" && notice === "already_applied" ? (
+          <Notice tone="info" className="mb-6">
+            You already applied to this job — one application per post.{" "}
+            <Link href="/dashboard/freelancer" className={LINK}>
+              Track it on your dashboard
+            </Link>
+            .
+          </Notice>
+        ) : null}
         {view === "closed" ? (
-          <p
-            role="status"
-            className="mb-6 rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground"
-          >
-            This job is closed and no longer accepts applications
-            {job.closedAt ? ` (closed ${timeAgo(job.closedAt)})` : ""}.
-          </p>
+          <Notice tone="info" className="mb-6">
+            This job closed{job.closedAt ? ` ${timeAgo(job.closedAt)}` : ""} and no longer accepts
+            applications.{" "}
+            <Link href={`/jobs?category=${job.category.slug}`} className={LINK}>
+              See open {job.category.name} jobs
+            </Link>
+            .
+          </Notice>
         ) : null}
 
         <header className="border-b border-border pb-6">
-          <h1 className="text-2xl font-semibold tracking-tight">{job.title}</h1>
-
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            {company.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- public logo; next/image optimization is Phase 7.
-              <img
-                src={company.logoUrl}
-                alt={`${company.companyName} logo`}
-                width={40}
-                height={40}
-                className="size-10 rounded-md border border-border object-contain"
-              />
-            ) : (
-              <div className="flex size-10 items-center justify-center rounded-md border border-border bg-muted text-sm font-semibold text-muted-foreground">
-                {company.companyName.slice(0, 1).toUpperCase()}
-              </div>
-            )}
-            <div>
-              <Link
-                href={`/companies/${company.slug}`}
-                className="font-medium hover:underline"
-              >
-                {company.companyName}
-              </Link>
-              <div className="mt-0.5 flex items-center gap-2">
-                {/* The tier label is prominent and never softened. */}
-                <ProfileBadge spec={tier} />
-                <span className="text-xs text-muted-foreground">
-                  {countryName(company.country) ?? company.country}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {company.tier === "UNVERIFIED" ? (
-            <p
-              role="alert"
-              className="mt-4 rounded-[2px] border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning"
-            >
-              <strong>Unverified employer.</strong> This company has confirmed an email address and
-              nothing else. Never pay to apply, never do long unpaid test work, and keep
-              conversations on the platform until you trust them.
-            </p>
-          ) : null}
-
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            <span>{ENGAGEMENT_LABEL[job.engagementType] ?? job.engagementType}</span>
-            {budget ? <span className="font-medium text-foreground">{budget}</span> : null}
-            <span>{job.isRemote ? "Fully remote" : (job.location ?? "On-site")}</span>
-            <span>{job.category.name}</span>
-            {job.publishedAt ? <span>Posted {timeAgo(job.publishedAt)}</span> : null}
-            <span>
-              {job.applicationCount} {job.applicationCount === 1 ? "applicant" : "applicants"}
-            </span>
-          </div>
+          <p className="t-label text-muted-foreground">
+            {job.category.name}
+            {job.publishedAt ? ` · Posted ${timeAgo(job.publishedAt)}` : ""}
+          </p>
+          <h1 className="t-heading measure mt-2">{job.title}</h1>
         </header>
 
-        <section className="py-6">
-          <h2 className="sr-only">Job description</h2>
-          <div className="whitespace-pre-wrap text-sm leading-relaxed">{job.description}</div>
-        </section>
-
-        {job.skills.length > 0 ? (
-          <section className="border-t border-border py-6">
-            <h2 className="mb-3 text-sm font-semibold">Skills</h2>
-            <ul className="flex flex-wrap gap-2">
-              {job.skills.map((s) => (
-                <li
-                  key={s.skill.slug}
-                  className="rounded-md border border-border bg-card px-2.5 py-1 text-sm"
-                >
-                  {s.skill.name}
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {view === "full" && applyContext ? (
-          <section id="apply" className="border-t border-border py-6">
-            {notice === "applied" ? (
-              <p role="status" className="mb-4 rounded-[2px] border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
-                Application sent. The employer will see it in their inbox — you can track its
-                status from your dashboard.
-              </p>
-            ) : null}
-            {notice === "already_applied" ? (
-              <p role="status" className="mb-4 rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
-                You&apos;ve already applied to this job.
-              </p>
-            ) : null}
-
-            <div className="rounded-lg border border-border bg-card p-5">
-              <h2 className="text-sm font-semibold">Apply for this job</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Applying is free and Talent4u takes 0% of what you earn.
-              </p>
-              <div className="mt-4">
-                {applyContext.kind === "logged-out" ? (
-                  <Button render={<Link href="/signup">Create a free account to apply</Link>} />
-                ) : applyContext.kind === "finish-signup" ? (
-                  <Button render={<Link href="/onboarding">Finish signing up to apply</Link>} />
-                ) : applyContext.kind === "not-freelancer" ? (
-                  <p className="text-sm text-muted-foreground">
-                    You&apos;re signed in as an employer — only freelancer accounts can apply.
-                  </p>
-                ) : applyContext.kind === "needs-onboarding" ? (
-                  <Button
-                    render={
-                      <Link href="/onboarding/freelancer">Complete your profile to apply</Link>
-                    }
+        {/* Two columns from lg up. The rail is first in the DOM so a phone gets
+            employer, budget and the apply action before the long description,
+            and grid placement moves it right on a wide screen. */}
+        <div className="grid grid-cols-1 gap-x-10 gap-y-8 pt-8 lg:grid-cols-[minmax(0,1fr)_19rem]">
+          <aside
+            aria-label="Job summary"
+            className="lg:col-start-2 lg:row-start-1"
+          >
+            <div className="border border-border lg:sticky lg:top-[4.5rem]">
+              <div className="flex items-start gap-3 px-4 py-4">
+                {company.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- public logo; next/image optimization is Phase 7.
+                  <img
+                    src={company.logoUrl}
+                    alt={`${company.companyName} logo`}
+                    width={40}
+                    height={40}
+                    className="size-10 shrink-0 rounded-[2px] border border-border object-contain"
                   />
-                ) : applyContext.kind === "already-applied" ? (
-                  <div className="flex flex-wrap items-center gap-3 text-sm">
-                    <ProfileBadge spec={applicationStatusBadge(applyContext.status)} />
-                    <span className="text-muted-foreground">
-                      Applied {timeAgo(applyContext.appliedAt)}.
-                    </span>
-                    <Link href="/dashboard/freelancer" className="underline hover:text-foreground">
-                      Track it on your dashboard
-                    </Link>
-                  </div>
-                ) : applyContext.kind === "quota-exhausted" ? (
-                  <div className="rounded-[2px] border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
-                    <p className="font-medium">
-                      You&apos;ve used all {applyContext.limit} free applications for this rolling
-                      30-day period.
-                    </p>
-                    <p className="mt-1">
-                      {applyContext.nextSlotFreesAt
-                        ? `Your next slot frees on ${applyContext.nextSlotFreesAt.toLocaleDateString("en", { month: "short", day: "numeric" })}. `
-                        : ""}
-                      {proUpsell} removes the limit and adds {EARLY_ACCESS_HOURS}-hour early
-                      access — billing launches soon.
-                    </p>
-                  </div>
                 ) : (
-                  <ApplyForm jobSlug={job.slug} remaining={applyContext.remaining} />
+                  <div
+                    aria-hidden
+                    className="flex size-10 shrink-0 items-center justify-center rounded-[2px] border border-border bg-muted text-[15px] font-semibold text-muted-foreground"
+                  >
+                    {company.companyName.slice(0, 1).toUpperCase()}
+                  </div>
                 )}
+                <div className="min-w-0">
+                  <h2 className="text-[15px] font-semibold leading-tight">
+                    <Link
+                      href={`/companies/${company.slug}`}
+                      className="rounded-[2px] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    >
+                      {company.companyName}
+                    </Link>
+                  </h2>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                    {/* The tier label is prominent and never softened. */}
+                    <ProfileBadge spec={tier} />
+                    <span className="t-label text-muted-foreground">
+                      {countryName(company.country) ?? company.country}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <dl className="border-t border-border">
+                <Fact term="Budget" value={budget ?? "Not stated"} first />
+                <Fact term="Type" value={engagement} />
+                <Fact term="Location" value={location} />
+                <Fact
+                  term="Applicants"
+                  value={String(job.applicationCount)}
+                />
+                {job.publishedAt ? (
+                  <Fact term="Posted" value={shortDate(job.publishedAt)} />
+                ) : null}
+                {view === "closed" && job.closedAt ? (
+                  <Fact term="Closed" value={shortDate(job.closedAt)} />
+                ) : null}
+              </dl>
+
+              <div className="border-t border-border px-4 py-4">
+                <h2 className="t-label text-muted-foreground">Apply</h2>
+
+                {view === "closed" ? (
+                  <div className="mt-3">
+                    <p className="text-[13px] leading-[18px] text-muted-foreground">
+                      This post is closed. The category page lists everything still open.
+                    </p>
+                    <Button
+                      variant="outline"
+                      className="mt-3 w-full"
+                      render={
+                        <Link href={`/jobs?category=${job.category.slug}`}>
+                          See open {job.category.name} jobs
+                        </Link>
+                      }
+                    />
+                  </div>
+                ) : applyContext?.kind === "logged-out" ? (
+                  <div className="mt-3">
+                    <p className="text-[13px] leading-[18px] text-muted-foreground">
+                      Applying is free and Talent4u takes 0% of what you earn. An account takes an
+                      email and nothing else.
+                    </p>
+                    <Button
+                      className="mt-3 w-full"
+                      render={
+                        <Link href={`/signup?next=${returnTo}`}>Create a free account to apply</Link>
+                      }
+                    />
+                    <p className="mt-3 text-[13px] leading-[18px] text-muted-foreground">
+                      Already have one?{" "}
+                      <Link href={`/signin?next=${returnTo}`} className={LINK}>
+                        Sign in
+                      </Link>{" "}
+                      — you come straight back to this job.
+                    </p>
+                  </div>
+                ) : applyContext?.kind === "finish-signup" ? (
+                  <div className="mt-3">
+                    <p className="text-[13px] leading-[18px] text-muted-foreground">
+                      Your account needs a role before it can apply. It takes one question.
+                    </p>
+                    <Button
+                      className="mt-3 w-full"
+                      render={<Link href="/onboarding">Finish signing up</Link>}
+                    />
+                  </div>
+                ) : applyContext?.kind === "not-freelancer" ? (
+                  <div className="mt-3">
+                    <p className="text-[13px] leading-[18px] text-muted-foreground">
+                      You&apos;re signed in as an employer. Only freelancer accounts can apply.
+                    </p>
+                    <Button
+                      variant="outline"
+                      className="mt-3 w-full"
+                      render={<Link href="/dashboard/recruiter">Go to your jobs</Link>}
+                    />
+                  </div>
+                ) : applyContext?.kind === "needs-onboarding" ? (
+                  <div className="mt-3">
+                    <p className="text-[13px] leading-[18px] text-muted-foreground">
+                      Employers read your profile before your letter. Add your skills and rate to
+                      apply.
+                    </p>
+                    <Button
+                      className="mt-3 w-full"
+                      render={<Link href="/onboarding/freelancer">Complete your profile</Link>}
+                    />
+                  </div>
+                ) : applyContext?.kind === "already-applied" ? (
+                  <div className="mt-3">
+                    <ProfileBadge spec={applicationStatusBadge(applyContext.status)} />
+                    <p className="mt-2 text-[13px] leading-[18px] text-muted-foreground">
+                      You applied {timeAgo(applyContext.appliedAt)}.{" "}
+                      <Link href="/dashboard/freelancer" className={LINK}>
+                        Track it on your dashboard
+                      </Link>
+                      .
+                    </p>
+                  </div>
+                ) : applyContext?.kind === "quota-exhausted" ? (
+                  <div className="mt-3">
+                    <p className="t-label text-warning">No applications left</p>
+                    <p className="mt-2 text-[13px] leading-[18px] text-muted-foreground">
+                      You&apos;ve used all {applyContext.limit} free applications in this rolling
+                      30-day window.
+                      {applyContext.nextSlotFreesAt
+                        ? ` Your next slot frees on ${shortDate(applyContext.nextSlotFreesAt)}.`
+                        : ""}{" "}
+                      {proUpsell} removes the limit and adds {EARLY_ACCESS_HOURS}-hour early access
+                      — billing launches soon.
+                    </p>
+                  </div>
+                ) : applyContext?.kind === "can-apply" ? (
+                  <div className="mt-3">
+                    <p className="text-[13px] leading-[18px] text-muted-foreground">
+                      {applyContext.remaining === null
+                        ? "Pro — unlimited applications."
+                        : `${applyContext.remaining} of your free applications left in this rolling 30-day window.`}
+                    </p>
+                    {/* Outline, not red: the red belongs to the button that
+                        actually sends the application. */}
+                    <Button
+                      variant="outline"
+                      className="mt-3 w-full"
+                      render={<Link href="#apply">Write your application</Link>}
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
-          </section>
-        ) : null}
+          </aside>
+
+          <div className="lg:col-start-1 lg:row-start-1">
+            {company.tier === "UNVERIFIED" ? (
+              <Notice tone="warning" className="mb-8">
+                <strong className="font-semibold">Unverified employer.</strong> This company has
+                confirmed an email address and nothing else. Never pay to apply, never take unpaid
+                test work longer than 4 hours, and keep the conversation here until you trust them.
+              </Notice>
+            ) : null}
+
+            <section>
+              <h2 className="t-label text-muted-foreground">Job description</h2>
+              <div className="t-body measure mt-3 whitespace-pre-wrap">{job.description}</div>
+            </section>
+
+            {job.skills.length > 0 ? (
+              <section className="mt-8 border-t border-border pt-6">
+                <h2 className="t-label text-muted-foreground">Skills</h2>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {job.skills.map((s) => (
+                    <li
+                      key={s.skill.slug}
+                      className="rounded-[2px] border border-border px-2.5 py-1 text-[14px]"
+                    >
+                      {s.skill.name}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {view === "full" && applyContext?.kind === "can-apply" ? (
+              <section id="apply" className="mt-8 scroll-mt-20 border-t border-border pt-6">
+                <h2 className="t-subhead">Write your application</h2>
+                <p className="t-body-dense measure mt-1 text-muted-foreground">
+                  Applying is free. Talent4u takes 0% of what you earn — you and{" "}
+                  {company.companyName} agree the rate between yourselves.
+                </p>
+                <div className="mt-5">
+                  <ApplyForm jobSlug={job.slug} remaining={applyContext.remaining} />
+                </div>
+              </section>
+            ) : null}
+          </div>
+        </div>
       </div>
     </main>
   );

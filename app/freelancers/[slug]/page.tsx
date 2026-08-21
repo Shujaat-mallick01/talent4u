@@ -4,17 +4,46 @@ import { notFound } from "next/navigation";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
 import { StarRating } from "@/components/profile/star-rating";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconExternal } from "@/components/ui/icon";
 import { getPublicFreelancerBySlug } from "@/lib/db/freelancer";
 import { countryName } from "@/lib/geo/countries";
 import { freelancerVerificationBadge } from "@/lib/profile/badges";
 import { freelancerPersonJsonLd, jsonLdScript } from "@/lib/profile/jsonld";
 import { roundRating } from "@/lib/profile/reviews";
 import { SITE_URL } from "@/lib/site-url";
+import { cn } from "@/lib/utils";
+
+/**
+ * Public freelancer profile. SEO-critical and fully server-rendered.
+ *
+ * The layout answers, in order, the two questions a stranger arrives with:
+ * what does this person do, and does anyone vouch for them. So the headline
+ * sits in Ink directly under the name, the verification badge carries its
+ * meaning in plain words beside it (a title attribute is invisible on touch),
+ * and every fact a recruiter compares between candidates — rate, rating,
+ * reviews, country, timezone, tenure — lands in one ruled panel of tabular
+ * .t-data instead of a grey sentence.
+ */
 
 const canonical = (slug: string) => `${SITE_URL}/freelancers/${slug}`;
 
 const truncate = (text: string, max: number) =>
   text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
+
+const monthFmt = new Intl.DateTimeFormat("en", { month: "short", year: "numeric" });
+const dateFmt = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
+
+/** One cell of the ruled fact panel: mono label over a tabular value. */
+function Fact({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
+  return (
+    <div className="bg-background px-4 py-3">
+      <dt className="t-label text-muted-foreground">{label}</dt>
+      <dd className={cn("t-data mt-1.5", muted && "text-muted-foreground")}>{value}</dd>
+    </div>
+  );
+}
 
 export async function generateMetadata({
   params,
@@ -68,10 +97,32 @@ export default async function FreelancerProfilePage({
   });
 
   const links = [
-    { label: "GitHub", href: profile.githubUrl },
-    { label: "Portfolio", href: profile.portfolioUrl },
-    { label: "LinkedIn", href: profile.linkedinUrl },
-  ].filter((l): l is { label: string; href: string } => Boolean(l.href));
+    { label: "GitHub", cta: "View their GitHub", href: profile.githubUrl },
+    { label: "Portfolio", cta: "View their portfolio", href: profile.portfolioUrl },
+    { label: "LinkedIn", cta: "View their LinkedIn", href: profile.linkedinUrl },
+  ].filter((l): l is { label: string; cta: string; href: string } => Boolean(l.href));
+
+  // Skills grouped by category so a long list reads as a few short lines
+  // rather than one undifferentiated cloud of chips.
+  const grouped = new Map<string, { slug: string; name: string; yearsExp: number | null }[]>();
+  for (const s of profile.skills) {
+    const key = s.skill.category?.name ?? "Other";
+    const entry = { slug: s.skill.slug, name: s.skill.name, yearsExp: s.yearsExp };
+    const existing = grouped.get(key);
+    if (existing) existing.push(entry);
+    else grouped.set(key, [entry]);
+  }
+  const skillGroups = [...grouped.entries()].sort(([a], [b]) =>
+    a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b),
+  );
+
+  // Reviews are locked until both sides confirm an engagement, so an empty
+  // list is a fact about the process, not a gap in the profile — say which.
+  // The one action a reader can take is to read the linked work instead, so
+  // the invitation only appears when there is something to open.
+  const emptyGuidance =
+    "A review only appears here after this freelancer and an employer both confirm they worked together, with the rate and duration stated — nobody can post a one-sided review." +
+    (links.length > 0 ? " Until then, their linked work is the evidence to read." : "");
 
   return (
     <main id="main" className="flex-1">
@@ -81,98 +132,193 @@ export default async function FreelancerProfilePage({
         dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
       />
 
-      <div className="mx-auto w-full max-w-3xl px-6 py-10">
-        <header className="border-b border-border pb-6">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">{profile.displayName}</h1>
-            <ProfileBadge spec={badge} />
+      <div className="mx-auto w-full max-w-4xl px-6 py-10">
+        <header>
+          <p className="t-label text-muted-foreground">Freelancer</p>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="t-display-2">{profile.displayName}</h1>
             {profile.isOpenToWork ? (
-              <span className="inline-flex items-center rounded-[2px] border border-success/40 bg-success/10 px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-success">
-                Open to work
-              </span>
+              <ProfileBadge
+                spec={{
+                  label: "Open to work",
+                  tone: "green",
+                  title: "This freelancer says they are available for new work.",
+                }}
+              />
             ) : null}
           </div>
-          <p className="mt-1.5 text-lg text-muted-foreground">{profile.headline}</p>
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            <span>{country}</span>
-            <span>{profile.timezone.replace(/_/g, " ")}</span>
-            {profile.hourlyRateUsd ? (
-              <span className="font-medium text-foreground">${profile.hourlyRateUsd}/hr</span>
-            ) : null}
-            <StarRating value={rating} count={reviewCount} />
+          {/* What they do, in Ink — the first thing the eye should land on
+              after the name. */}
+          <p className="t-subhead measure mt-3">{profile.headline}</p>
+
+          {/* The badge's meaning in plain words. A hover-only title attribute
+              never reaches a touch reader. */}
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <ProfileBadge spec={badge} />
+            <p className="t-body-dense measure text-muted-foreground">{badge.title}</p>
           </div>
+        </header>
 
-          {links.length > 0 ? (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {links.map((l) => (
+        {/* The comparison panel: one hairline grid, every value tabular. */}
+        <dl className="mt-6 grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-3 lg:grid-cols-6">
+          <Fact
+            label="Rate"
+            value={
+              profile.hourlyRateUsd
+                ? `$${profile.hourlyRateUsd.toLocaleString("en-US")}/hr`
+                : "Not listed"
+            }
+            muted={!profile.hourlyRateUsd}
+          />
+          <Fact
+            label="Rating"
+            value={rating === null ? "Not rated" : `${rating.toFixed(1)} / 5`}
+            muted={rating === null}
+          />
+          <Fact label="Reviews" value={String(reviewCount)} muted={reviewCount === 0} />
+          <Fact label="Country" value={country} />
+          <Fact label="Timezone" value={profile.timezone.replace(/_/g, " ")} />
+          <Fact label="Member since" value={monthFmt.format(profile.createdAt)} />
+        </dl>
+
+        {links.length > 0 ? (
+          <ul className="mt-4 flex flex-wrap gap-2">
+            {links.map((l) => (
+              <li key={l.label}>
                 <a
-                  key={l.label}
                   href={l.href}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
-                  className="rounded-md border border-border px-3 py-1 text-sm hover:bg-muted"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-[2px] border border-border px-4 text-[15px] font-medium transition-colors duration-[120ms] ease-out hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   {l.label}
+                  <IconExternal className="size-4 text-muted-foreground" />
+                  <span className="sr-only">(opens in a new tab)</span>
                 </a>
-              ))}
-            </div>
-          ) : null}
-        </header>
+              </li>
+            ))}
+          </ul>
+        ) : null}
 
-        <section className="py-6">
-          <h2 className="sr-only">About</h2>
-          <div className="space-y-3 whitespace-pre-wrap text-sm leading-relaxed">{profile.bio}</div>
+        <section className="mt-8 border-t border-border pt-8">
+          <h2 className="t-label text-muted-foreground">About</h2>
+          <div className="t-body measure mt-3 whitespace-pre-wrap">{profile.bio}</div>
         </section>
 
-        {profile.skills.length > 0 ? (
-          <section className="border-t border-border py-6">
-            <h2 className="mb-3 text-sm font-semibold">Skills</h2>
-            <ul className="flex flex-wrap gap-2">
-              {profile.skills.map((s) => (
+        {skillGroups.length > 0 ? (
+          <section className="mt-8 border-t border-border pt-8">
+            <h2 className="t-label text-muted-foreground">Skills</h2>
+            <ul className="rowset mt-3">
+              {skillGroups.map(([category, skills]) => (
                 <li
-                  key={s.skill.slug}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-sm"
+                  key={category}
+                  className="flex flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-baseline sm:gap-6"
                 >
-                  {s.skill.name}
-                  {s.yearsExp ? (
-                    <span className="text-xs text-muted-foreground">
-                      {s.yearsExp} {s.yearsExp === 1 ? "yr" : "yrs"}
-                    </span>
-                  ) : null}
+                  <span className="t-label shrink-0 text-muted-foreground sm:w-40">{category}</span>
+                  <ul className="flex flex-wrap gap-1.5">
+                    {skills.map((s) => (
+                      <li
+                        key={s.slug}
+                        className="inline-flex items-baseline gap-1.5 rounded-[2px] border border-border px-2 py-1 text-[15px] leading-5"
+                      >
+                        {s.name}
+                        {s.yearsExp ? (
+                          <span className="tabular text-[13px] text-muted-foreground">
+                            {s.yearsExp} {s.yearsExp === 1 ? "yr" : "yrs"}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
                 </li>
               ))}
             </ul>
           </section>
         ) : null}
 
-        <section className="border-t border-border py-6">
-          <h2 className="mb-4 text-sm font-semibold">
-            Reviews {reviewCount > 0 ? `(${reviewCount})` : ""}
-          </h2>
+        <section className="mt-8 border-t border-border pt-8">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <h2 className="t-label text-muted-foreground">Reviews</h2>
+            {reviewCount > 0 ? <StarRating value={rating} count={reviewCount} /> : null}
+          </div>
+
           {reviewCount === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No reviews yet. Reviews unlock only after both sides confirm they worked together.
-            </p>
-          ) : (
-            <ul className="space-y-4">
-              {profile.reviewsReceived.map((review) => (
-                <li key={review.id} className="rounded-lg border border-border p-4">
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <StarRating value={review.rating} count={1} hideCount />
-                    {review.authorRecruiter && !review.authorRecruiter.isBanned ? (
-                      <Link
-                        href={`/companies/${review.authorRecruiter.slug}`}
-                        className="text-sm text-muted-foreground hover:text-foreground hover:underline"
-                      >
-                        {review.authorRecruiter.companyName}
-                      </Link>
-                    ) : null}
+            <div className="mt-3">
+              {links.length > 0 ? (
+                <EmptyState
+                  title="No reviews yet"
+                  guidance={emptyGuidance}
+                  action={
+                    <Button
+                      variant="outline"
+                      render={
+                        <a href={links[0].href} target="_blank" rel="noopener noreferrer nofollow">
+                          {links[0].cta}
+                        </a>
+                      }
+                    />
+                  }
+                />
+              ) : (
+                /* Same block without an invitation: with no linked work there
+                   is nothing for a reader to open, and a button that goes
+                   somewhere unrelated is worse than none. */
+                <div className="border border-dashed border-border px-6 py-16">
+                  <div className="measure">
+                    <h3 className="t-heading">No reviews yet</h3>
+                    <p className="mt-2 text-[15px] leading-[22px] text-muted-foreground">
+                      {emptyGuidance}
+                    </p>
                   </div>
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{review.body}</p>
-                </li>
-              ))}
-            </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <p className="t-body-dense measure mt-3 text-muted-foreground">
+                Every review below comes from an engagement both sides confirmed, with the rate and
+                duration stated.
+                {reviewCount > profile.reviewsReceived.length
+                  ? ` Showing the ${profile.reviewsReceived.length} most recent of ${reviewCount}.`
+                  : ""}
+              </p>
+
+              {/* Rows sharing one hairline — never cards floating with gaps. */}
+              <ul className="rowset mt-3">
+                {profile.reviewsReceived.map((review) => (
+                  <li key={review.id} className="row-hover px-4 py-4">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <StarRating value={review.rating} count={1} hideCount />
+                        {review.authorRecruiter && !review.authorRecruiter.isBanned ? (
+                          <Link
+                            href={`/companies/${review.authorRecruiter.slug}`}
+                            className="rounded-[2px] font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                          >
+                            {review.authorRecruiter.companyName}
+                          </Link>
+                        ) : review.authorRecruiter ? (
+                          /* Banning delists the employer but keeps the review
+                             they wrote. Say so rather than showing a nameless
+                             row. */
+                          <Link
+                            href="/removed-employers"
+                            className="rounded-[2px] text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                          >
+                            Removed employer
+                          </Link>
+                        ) : null}
+                      </div>
+                      <span className="t-data shrink-0 text-muted-foreground">
+                        {dateFmt.format(review.createdAt)}
+                      </span>
+                    </div>
+                    <p className="t-body-dense measure mt-2 whitespace-pre-wrap">{review.body}</p>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </section>
       </div>

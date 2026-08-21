@@ -36,7 +36,20 @@ const buttonVariants = cva(
         /** The one primary per view. Under 10% of the pixels on screen. */
         default:
           "border-transparent bg-primary text-primary-foreground hover:bg-destructive active:bg-destructive dark:hover:bg-primary/85",
-        /** Ink-bordered secondary, per the palette's "secondary buttons" role. */
+        /**
+         * Ink-filled. The affirmative action INSIDE a record row.
+         *
+         * The brand gives Ink the "secondary buttons" role, and this variant
+         * exists because the alternative breaks a harder rule: a 50-row
+         * application inbox with a red Shortlist on every undecided row puts
+         * Signal Red far past "under 10% of pixels" and destroys the
+         * one-red-element-per-view discipline that makes the accent mean
+         * anything. Red stays for the view's single most important action;
+         * rows get Ink.
+         */
+        secondary:
+          "border-transparent bg-foreground text-background hover:bg-foreground/85 active:bg-foreground/90",
+        /** Ink-bordered, transparent. The quieter half of a decision pair. */
         outline:
           "border-foreground bg-transparent text-foreground hover:bg-muted active:bg-secondary",
         /** Quiet actions inside dense rows. */

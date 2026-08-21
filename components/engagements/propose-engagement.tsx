@@ -1,16 +1,25 @@
+import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Field } from "@/components/ui/field";
+import { Select } from "@/components/ui/select";
 import type { EngageableApplication } from "@/lib/db/engagement";
 import type { EngagementSide } from "@/lib/services/engagement-state";
 
 import { proposeEngagement } from "@/app/dashboard/engagements/actions";
 
-import { TermsFields } from "./engagement-list";
+import { RECORD_ANCHOR, TermsFields } from "./engagement-list";
 
 /**
  * Records a completed engagement. The picker only offers applications the
  * viewer is already a party to and that have no engagement yet — and the
  * service re-derives both parties from the chosen application, so the option
  * list is convenience, not authorization.
+ *
+ * Filing is a claim about another person, so the consequence is stated above
+ * the button: they see these exact figures, nothing publishes until they agree
+ * to them, and a refusal is final.
  */
 export function ProposeEngagement({
   applications,
@@ -21,26 +30,43 @@ export function ProposeEngagement({
 }) {
   if (applications.length === 0) {
     return (
-      <p className="border border-dashed border-border p-6 text-sm text-muted-foreground">
-        {side === "FREELANCER"
-          ? "Engagements are recorded against a job you applied to. Once you have applied and the work is done, come back here to record it."
-          : "Engagements are recorded against an application to one of your jobs. Every application you have already has one, or you have none yet."}
-      </p>
+      <div id={RECORD_ANCHOR}>
+        <EmptyState
+          title="Nothing to record yet"
+          guidance={
+            side === "FREELANCER"
+              ? "An engagement is recorded against a job you applied to. Apply to one, and once the work is done come back here to state the rate and the weeks."
+              : "An engagement is recorded against an application to one of your jobs. Every application you have is already claimed, or you have not received one yet."
+          }
+          action={
+            side === "FREELANCER" ? (
+              <Button render={<Link href="/jobs">Browse jobs</Link>} />
+            ) : (
+              <Button render={<Link href="/dashboard/recruiter/jobs/new">Post a job</Link>} />
+            )
+          }
+        />
+      </div>
     );
   }
 
+  const pickerId = "record-application";
+  const pickerHint =
+    side === "FREELANCER"
+      ? "Only jobs you applied to that have no engagement recorded yet."
+      : "Only applications to your jobs that have no engagement recorded yet.";
+  const counterparty = side === "FREELANCER" ? "The company" : "The freelancer";
+
   return (
-    <form action={proposeEngagement} className="border border-border p-4">
-      <label className="block">
-        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-          Which work?
-        </span>
-        <select
-          name="applicationId"
-          required
-          defaultValue=""
-          className="mt-1 h-9 w-full rounded-[2px] border border-border bg-background px-2 text-sm focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
+    <form id={RECORD_ANCHOR} action={proposeEngagement} className="border border-border p-4 sm:p-5">
+      <Field
+        label="Which work?"
+        htmlFor={pickerId}
+        hint={pickerHint}
+        required
+        className="max-w-xl"
+      >
+        <Select id={pickerId} name="applicationId" required defaultValue="">
           <option value="" disabled>
             Choose an application…
           </option>
@@ -51,23 +77,20 @@ export function ProposeEngagement({
                 : `${app.freelancer.displayName} — ${app.job.title}`}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
 
-      <div className="mt-3">
-        <TermsFields />
-      </div>
+      <TermsFields idPrefix="record" className="mt-4" />
 
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button type="submit" size="sm">
-          Record engagement
-        </Button>
-        <p className="text-xs text-muted-foreground">
-          {side === "FREELANCER"
-            ? "The company has to confirm these exact figures before anything is published."
-            : "The freelancer has to confirm these exact figures before anything is published."}
-        </p>
-      </div>
+      <p className="measure mt-4 text-[15px] leading-[22px] text-muted-foreground">
+        {counterparty} sees these exact figures and answers yes or no. Nothing publishes and no
+        review opens until they confirm the same rate and duration — and if they decline, neither
+        of you can file this claim again.
+      </p>
+
+      <Button type="submit" className="mt-4">
+        Record engagement
+      </Button>
     </form>
   );
 }

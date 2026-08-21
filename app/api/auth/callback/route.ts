@@ -62,6 +62,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return fail("oauth_failed");
 
+  // A recovery link's whole purpose is to set a new password, so it lands on
+  // the reset form rather than the user's dashboard — otherwise the session it
+  // just established would silently sign them in and the password they came
+  // to change would stay as it was.
+  if (typeParam === "recovery") {
+    return NextResponse.redirect(new URL("/reset-password", request.url));
+  }
+
   let state = await getUserAuthState(data.user.id);
 
   if (!state && roleParsed.success && data.user.email) {

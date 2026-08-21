@@ -3,6 +3,13 @@ import Link from "next/link";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox, ChoiceRow } from "@/components/ui/choice";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Field, fieldControlProps } from "@/components/ui/field";
+import { IconArrowLeft, IconArrowRight, IconFilter } from "@/components/ui/icon";
+import { Input } from "@/components/ui/input";
+import { Notice } from "@/components/ui/notice";
+import { Select } from "@/components/ui/select";
 import { browseJobs, type BrowseJobRow } from "@/lib/db/job-browse";
 import { listCategories, listSkillsForFilter } from "@/lib/db/taxonomy";
 import { timeAgo } from "@/lib/format/time";
@@ -10,6 +17,7 @@ import { recruiterTierBadge } from "@/lib/profile/badges";
 import { EARLY_ACCESS_HOURS } from "@/lib/pricing/plans";
 import { resolveEarlyAccessCutoff } from "@/lib/services/job-browse";
 import { SITE_URL } from "@/lib/site-url";
+import { cn } from "@/lib/utils";
 import {
   encodeJobBrowseCursor,
   parseJobBrowseParams,
@@ -21,6 +29,13 @@ import {
  * filters are plain GET params (no client JS involved anywhere on this page).
  * The 6-hour early-access window is applied as a query condition based on the
  * viewer's subscription, resolved server-side.
+ *
+ * Layout note: the results come FIRST in the DOM and the filter rail second,
+ * with CSS grid placing the rail on the left at lg. A keyboard user reaches
+ * the first job immediately instead of tabbing through nine filter controls on
+ * every page, and on a phone the jobs sit above the fold rather than below the
+ * whole form. The "Filters" link in the results header is the one-tab route
+ * back down to the form.
  */
 
 /** Current filters (and optionally a cursor) as normalized query params. */
@@ -71,13 +86,15 @@ const ENGAGEMENT_LABEL: Record<string, string> = {
   FULL_TIME: "Full-time",
 };
 
-function budgetLabel(job: BrowseJobRow): string | null {
-  const fmt = (n: number) => `$${n.toLocaleString("en-US")}`;
-  if (job.budgetMinUsd !== null && job.budgetMaxUsd !== null) {
-    return `${fmt(job.budgetMinUsd)}–${fmt(job.budgetMaxUsd)}`;
-  }
-  if (job.budgetMinUsd !== null) return `From ${fmt(job.budgetMinUsd)}`;
-  if (job.budgetMaxUsd !== null) return `Up to ${fmt(job.budgetMaxUsd)}`;
+const TIER_HINT = "Unverified employers have confirmed an email address and nothing more.";
+
+const usd = (n: number) => `$${n.toLocaleString("en-US")}`;
+
+/** "$2,000–$8,000", "From $2,000", "Up to $8,000", or null when unstated. */
+function budgetRange(min: number | null | undefined, max: number | null | undefined): string | null {
+  if (min != null && max != null) return `${usd(min)}–${usd(max)}`;
+  if (min != null) return `From ${usd(min)}`;
+  if (max != null) return `Up to ${usd(max)}`;
   return null;
 }
 
@@ -93,6 +110,80 @@ function nextPageHref(filters: JobBrowseFilters, lastRow: BrowseJobRow): string 
 function firstPageHref(filters: JobBrowseFilters): string {
   const query = browseQuery(filters).toString();
   return query ? `/jobs?${query}` : "/jobs";
+}
+
+/**
+ * Column geometry, declared once so the header strip and every row cannot
+ * drift apart. Below md the numeric cells fold back into labelled inline
+ * pairs, which is why each cell carries its own label rather than relying on
+ * the header strip alone.
+ */
+const COL_ROLE = "min-w-[13rem] flex-1";
+const COL_BUDGET = "md:w-36";
+const COL_APPLICANTS = "md:w-20";
+const COL_POSTED = "md:w-32";
+const NUM_CELL = "flex items-baseline gap-2 md:block md:text-right";
+
+const LINK_FOCUS =
+  "rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+
+/** Human-readable list of what the viewer has narrowed the list down to. */
+function describeFilters(
+  filters: JobBrowseFilters,
+  categoryName: string | undefined,
+  skillNames: string[],
+): string[] {
+  const out: string[] = [];
+  if (filters.categorySlug) out.push(categoryName ?? filters.categorySlug);
+  if (filters.engagementType) {
+    out.push((ENGAGEMENT_LABEL[filters.engagementType] ?? filters.engagementType).toLowerCase());
+  }
+  if (filters.isRemote === true) out.push("remote only");
+  if (filters.isRemote === false) out.push("on-site or hybrid");
+  if (filters.recruiterTier) {
+    out.push(`${recruiterTierBadge(filters.recruiterTier).label.toLowerCase()} employers`);
+  }
+  const budget = budgetRange(filters.budgetMin, filters.budgetMax);
+  if (budget) out.push(budget.charAt(0).toLowerCase() + budget.slice(1));
+  // Counted off the parsed slugs, not the resolved names: a slug that is
+  // well-formed but not a real skill still narrows the query, so it must still
+  // show up as an active filter.
+  const skillCount = filters.skillSlugs?.length ?? 0;
+  if (skillCount === 1) out.push(skillNames[0] ?? "1 skill");
+  else if (skillCount > 1) out.push(`${skillCount} skills`);
+  return out;
+}
+
+/**
+ * Empty-state guidance that names the filter to change, most restrictive
+ * first, rather than telling the reader what is absent.
+ */
+function describeFixes(
+  filters: JobBrowseFilters,
+  categoryName: string | undefined,
+  skillNames: string[],
+): string[] {
+  const fixes: string[] = [];
+  const skillCount = filters.skillSlugs?.length ?? 0;
+  if (skillCount === 1) fixes.push(`drop the ${skillNames[0] ?? "selected"} skill`);
+  else if (skillCount > 1) fixes.push(`drop one of the ${skillCount} skills`);
+  if (budgetRange(filters.budgetMin, filters.budgetMax)) fixes.push("widen the budget range");
+  if (filters.recruiterTier) {
+    fixes.push(
+      `include employers outside ${recruiterTierBadge(filters.recruiterTier).label.toLowerCase()}`,
+    );
+  }
+  if (filters.isRemote === true) fixes.push("include on-site roles");
+  if (filters.isRemote === false) fixes.push("include remote roles");
+  if (filters.engagementType) {
+    fixes.push(
+      `allow work other than ${(ENGAGEMENT_LABEL[filters.engagementType] ?? filters.engagementType).toLowerCase()}`,
+    );
+  }
+  if (filters.categorySlug) {
+    fixes.push(`search every category, not just ${categoryName ?? filters.categorySlug}`);
+  }
+  return fixes;
 }
 
 export default async function JobsBrowsePage({
@@ -111,57 +202,308 @@ export default async function JobsBrowsePage({
   const { jobs, hasMore } = await browseJobs(filters, cutoff);
 
   const selectedSkills = new Set(filters.skillSlugs ?? []);
+  const selectedSkillNames = skills.filter((s) => selectedSkills.has(s.slug)).map((s) => s.name);
+  const categoryName = categories.find((c) => c.slug === filters.categorySlug)?.name;
+
+  const active = describeFilters(filters, categoryName, selectedSkillNames);
+  const hasFilters = active.length > 0;
+
+  const noun = jobs.length === 1 ? "job" : "jobs";
+  // Only page 1 of an unpaged result set knows the true total, so the caption
+  // never claims a number it cannot stand behind.
+  const countCaption =
+    filters.cursor || hasMore
+      ? `${noun} on this page`
+      : hasFilters
+        ? `${noun} match`
+        : `${noun} open`;
+
+  // The empty state names the filter to change — the specific one, most
+  // restrictive first — and always carries exactly one way out.
+  const fixes = describeFixes(filters, categoryName, selectedSkillNames);
+  const primaryFix = fixes[0] ?? "widen one filter";
+  const empty = hasFilters
+    ? {
+        title: "No jobs match these filters",
+        guidance: `${primaryFix.charAt(0).toUpperCase()}${primaryFix.slice(1)}${
+          fixes[1] ? `, or ${fixes[1]}` : ""
+        }. Clearing every filter shows all open jobs, newest first.`,
+        actionLabel: "Clear filters",
+        actionHref: "/jobs",
+      }
+    : filters.cursor
+      ? {
+          title: "That is the end of the list",
+          guidance:
+            "There is nothing after the last job on the previous page. The newest posts are back on page one.",
+          actionLabel: "Go to the first page",
+          actionHref: firstPageHref(filters),
+        }
+      : {
+          title: "No jobs are open right now",
+          guidance: `Employers publish through the day, and a new post lands here within ${EARLY_ACCESS_HOURS} hours of going live. Put up a profile in the meantime so employers can find you first.`,
+          actionLabel: "Create a free profile",
+          actionHref: "/signup",
+        };
 
   return (
     <main id="main" className="flex-1">
       <div className="mx-auto w-full max-w-5xl px-6 py-10">
-        <header className="mb-6">
-          <h1 className="text-2xl font-semibold tracking-tight">Browse jobs</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            0% commission — you keep everything you earn.
-            {cutoff ? (
-              <>
-                {" "}
-                Pro members see new posts {EARLY_ACCESS_HOURS} hours before everyone else.
-              </>
-            ) : (
-              <> You&apos;re seeing brand-new posts with Pro early access.</>
-            )}
+        <header className="border-b border-border pb-6">
+          <h1 className="t-display-2">Browse jobs</h1>
+          <p className="t-body measure mt-3 text-muted-foreground">
+            Every job here is commission-free. You agree a rate directly with the employer and keep
+            100% of it — Talent4u never takes a cut and never handles the payment.
           </p>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
-          {/* Filters — a plain GET form, fully functional without JavaScript. */}
-          <aside>
-            <form method="get" action="/jobs" className="space-y-4">
-              <div className="space-y-1.5">
-                <label htmlFor="category" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Category
-                </label>
-                <select
-                  id="category"
-                  name="category"
-                  defaultValue={filters.categorySlug ?? ""}
-                  className="h-9 w-full rounded-md border border-border bg-input/30 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        {/* The early-access window, explained where it applies rather than as a
+            grey aside: it is the reason the top of this list is not the top of
+            the database, and the reader deserves to know that. */}
+        <Notice tone="info" className="mt-6">
+          {cutoff ? (
+            <>
+              Jobs published in the last {EARLY_ACCESS_HOURS} hours go to Pro members first, so this
+              list starts {EARLY_ACCESS_HOURS} hours back. Everything below is open to everyone
+              right now.{" "}
+              <Link href="/pricing" className={cn("font-medium underline", LINK_FOCUS)}>
+                See what Pro costs
+              </Link>
+              .
+            </>
+          ) : (
+            <>
+              You have Pro, so this list includes posts published minutes ago. Everyone else sees
+              them {EARLY_ACCESS_HOURS} hours after publication.
+            </>
+          )}
+        </Notice>
+
+        <div className="mt-8 grid gap-x-8 gap-y-10 lg:grid-cols-[13rem_1fr]">
+          {/* Results first in the DOM; grid places them second on the left-rail
+              layout. See the layout note at the top of this file. */}
+          <section aria-labelledby="results-heading" className="min-w-0 lg:col-start-2 lg:row-start-1">
+            <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-border pb-3">
+              <div className="min-w-0">
+                <h2 id="results-heading" className="t-subhead">
+                  Open jobs
+                </h2>
+                <p className="mt-1 text-[13px] leading-[18px] text-muted-foreground">
+                  Newest first
+                  {hasFilters ? ` · filtered by ${active.join(", ")}` : ""}
+                  {filters.cursor ? " · continued from the previous page" : ""}
+                  {hasFilters ? (
+                    <>
+                      {" · "}
+                      <Link href="/jobs" className={cn("underline hover:text-foreground", LINK_FOCUS)}>
+                        clear filters
+                      </Link>
+                    </>
+                  ) : null}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-5">
+                <a
+                  href="#filters"
+                  className={cn(
+                    "t-label inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground",
+                    LINK_FOCUS,
+                  )}
                 >
+                  <IconFilter className="size-4" />
+                  Filters{hasFilters ? ` · ${active.length}` : ""}
+                </a>
+                <p className="flex items-baseline gap-2">
+                  <span className="t-data">{jobs.length}</span>
+                  <span className="t-label text-muted-foreground">{countCaption}</span>
+                </p>
+              </div>
+            </div>
+
+            {jobs.length === 0 ? (
+              <EmptyState
+                className="mt-6"
+                title={empty.title}
+                guidance={empty.guidance}
+                action={
+                  <Button
+                    variant="outline"
+                    render={<Link href={empty.actionHref}>{empty.actionLabel}</Link>}
+                  />
+                }
+              />
+            ) : (
+              <>
+                {/* Column captions sit above the rule, so the rows below keep
+                    one continuous hairline. Hidden from assistive tech because
+                    each cell carries its own label. */}
+                <div aria-hidden className="mt-6 hidden gap-x-6 px-4 pb-2 md:flex">
+                  <span className={cn("t-label text-muted-foreground", COL_ROLE)}>Role</span>
+                  <span className={cn("t-label text-right text-muted-foreground", COL_BUDGET)}>
+                    Budget USD
+                  </span>
+                  <span className={cn("t-label text-right text-muted-foreground", COL_APPLICANTS)}>
+                    Applicants
+                  </span>
+                  <span className={cn("t-label text-right text-muted-foreground", COL_POSTED)}>
+                    Posted
+                  </span>
+                </div>
+
+                {/* Rows sharing one hairline, never cards floating with gaps.
+                    Every number is tabular and right-aligned so budget,
+                    applicants and age read straight down the page. */}
+                <ul className="rowset mt-6 md:mt-0">
+                  {jobs.map((job) => {
+                    const budget = budgetRange(job.budgetMinUsd, job.budgetMaxUsd);
+                    const applicants = job._count.applications;
+                    return (
+                      <li key={job.id} className="row-hover px-4 py-4">
+                        <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
+                          <div className={COL_ROLE}>
+                            <h3 className="text-[16px] font-semibold leading-[22px]">
+                              <Link
+                                href={`/jobs/${job.slug}`}
+                                className={cn("hover:underline", LINK_FOCUS)}
+                              >
+                                {job.title}
+                              </Link>
+                            </h3>
+
+                            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] leading-[22px]">
+                              <Link
+                                href={`/companies/${job.recruiter.slug}`}
+                                className={cn(
+                                  "text-muted-foreground hover:text-foreground hover:underline",
+                                  LINK_FOCUS,
+                                )}
+                              >
+                                {job.recruiter.companyName}
+                              </Link>
+                              {/* The tier label is on every row, always — the
+                                  LIVE tier from the joined recruiter (the ?tier=
+                                  filter uses the indexed snapshot column). */}
+                              <ProfileBadge spec={recruiterTierBadge(job.recruiter.tier)} />
+                            </p>
+
+                            <p className="t-label mt-2 text-muted-foreground">
+                              {[
+                                ENGAGEMENT_LABEL[job.engagementType] ?? job.engagementType,
+                                job.isRemote ? "Remote" : (job.location ?? "On-site"),
+                                job.category.name,
+                              ].join(" · ")}
+                            </p>
+
+                            {job.skills.length > 0 ? (
+                              <ul className="mt-2 flex flex-wrap gap-1.5">
+                                {job.skills.map((s) => (
+                                  <li
+                                    key={s.skill.slug}
+                                    className="rounded-[2px] border border-border px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground"
+                                  >
+                                    {s.skill.name}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
+                          </div>
+
+                          <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 md:shrink-0">
+                            <div className={cn(NUM_CELL, COL_BUDGET)}>
+                              <span className="t-label text-muted-foreground md:sr-only">Budget</span>
+                              {budget ? (
+                                <span className="t-data whitespace-nowrap">{budget}</span>
+                              ) : (
+                                <span className="t-data text-muted-foreground">
+                                  <span aria-hidden>—</span>
+                                  <span className="sr-only">Not stated</span>
+                                </span>
+                              )}
+                            </div>
+
+                            <div className={cn(NUM_CELL, COL_APPLICANTS)}>
+                              <span className="t-label text-muted-foreground md:sr-only">
+                                Applicants
+                              </span>
+                              <span className="t-data">{applicants}</span>
+                            </div>
+
+                            <div className={cn(NUM_CELL, COL_POSTED)}>
+                              <span className="t-label text-muted-foreground md:sr-only">Posted</span>
+                              <span className="t-data whitespace-nowrap">
+                                {job.publishedAt ? timeAgo(job.publishedAt) : "—"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                {filters.cursor || hasMore ? (
+                  <nav
+                    aria-label="Job list pages"
+                    className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4"
+                  >
+                    <p className="t-label text-muted-foreground">
+                      {filters.cursor
+                        ? "Continued from an earlier page"
+                        : "More jobs on the next page"}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      {filters.cursor ? (
+                        <Button
+                          variant="ghost"
+                          render={
+                            <Link href={firstPageHref(filters)}>
+                              <IconArrowLeft />
+                              First page
+                            </Link>
+                          }
+                        />
+                      ) : null}
+                      {hasMore ? (
+                        <Button
+                          variant="outline"
+                          render={
+                            <Link href={nextPageHref(filters, jobs[jobs.length - 1])}>
+                              Next page
+                              <IconArrowRight />
+                            </Link>
+                          }
+                        />
+                      ) : null}
+                    </div>
+                  </nav>
+                ) : null}
+              </>
+            )}
+          </section>
+
+          {/* Filters — a plain GET form, fully functional without JavaScript. */}
+          {/* tabIndex -1 so the "Filters" link above actually moves focus here,
+              not just the scroll position. */}
+          <aside id="filters" tabIndex={-1} className="lg:col-start-1 lg:row-start-1">
+            <h2 className="t-label pb-3 text-muted-foreground">Filters</h2>
+            <form method="get" action="/jobs" className="space-y-5 border-t border-border pt-5">
+              <Field label="Category" htmlFor="category">
+                <Select id="category" name="category" defaultValue={filters.categorySlug ?? ""}>
                   <option value="">All categories</option>
                   {categories.map((c) => (
                     <option key={c.slug} value={c.slug}>
                       {c.name}
                     </option>
                   ))}
-                </select>
-              </div>
+                </Select>
+              </Field>
 
-              <div className="space-y-1.5">
-                <label htmlFor="engagement" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Engagement
-                </label>
-                <select
+              <Field label="Engagement" htmlFor="engagement">
+                <Select
                   id="engagement"
                   name="engagement"
                   defaultValue={filters.engagementType ?? ""}
-                  className="h-9 w-full rounded-md border border-border bg-input/30 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 >
                   <option value="">Any</option>
                   {Object.entries(ENGAGEMENT_LABEL).map(([value, label]) => (
@@ -169,186 +511,105 @@ export default async function JobsBrowsePage({
                       {label}
                     </option>
                   ))}
-                </select>
-              </div>
+                </Select>
+              </Field>
 
-              <div className="space-y-1.5">
-                <label htmlFor="remote" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Location
-                </label>
-                <select
+              <Field label="Location" htmlFor="remote">
+                <Select
                   id="remote"
                   name="remote"
                   defaultValue={filters.isRemote === undefined ? "" : String(filters.isRemote)}
-                  className="h-9 w-full rounded-md border border-border bg-input/30 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 >
                   <option value="">Anywhere</option>
                   <option value="true">Remote only</option>
                   <option value="false">On-site / hybrid</option>
-                </select>
-              </div>
+                </Select>
+              </Field>
 
-              <div className="space-y-1.5">
-                <label htmlFor="tier" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Employer status
-                </label>
-                <select
-                  id="tier"
+              <Field label="Employer status" htmlFor="tier" hint={TIER_HINT}>
+                <Select
+                  {...fieldControlProps("tier", { hint: TIER_HINT })}
                   name="tier"
                   defaultValue={filters.recruiterTier ?? ""}
-                  className="h-9 w-full rounded-md border border-border bg-input/30 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 >
                   <option value="">Any</option>
                   <option value="TRUSTED">Trusted</option>
                   <option value="VERIFIED">Verified</option>
                   <option value="UNVERIFIED">Unverified</option>
-                </select>
-              </div>
+                </Select>
+              </Field>
 
-              <div className="space-y-1.5">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Budget (USD)
-                </span>
-                <div className="flex items-center gap-2">
-                  <input
-                    aria-label="Budget minimum"
-                    name="budgetMin"
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    defaultValue={filters.budgetMin ?? ""}
-                    placeholder="Min"
-                    className="h-9 w-full rounded-md border border-border bg-input/30 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                  />
-                  <input
-                    aria-label="Budget maximum"
-                    name="budgetMax"
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    defaultValue={filters.budgetMax ?? ""}
-                    placeholder="Max"
-                    className="h-9 w-full rounded-md border border-border bg-input/30 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                  />
+              <fieldset className="space-y-1.5">
+                <legend className="text-[15px] font-medium leading-none">Budget (USD)</legend>
+                <p id="budget-hint" className="text-[13px] leading-[18px] text-muted-foreground">
+                  A job that states no budget still shows up here.
+                </p>
+                <div className="flex items-center gap-2 pt-0.5">
+                  <div className="min-w-0 flex-1">
+                    <label htmlFor="budgetMin" className="sr-only">
+                      Budget minimum in US dollars
+                    </label>
+                    <Input
+                      id="budgetMin"
+                      name="budgetMin"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      defaultValue={filters.budgetMin ?? ""}
+                      placeholder="Min"
+                      aria-describedby="budget-hint"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <label htmlFor="budgetMax" className="sr-only">
+                      Budget maximum in US dollars
+                    </label>
+                    <Input
+                      id="budgetMax"
+                      name="budgetMax"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      defaultValue={filters.budgetMax ?? ""}
+                      placeholder="Max"
+                      aria-describedby="budget-hint"
+                    />
+                  </div>
                 </div>
-              </div>
+              </fieldset>
 
-              <details open={selectedSkills.size > 0} className="rounded-md border border-border p-3">
-                <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Skills{selectedSkills.size > 0 ? ` (${selectedSkills.size})` : ""}
+              {/* Kept as a native <details> so the list collapses without any
+                  client JS. `display` stays list-item so the disclosure marker
+                  survives — a flex summary loses it in Chrome and Safari. */}
+              <details open={selectedSkills.size > 0} className="border-t border-border pt-4">
+                <summary
+                  className={cn("cursor-pointer text-[15px] font-medium leading-none", LINK_FOCUS)}
+                >
+                  Skills
+                  {selectedSkills.size > 0 ? ` · ${selectedSkills.size} selected` : ""}
                 </summary>
-                <div className="mt-2 max-h-64 space-y-1 overflow-y-auto">
+                <div className="mt-1 max-h-72 overflow-y-auto pr-1">
                   {skills.map((skill) => (
-                    <label key={skill.slug} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
+                    <ChoiceRow key={skill.slug}>
+                      <Checkbox
                         name="skills"
                         value={skill.slug}
                         defaultChecked={selectedSkills.has(skill.slug)}
-                        className="size-4 rounded border-border"
                       />
                       {skill.name}
-                    </label>
+                    </ChoiceRow>
                   ))}
                 </div>
               </details>
 
-              <div className="flex items-center gap-2">
-                <Button type="submit" size="sm">
-                  Apply filters
-                </Button>
-                <Button size="sm" variant="ghost" render={<Link href="/jobs">Reset</Link>} />
+              <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+                <Button type="submit">Apply filters</Button>
+                {hasFilters ? (
+                  <Button variant="ghost" render={<Link href="/jobs">Clear</Link>} />
+                ) : null}
               </div>
             </form>
           </aside>
-
-          {/* Results */}
-          <section>
-            {jobs.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border p-10 text-center">
-                <p className="text-sm text-muted-foreground">
-                  No jobs match these filters. Try removing one or two.
-                </p>
-              </div>
-            ) : (
-              <ul className="space-y-3">
-                {jobs.map((job) => (
-                  <li key={job.id} className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-ring/60">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <Link
-                          href={`/jobs/${job.slug}`}
-                          className="text-base font-semibold hover:underline"
-                        >
-                          {job.title}
-                        </Link>
-                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
-                          <Link
-                            href={`/companies/${job.recruiter.slug}`}
-                            className="hover:text-foreground hover:underline"
-                          >
-                            {job.recruiter.companyName}
-                          </Link>
-                          {/* The tier label is on every card, always — the
-                              LIVE tier from the joined recruiter (the ?tier=
-                              filter uses the indexed snapshot column). */}
-                          <ProfileBadge spec={recruiterTierBadge(job.recruiter.tier)} />
-                        </p>
-                      </div>
-                      <span className="whitespace-nowrap text-xs text-muted-foreground">
-                        {job.publishedAt ? timeAgo(job.publishedAt) : ""}
-                      </span>
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                      <span>{ENGAGEMENT_LABEL[job.engagementType] ?? job.engagementType}</span>
-                      {budgetLabel(job) ? (
-                        <span className="font-medium text-foreground">{budgetLabel(job)}</span>
-                      ) : null}
-                      <span>{job.isRemote ? "Remote" : (job.location ?? "On-site")}</span>
-                      <span>{job.category.name}</span>
-                      <span>
-                        {job._count.applications}{" "}
-                        {job._count.applications === 1 ? "applicant" : "applicants"}
-                      </span>
-                    </div>
-
-                    {job.skills.length > 0 ? (
-                      <ul className="mt-2 flex flex-wrap gap-1.5">
-                        {job.skills.map((s) => (
-                          <li
-                            key={s.skill.slug}
-                            className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground"
-                          >
-                            {s.skill.name}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="mt-6 flex items-center justify-between">
-              {filters.cursor ? (
-                <Link
-                  href={firstPageHref(filters)}
-                  className="text-sm text-muted-foreground hover:text-foreground hover:underline"
-                >
-                  ← First page
-                </Link>
-              ) : (
-                <span />
-              )}
-              {hasMore && jobs.length > 0 ? (
-                <Button
-                  variant="outline"
-                  render={<Link href={nextPageHref(filters, jobs[jobs.length - 1])}>Next page →</Link>}
-                />
-              ) : null}
-            </div>
-          </section>
         </div>
       </div>
     </main>

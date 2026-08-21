@@ -78,6 +78,15 @@ export default async function SignInPage({
           />
         </Field>
 
+        <p className="text-[15px]">
+          <Link
+            href="/forgot-password"
+            className="rounded-[2px] text-muted-foreground underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            Forgot your password?
+          </Link>
+        </p>
+
         <Button type="submit" size="lg" className="w-full">
           Sign in
         </Button>

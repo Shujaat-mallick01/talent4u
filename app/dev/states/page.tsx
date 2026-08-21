@@ -57,7 +57,7 @@ import {
  */
 export const metadata = { robots: { index: false, follow: false } };
 
-const BUTTON_VARIANTS = ["default", "outline", "ghost", "destructive", "link"] as const;
+const BUTTON_VARIANTS = ["default", "secondary", "outline", "ghost", "destructive", "link"] as const;
 const SIZES = ["sm", "default", "lg"] as const;
 
 const ICONS = [

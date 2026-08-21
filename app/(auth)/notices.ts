@@ -20,6 +20,14 @@ const NOTICE_COPY: Record<AuthNotice, string> = {
   email_conflict:
     "That email is already attached to a different account. Sign out and use your original sign-in method, or contact support.",
   confirm_email: "Check your email to confirm your account, then sign in.",
+  reset_sent:
+    "If that address has an account, a reset link is on its way. The link works once and expires in an hour.",
+  reset_link_expired:
+    "That reset link has expired or was already used. Request a new one — they last an hour.",
+  reset_failed: "Could not set that password. Request a new reset link and try again.",
+  password_updated: "Password changed. You are signed in.",
+  password_mismatch: "Both passwords must match.",
+  password_too_short: "Use at least 8 characters.",
 };
 
 export const resolveNotice = (value: string | null | undefined): string | null => {

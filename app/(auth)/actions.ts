@@ -7,6 +7,8 @@ import { getSession } from "@/lib/auth/session";
 import { homeFor } from "@/lib/auth/route-guard";
 import { createUserWithRole, getUserAuthState, getUserAuthStateFresh } from "@/lib/db/users";
 import {
+  forgotPasswordSchema,
+  resetPasswordSchema,
   roleChoiceSchema,
   sanitizeNextPath,
   signInSchema,
@@ -181,4 +183,63 @@ export async function signOut(): Promise<void> {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
   redirect("/signin");
+}
+
+/**
+ * Sends a password reset link.
+ *
+ * Always reports the same thing whether or not the address has an account:
+ * a reset form that says "no such user" is an account-enumeration oracle, and
+ * on a marketplace that tells an attacker which companies and freelancers are
+ * real. Supabase's own rate limiting is the throttle.
+ */
+export async function requestPasswordReset(formData: FormData): Promise<void> {
+  const parsed = forgotPasswordSchema.safeParse({ email: formData.get("email") });
+  if (!parsed.success) {
+    backTo("/forgot-password", { error: "invalid_input" });
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  // type=recovery lands on the shared callback, which routes recovery
+  // sessions to /reset-password rather than to the user's dashboard.
+  await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+    redirectTo: `${SITE_URL}${CALLBACK_PATH}?type=recovery`,
+  });
+
+  // Deliberately unconditional — see above.
+  backTo("/forgot-password", { message: "reset_sent" });
+}
+
+/**
+ * Sets a new password. Requires the recovery session the emailed link
+ * established; without one there is nothing to update and the request is
+ * bounced back to the start of the flow.
+ */
+export async function setNewPassword(formData: FormData): Promise<void> {
+  const session = await getSession();
+  if (!session) {
+    backTo("/forgot-password", { error: "reset_link_expired" });
+    return;
+  }
+
+  const parsed = resetPasswordSchema.safeParse({
+    password: formData.get("password"),
+    confirm: formData.get("confirm"),
+  });
+  if (!parsed.success) {
+    const mismatch = parsed.error.issues.some((i) => i.path[0] === "confirm");
+    backTo("/reset-password", { error: mismatch ? "password_mismatch" : "password_too_short" });
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) {
+    backTo("/reset-password", { error: "reset_failed" });
+    return;
+  }
+
+  const state = await getUserAuthState(session.userId);
+  redirect(state ? homeFor(state.role, state.hasProfile) : "/onboarding");
 }

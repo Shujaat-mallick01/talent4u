@@ -22,6 +22,26 @@ export const roleChoiceSchema = z.object({
   role: selectableRoleSchema,
 });
 
+/** Requesting a reset link. Only the address — nothing else is needed. */
+export const forgotPasswordSchema = z.object({
+  email: z.email("Enter a valid email address."),
+});
+
+/**
+ * Setting a new password from a recovery session. Confirmation is checked
+ * here rather than only in the browser, so a mismatch cannot slip past a
+ * disabled-JavaScript submit.
+ */
+export const resetPasswordSchema = z
+  .object({
+    password: z.string().min(8, "Use at least 8 characters."),
+    confirm: z.string(),
+  })
+  .refine((v) => v.password === v.confirm, {
+    message: "Both passwords must match.",
+    path: ["confirm"],
+  });
+
 /**
  * Every user-facing notice the auth flow can show, as a stable code. Pages
  * render only these — never free text from the query string — so a crafted
@@ -40,6 +60,12 @@ export const authNoticeSchema = z.enum([
   "email_required",
   "email_conflict",
   "confirm_email",
+  "reset_sent",
+  "reset_link_expired",
+  "reset_failed",
+  "password_updated",
+  "password_mismatch",
+  "password_too_short",
 ]);
 
 export type AuthNotice = z.infer<typeof authNoticeSchema>;

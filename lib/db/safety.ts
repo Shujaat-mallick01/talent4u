@@ -47,11 +47,18 @@ export async function flagMessage(args: FlagMessageArgs): Promise<boolean> {
   });
 }
 
-/** Open moderation entries, newest first — the admin queue (Session 4.3). */
+/**
+ * Open moderation entries, OLDEST first — the admin queue (Session 4.3).
+ *
+ * FIFO is load-bearing given `take: limit`: newest-first would truncate the
+ * OLDEST holds, and a held job that falls off the end sits in PENDING_REVIEW
+ * with no publishedAt, on no page and no URL, indefinitely. Matches the
+ * ordering of the report and verification queues beside it.
+ */
 export async function listOpenSafetyFlags(limit = 100) {
   return prisma.safetyFlag.findMany({
     where: { status: "OPEN" },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "asc" },
     take: limit,
     select: {
       id: true,
@@ -64,8 +71,14 @@ export async function listOpenSafetyFlags(limit = 100) {
           id: true,
           slug: true,
           title: true,
+          // The moderator is deciding ON this text, and a held job's public
+          // page 404s by design — so the body has to be in the queue itself.
+          description: true,
+          location: true,
           status: true,
-          recruiter: { select: { slug: true, companyName: true, tier: true, isBanned: true } },
+          recruiter: {
+            select: { id: true, slug: true, companyName: true, tier: true, isBanned: true },
+          },
         },
       },
       message: {

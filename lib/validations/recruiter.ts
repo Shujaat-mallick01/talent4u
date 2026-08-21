@@ -90,6 +90,16 @@ export type RecruiterVerificationDetailsInput = z.infer<
   typeof recruiterVerificationDetailsSchema
 >;
 
+/**
+ * The public reason a company was removed. Shown on /removed-employers, so it
+ * must be specific enough to be useful and short enough to read.
+ */
+export const banReasonSchema = z
+  .string()
+  .trim()
+  .min(15, "Say specifically what they did — this is published publicly.")
+  .max(300, "Keep the public reason under 300 characters.");
+
 /** An admin's rejection reason, shown back to the recruiter. */
 export const verificationNoteSchema = z
   .string()

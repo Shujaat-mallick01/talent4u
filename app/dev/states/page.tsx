@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { RoleChoice } from "@/components/auth/role-choice";
 import { MatchMeter } from "@/components/brand/match-meter";
 import { Orbit, OrbitSpinner } from "@/components/brand/orbit";
 import { ProfileBadge } from "@/components/profile/profile-badge";
@@ -34,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/notice";
 import { Select } from "@/components/ui/select";
 import { Skeleton, SkeletonRows } from "@/components/ui/skeleton";
+import { Steps } from "@/components/ui/steps";
 import { Textarea } from "@/components/ui/textarea";
 import {
   applicationStatusBadge,
@@ -327,6 +329,23 @@ export default function StatesHarnessPage() {
               <StarRating key={i} value={v} count={v ? 12 : 0} />
             ))}
           </div>
+        </Section>
+
+        <Section
+          title="Steps"
+          note="Numbering encodes a real sequence here, so ordinals carry information rather than decorating. State is marked by rule, weight and a tick — never colour alone."
+        >
+          <div className="space-y-6">
+            {[0, 1, 2].map((current) => (
+              <Steps key={current} steps={["About you", "Work details", "Skills"]} current={current} />
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Role choice" note="The signup decision that cannot be undone. The whole card is the hit area.">
+          <form className="max-w-md">
+            <RoleChoice />
+          </form>
         </Section>
       </div>
     </main>

@@ -1,56 +1,103 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+import { AuthDivider, AuthLayout } from "@/components/auth/auth-layout";
+import { RoleChoice } from "@/components/auth/role-choice";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Notice } from "@/components/ui/notice";
 
 import { resolveNotice } from "../notices";
 import { signInWithGoogle, signUpWithPassword } from "../actions";
 
-// Unstyled by design — Phase 1 owns all UI. This page only proves the flow.
+export const metadata: Metadata = {
+  title: "Create an account",
+  robots: { index: true, follow: true },
+};
+
 export default async function SignUpPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; message?: string }>;
+  searchParams: Promise<{ error?: string; message?: string; next?: string }>;
 }) {
   const params = await searchParams;
   const error = resolveNotice(params.error);
   const message = resolveNotice(params.message);
 
+  const signInHref = params.next ? `/signin?next=${encodeURIComponent(params.next)}` : "/signin";
+
   return (
-    <main id="main">
-      <h1>Create your account</h1>
-      {error ? <p role="alert">{error}</p> : null}
-      {message ? <p>{message}</p> : null}
+    <AuthLayout
+      title="Create an account"
+      intro={<>Free, no card. Browsing and applying costs nothing.</>}
+      footer={
+        <>
+          Already have an account?{" "}
+          <Link href={signInHref} className="font-medium text-foreground underline">
+            Sign in
+          </Link>
+        </>
+      }
+    >
+      {error ? (
+        <Notice tone="error" className="mb-5">
+          {error}
+        </Notice>
+      ) : null}
+      {message ? (
+        <Notice tone="info" className="mb-5">
+          {message}
+        </Notice>
+      ) : null}
 
-      <form action={signUpWithPassword}>
-        <fieldset>
-          <legend>I am a…</legend>
-          <label>
-            <input type="radio" name="role" value="FREELANCER" required /> Freelancer — I want to
-            find work
-          </label>
-          <br />
-          <label>
-            <input type="radio" name="role" value="RECRUITER" required /> Recruiter — I want to
-            hire
-          </label>
-        </fieldset>
+      <form action={signUpWithPassword} className="space-y-5">
+        {params.next ? <input type="hidden" name="next" value={params.next} /> : null}
 
-        <label>
-          Email <input type="email" name="email" autoComplete="email" />
-        </label>
-        <br />
-        <label>
-          Password <input type="password" name="password" autoComplete="new-password" />
-        </label>
-        <br />
+        <RoleChoice />
 
-        <button type="submit">Sign up</button>
-        <button formAction={signInWithGoogle} formNoValidate>
+        <Field label="Email" htmlFor="email">
+          <Input id="email" type="email" name="email" autoComplete="email" required />
+        </Field>
+
+        <Field
+          label="Password"
+          htmlFor="password"
+          hint="At least 8 characters."
+        >
+          <Input
+            id="password"
+            type="password"
+            name="password"
+            autoComplete="new-password"
+            minLength={8}
+            required
+            aria-describedby="password-hint"
+          />
+        </Field>
+
+        <Button type="submit" size="lg" className="w-full">
+          Create account
+        </Button>
+
+        <AuthDivider />
+
+        <Button
+          type="submit"
+          formAction={signInWithGoogle}
+          formNoValidate
+          variant="outline"
+          size="lg"
+          className="w-full"
+        >
           Continue with Google
-        </button>
-      </form>
+        </Button>
 
-      <p>
-        Already have an account? <Link href="/signin">Sign in</Link>
-      </p>
-    </main>
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          Signing up with Google takes you to the same role question — we ask it once, because it
+          decides which product you get.
+        </p>
+      </form>
+    </AuthLayout>
   );
 }

@@ -3,7 +3,11 @@
 import { useActionState, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
+import { Steps } from "@/components/ui/steps";
+import { Checkbox } from "@/components/ui/choice";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { COUNTRIES } from "@/lib/geo/countries";
@@ -49,7 +53,7 @@ const FALLBACK_TZ = [
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return (
-    <p role="alert" className="text-xs text-destructive">
+    <p role="alert" className="text-[13px] leading-[18px] text-destructive">
       {message}
     </p>
   );
@@ -160,34 +164,19 @@ export function FreelancerOnboardingForm({
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-10">
       <header className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Set up your freelancer profile</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Signed in as {email}. This is what recruiters see when they find you.
+        <h1 className="t-heading">Set up your profile</h1>
+        <p className="mt-2 measure text-[15px] leading-[22px] text-muted-foreground">
+          This is your public page — it is what a company reads before deciding whether to reply.
+          You can come back to any of it later.
         </p>
-        <ol className="mt-4 flex gap-2" aria-label="Progress">
-          {STEPS.map((label, i) => (
-            <li
-              key={label}
-              aria-current={i === step ? "step" : undefined}
-              className={
-                "flex-1 rounded-md border px-3 py-1.5 text-xs font-medium " +
-                (i === step
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : i < step
-                    ? "border-border bg-muted text-foreground"
-                    : "border-border bg-card text-muted-foreground")
-              }
-            >
-              {i + 1}. {label}
-            </li>
-          ))}
-        </ol>
+        <p className="t-label mt-2 text-muted-foreground">{email}</p>
+        <Steps steps={STEPS} current={step} className="mt-6" />
       </header>
 
       {state.formError ? (
-        <p role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <Notice tone="error" className="mb-5">
           {state.formError}
-        </p>
+        </Notice>
       ) : null}
 
       {/* noValidate: steps are toggled with `hidden`, and the browser refuses
@@ -225,7 +214,7 @@ export function FreelancerOnboardingForm({
               aria-invalid={Boolean(err.headline)}
               placeholder="Senior Shopify developer for high-volume stores"
             />
-            <p className="text-xs text-muted-foreground">One line. {headline.trim().length}/120</p>
+            <p className="text-[13px] leading-[18px] text-muted-foreground">One line. {headline.trim().length}/120</p>
             <FieldError message={err.headline} />
           </div>
           <div className="space-y-1.5">
@@ -239,7 +228,7 @@ export function FreelancerOnboardingForm({
               rows={7}
               placeholder="What you do, who you do it for, and the results you've delivered. Recruiters skim — lead with specifics."
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[13px] leading-[18px] text-muted-foreground">
               {bio.trim().length} characters (120 minimum)
             </p>
             <FieldError message={err.bio} />
@@ -251,13 +240,13 @@ export function FreelancerOnboardingForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="country">Country</Label>
-              <select
+              <Select
                 id="country"
                 name="country"
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
                 aria-invalid={Boolean(err.country)}
-                className="h-9 w-full rounded-md border border-border bg-input/30 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                
               >
                 <option value="">Select…</option>
                 {COUNTRIES.map((c) => (
@@ -265,18 +254,18 @@ export function FreelancerOnboardingForm({
                     {c.name}
                   </option>
                 ))}
-              </select>
+              </Select>
               <FieldError message={err.country} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="timezone">Timezone</Label>
-              <select
+              <Select
                 id="timezone"
                 name="timezone"
                 value={timezone}
                 onChange={(e) => setTimezone(e.target.value)}
                 aria-invalid={Boolean(err.timezone)}
-                className="h-9 w-full rounded-md border border-border bg-input/30 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                
               >
                 <option value="">Select…</option>
                 {timezones.map((tz) => (
@@ -284,7 +273,7 @@ export function FreelancerOnboardingForm({
                     {tz.replace(/_/g, " ")}
                   </option>
                 ))}
-              </select>
+              </Select>
               <FieldError message={err.timezone} />
             </div>
           </div>
@@ -306,8 +295,7 @@ export function FreelancerOnboardingForm({
           </div>
 
           <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={isOpenToWork}
               onChange={(e) => setIsOpenToWork(e.target.checked)}
               className="size-4 rounded border-border"
@@ -315,7 +303,7 @@ export function FreelancerOnboardingForm({
             I&apos;m open to work right now
           </label>
 
-          <fieldset className="space-y-3 rounded-md border border-border p-4">
+          <fieldset className="space-y-3 rounded-[2px] border border-border p-4">
             <legend className="px-1 text-xs font-medium text-muted-foreground">
               Proof of work (optional, but strongly recommended)
             </legend>
@@ -365,7 +353,7 @@ export function FreelancerOnboardingForm({
         <fieldset hidden={step !== 2} className="space-y-4">
           <div>
             <p className="text-sm font-medium">Pick your skills</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[13px] leading-[18px] text-muted-foreground">
               Choose 1–20. Add years of experience where you can — recruiters filter on it.{" "}
               {selectedSkills.size} selected.
             </p>
@@ -384,11 +372,10 @@ export function FreelancerOnboardingForm({
                     return (
                       <li
                         key={skill.slug}
-                        className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
+                        className="flex items-center justify-between gap-3 rounded-[2px] border border-border px-3 py-2"
                       >
                         <label className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={selected}
                             onChange={() => toggleSkill(skill.slug)}
                             className="size-4 rounded border-border"

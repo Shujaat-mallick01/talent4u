@@ -3,7 +3,10 @@
 import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
+import { Steps } from "@/components/ui/steps";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { COUNTRIES } from "@/lib/geo/countries";
@@ -32,7 +35,7 @@ const FIELD_STEP: Record<string, number> = {
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return (
-    <p role="alert" className="text-xs text-destructive">
+    <p role="alert" className="text-[13px] leading-[18px] text-destructive">
       {message}
     </p>
   );
@@ -82,35 +85,20 @@ export function RecruiterOnboardingForm({
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-10">
       <header className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Set up your company</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Signed in as {email}. New companies start <span className="font-medium">Unverified</span> —
-          you can verify later to earn a badge and full access.
+        <h1 className="t-heading">Set up your company</h1>
+        <p className="mt-2 measure text-[15px] leading-[22px] text-muted-foreground">
+          New companies start <span className="font-medium text-foreground">Unverified</span>,
+          which means one live post at a time and an “Unverified” label on it. Verifying lifts both
+          — and freelancers do check.
         </p>
-        <ol className="mt-4 flex gap-2" aria-label="Progress">
-          {STEPS.map((label, i) => (
-            <li
-              key={label}
-              aria-current={i === step ? "step" : undefined}
-              className={
-                "flex-1 rounded-md border px-3 py-1.5 text-xs font-medium " +
-                (i === step
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : i < step
-                    ? "border-border bg-muted text-foreground"
-                    : "border-border bg-card text-muted-foreground")
-              }
-            >
-              {i + 1}. {label}
-            </li>
-          ))}
-        </ol>
+        <p className="t-label mt-2 text-muted-foreground">{email}</p>
+        <Steps steps={STEPS} current={step} className="mt-6" />
       </header>
 
       {state.formError ? (
-        <p role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <Notice tone="error" className="mb-5">
           {state.formError}
-        </p>
+        </Notice>
       ) : null}
 
       <form action={formAction} noValidate encType="multipart/form-data" className="space-y-6">
@@ -161,13 +149,13 @@ export function RecruiterOnboardingForm({
 
           <div className="space-y-1.5">
             <Label htmlFor="country">Country</Label>
-            <select
+            <Select
               id="country"
               name="country"
               value={country}
               onChange={(e) => setCountry(e.target.value)}
               aria-invalid={Boolean(err.country)}
-              className="h-9 w-full rounded-md border border-border bg-input/30 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:max-w-xs"
+              className="sm:max-w-xs"
             >
               <option value="">Select…</option>
               {COUNTRIES.map((c) => (
@@ -175,7 +163,7 @@ export function RecruiterOnboardingForm({
                   {c.name}
                 </option>
               ))}
-            </select>
+            </Select>
             <FieldError message={err.country} />
           </div>
 
@@ -237,9 +225,9 @@ export function RecruiterOnboardingForm({
               accept={LOGO_ACCEPT}
               aria-invalid={Boolean(err.logo)}
               onChange={(e) => setLogoName(e.target.files?.[0]?.name ?? null)}
-              className="block w-full text-sm file:mr-3 file:rounded-md file:border file:border-border file:bg-input/30 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-input/50"
+              className="block w-full text-sm file:mr-3 file:rounded-[2px] file:border file:border-border file:bg-input/30 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-input/50"
             />
-            {logoName ? <p className="text-xs text-muted-foreground">Selected: {logoName}</p> : null}
+            {logoName ? <p className="text-[13px] leading-[18px] text-muted-foreground">Selected: {logoName}</p> : null}
             <FieldError message={err.logo} />
           </div>
         </fieldset>

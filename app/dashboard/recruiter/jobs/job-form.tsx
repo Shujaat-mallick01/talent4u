@@ -3,7 +3,9 @@
 import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/choice";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { SkillCategoryGroup } from "@/lib/db/freelancer";
@@ -36,7 +38,7 @@ export type JobFormInitial = {
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return (
-    <p role="alert" className="text-xs text-destructive">
+    <p role="alert" className="text-[13px] leading-[18px] text-destructive">
       {message}
     </p>
   );
@@ -85,7 +87,7 @@ export function JobForm({
       </header>
 
       {state.formError ? (
-        <p role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="mb-4 rounded-[2px] border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {state.formError}
         </p>
       ) : null}
@@ -109,13 +111,13 @@ export function JobForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="categorySlug">Category</Label>
-            <select
+            <Select
               id="categorySlug"
               name="categorySlug"
               value={categorySlug}
               onChange={(e) => setCategorySlug(e.target.value)}
               aria-invalid={Boolean(err.categorySlug)}
-              className="h-9 w-full rounded-md border border-border bg-input/30 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              
             >
               <option value="">Select…</option>
               {categories.map((c) => (
@@ -123,24 +125,24 @@ export function JobForm({
                   {c.name}
                 </option>
               ))}
-            </select>
+            </Select>
             <FieldError message={err.categorySlug} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="engagementType">Engagement</Label>
-            <select
+            <Select
               id="engagementType"
               name="engagementType"
               value={engagementType}
               onChange={(e) => setEngagementType(e.target.value)}
-              className="h-9 w-full rounded-md border border-border bg-input/30 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              
             >
               {jobEngagementTypes.map((t) => (
                 <option key={t} value={t}>
                   {ENGAGEMENT_LABEL[t]}
                 </option>
               ))}
-            </select>
+            </Select>
             <FieldError message={err.engagementType} />
           </div>
         </div>
@@ -156,7 +158,7 @@ export function JobForm({
             rows={9}
             placeholder="The work, the context, the stack, how success is measured, and how you like to collaborate. Specific posts attract specific people."
           />
-          <p className="text-xs text-muted-foreground">{description.trim().length} characters (100 minimum)</p>
+          <p className="text-[13px] leading-[18px] text-muted-foreground">{description.trim().length} characters (100 minimum)</p>
           <FieldError message={err.description} />
         </div>
 
@@ -193,8 +195,7 @@ export function JobForm({
 
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+            <Checkbox
               name="isRemote"
               checked={isRemote}
               onChange={(e) => setIsRemote(e.target.checked)}
@@ -232,8 +233,7 @@ export function JobForm({
                 <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                   {group.skills.map((skill) => (
                     <label key={skill.slug} className="flex items-center gap-1.5 text-sm">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         name="skillSlugs"
                         value={skill.slug}
                         checked={skills.has(skill.slug)}

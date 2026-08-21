@@ -31,7 +31,7 @@ export function ApplyForm({
       <input type="hidden" name="jobSlug" value={jobSlug} />
 
       {state.formError ? (
-        <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="rounded-[2px] border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {state.formError}
         </p>
       ) : null}
@@ -47,7 +47,7 @@ export function ApplyForm({
           rows={6}
           placeholder="Why you, for this job specifically. Reference the work — generic letters get skipped."
         />
-        <p className="text-xs text-muted-foreground">
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
           {coverLetter.trim().length} characters (80 minimum)
         </p>
         <FieldError message={err.coverLetter} />
@@ -88,7 +88,7 @@ export function ApplyForm({
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return (
-    <p role="alert" className="text-xs text-destructive">
+    <p role="alert" className="text-[13px] leading-[18px] text-destructive">
       {message}
     </p>
   );

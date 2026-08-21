@@ -37,8 +37,20 @@ export async function signUpWithPassword(formData: FormData): Promise<void> {
     password: formData.get("password"),
     role: formData.get("role"),
   });
+  // Where they were headed before they were asked to sign up — a job post,
+  // usually. Without carrying this the whole way, someone who arrives from a
+  // search result lands on a dashboard and has to find that job again.
+  const nextPath = sanitizeNextPath(
+    typeof formData.get("next") === "string" ? (formData.get("next") as string) : null,
+  );
+  const backToSignUp = (error: AuthNotice): never => {
+    const search = new URLSearchParams({ error });
+    if (nextPath) search.set("next", nextPath);
+    redirect(`/signup?${search.toString()}`);
+  };
+
   if (!parsed.success) {
-    backTo("/signup", { error: "invalid_input" });
+    backToSignUp("invalid_input");
     return;
   }
   const { email, password, role } = parsed.data;
@@ -52,7 +64,7 @@ export async function signUpWithPassword(formData: FormData): Promise<void> {
 
   if (error) {
     // Deliberately generic: do not leak whether the address is registered.
-    backTo("/signup", { error: "signup_failed" });
+    backToSignUp("signup_failed");
     return;
   }
 
@@ -66,10 +78,17 @@ export async function signUpWithPassword(formData: FormData): Promise<void> {
   if (data.session && data.user) {
     // Email confirmation is disabled in this Supabase project — signed in.
     const state = await getUserAuthState(data.user.id);
-    redirect(state ? homeFor(state.role, state.hasProfile) : "/onboarding");
+    if (!state) redirect("/onboarding");
+    // A brand new account has no profile yet, so onboarding has to happen
+    // first; nextPath is carried through it rather than dropped here.
+    if (nextPath && state.hasProfile) redirect(nextPath);
+    redirect(homeFor(state.role, state.hasProfile));
   }
 
-  backTo("/signin", { message: "confirm_email" });
+  // Confirmation required: send them to sign in, keeping the destination.
+  const search = new URLSearchParams({ message: "confirm_email" });
+  if (nextPath) search.set("next", nextPath);
+  redirect(`/signin?${search.toString()}`);
 }
 
 export async function signInWithPassword(formData: FormData): Promise<void> {

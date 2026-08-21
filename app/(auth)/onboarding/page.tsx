@@ -1,11 +1,17 @@
 import { redirect } from "next/navigation";
 
+import { AuthLayout } from "@/components/auth/auth-layout";
+import { RoleChoice } from "@/components/auth/role-choice";
+import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
 import { getSession } from "@/lib/auth/session";
 import { homeFor } from "@/lib/auth/route-guard";
 import { getUserAuthState } from "@/lib/db/users";
 
 import { resolveNotice } from "../notices";
 import { chooseRole } from "../actions";
+
+export const metadata = { title: "Choose your role", robots: { index: false, follow: false } };
 
 /**
  * Role chooser for OAuth-first accounts (a Supabase session exists but no
@@ -27,23 +33,22 @@ export default async function OnboardingPage({
   const error = resolveNotice(errorCode);
 
   return (
-    <main id="main">
-      <h1>One last thing</h1>
-      <p>How will you use Talent4u? This cannot be changed later.</p>
-      {error ? <p role="alert">{error}</p> : null}
+    <AuthLayout
+      title="One question left"
+      intro={<>Your account is created. This decides which product you get.</>}
+    >
+      {error ? (
+        <Notice tone="error" className="mb-5">
+          {error}
+        </Notice>
+      ) : null}
 
-      <form action={chooseRole}>
-        <label>
-          <input type="radio" name="role" value="FREELANCER" required /> Freelancer — I want to
-          find work
-        </label>
-        <br />
-        <label>
-          <input type="radio" name="role" value="RECRUITER" required /> Recruiter — I want to hire
-        </label>
-        <br />
-        <button type="submit">Continue</button>
+      <form action={chooseRole} className="space-y-5">
+        <RoleChoice legend="Which are you?" />
+        <Button type="submit" size="lg" className="w-full">
+          Continue
+        </Button>
       </form>
-    </main>
+    </AuthLayout>
   );
 }

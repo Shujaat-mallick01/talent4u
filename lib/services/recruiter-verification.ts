@@ -175,11 +175,16 @@ export async function rejectVerification(
  * never promotes an UNVERIFIED recruiter.
  */
 export async function evaluateTrustedPromotion(recruiterId: string): Promise<boolean> {
-  const tier = await getRecruiterTier(recruiterId);
-  if (tier !== "VERIFIED") return false;
+  const profile = await getRecruiterTier(recruiterId);
+  if (!profile) return false;
+  // A removed employer is never promoted, whatever their history says. Both
+  // callers already refuse banned recruiters; this is the backstop that means
+  // a future third caller cannot hand out a gold badge by forgetting to.
+  if (profile.isBanned) return false;
+  if (profile.tier !== "VERIFIED") return false;
 
   const distinct = await countDistinctConfirmedFreelancers(recruiterId);
-  if (!qualifiesForTrusted(tier, distinct)) return false;
+  if (!qualifiesForTrusted(profile.tier, distinct)) return false;
 
   await setRecruiterTier({ recruiterId, tier: "TRUSTED" });
   return true;

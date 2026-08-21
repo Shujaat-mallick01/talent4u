@@ -48,6 +48,10 @@ export default async function FreelancerDashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              render={<Link href="/dashboard/freelancer/engagements">Engagements</Link>}
+            />
             <Button render={<Link href="/jobs">Browse jobs</Link>} />
             <form action={signOut}>
               <Button type="submit" variant="ghost">

@@ -4,6 +4,7 @@ import type {
   JobStatus,
   RecruiterTier,
 } from "@/lib/generated/prisma/enums";
+import type { EngagementState } from "@/lib/services/engagement-state";
 
 /**
  * Verification/tier/status badge specs. Pure so the mappings are unit-tested
@@ -78,6 +79,41 @@ export function applicationStatusBadge(status: ApplicationStatus): BadgeSpec {
     case "WITHDRAWN":
     default:
       return { label: "Withdrawn", tone: "muted", title: "You withdrew this application." };
+  }
+}
+
+/**
+ * Engagement state. "Confirmed" is the only one that means anything to a
+ * reader — it is the state that unlocks reviews and counts toward TRUSTED — so
+ * it is the only one worn in green.
+ */
+export function engagementStateBadge(state: EngagementState): BadgeSpec {
+  switch (state) {
+    case "CONFIRMED":
+      return {
+        label: "Confirmed by both",
+        tone: "green",
+        title: "Both sides confirmed the rate and duration. Reviews are unlocked.",
+      };
+    case "PENDING":
+      return {
+        label: "Awaiting confirmation",
+        tone: "muted",
+        title: "One side filed this. It counts for nothing until the other side confirms.",
+      };
+    case "DECLINED":
+      return {
+        label: "Declined",
+        tone: "red",
+        title: "The other party said this is not an engagement they had.",
+      };
+    case "UNCLAIMED":
+    default:
+      return {
+        label: "Unconfirmed",
+        tone: "muted",
+        title: "Neither side has confirmed this engagement.",
+      };
   }
 }
 

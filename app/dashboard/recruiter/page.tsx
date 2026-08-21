@@ -68,6 +68,10 @@ export default async function RecruiterDashboardPage({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              render={<Link href="/dashboard/recruiter/engagements">Engagements</Link>}
+            />
             <Button render={<Link href="/dashboard/recruiter/jobs/new">Post a job</Link>} />
             <form action={signOut}>
               <Button type="submit" variant="ghost">

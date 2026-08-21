@@ -385,6 +385,14 @@ model Engagement {
   isConfirmed         Boolean   @default(false)
   confirmedAt         DateTime?
 
+  // The counterparty's refusal: "we did not work together on these terms".
+  // Terminal and private to the two parties — never rendered publicly, since
+  // one side's denial is not a finding we can stand behind. Its real work is
+  // the @@unique([recruiterId, freelancerId, jobId]) below: a declined row
+  // stays put, so the same claim cannot be re-filed at the same person.
+  // A CHECK (see the 4.4 migration) keeps declined and confirmed disjoint.
+  declinedAt          DateTime?
+
   reviews   Review[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

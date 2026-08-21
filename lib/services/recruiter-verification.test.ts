@@ -156,7 +156,7 @@ describe("approveVerification", () => {
   it("promotes UNVERIFIED to VERIFIED and clears the queue entry", async () => {
     mockAuth.mockResolvedValue(account({ id: ADMIN_ID, role: "ADMIN" }));
     mockFlags.mockResolvedValue(flags());
-    mockTier.mockResolvedValue("VERIFIED");
+    mockTier.mockResolvedValue({ tier: "VERIFIED", isBanned: false });
     mockDistinct.mockResolvedValue(0);
 
     expect(await approveVerification(ADMIN_ID, REC_ID)).toEqual({ ok: true });
@@ -173,7 +173,7 @@ describe("approveVerification", () => {
   it("promotes straight to TRUSTED when the engagements are already there", async () => {
     mockAuth.mockResolvedValue(account({ id: ADMIN_ID, role: "ADMIN" }));
     mockFlags.mockResolvedValue(flags());
-    mockTier.mockResolvedValue("VERIFIED");
+    mockTier.mockResolvedValue({ tier: "VERIFIED", isBanned: false });
     mockDistinct.mockResolvedValue(4);
 
     expect(await approveVerification(ADMIN_ID, REC_ID)).toEqual({ ok: true });
@@ -219,7 +219,7 @@ describe("rejectVerification", () => {
 
 describe("evaluateTrustedPromotion", () => {
   it("never promotes an UNVERIFIED recruiter, however many engagements", async () => {
-    mockTier.mockResolvedValue("UNVERIFIED");
+    mockTier.mockResolvedValue({ tier: "UNVERIFIED", isBanned: false });
     mockDistinct.mockResolvedValue(50);
     expect(await evaluateTrustedPromotion(REC_ID)).toBe(false);
     expect(mockSetTier).not.toHaveBeenCalled();
@@ -228,21 +228,35 @@ describe("evaluateTrustedPromotion", () => {
   });
 
   it("promotes a VERIFIED recruiter at the threshold", async () => {
-    mockTier.mockResolvedValue("VERIFIED");
+    mockTier.mockResolvedValue({ tier: "VERIFIED", isBanned: false });
     mockDistinct.mockResolvedValue(3);
     expect(await evaluateTrustedPromotion(REC_ID)).toBe(true);
     expect(mockSetTier).toHaveBeenCalledWith({ recruiterId: REC_ID, tier: "TRUSTED" });
   });
 
   it("does not promote below the threshold", async () => {
-    mockTier.mockResolvedValue("VERIFIED");
+    mockTier.mockResolvedValue({ tier: "VERIFIED", isBanned: false });
     mockDistinct.mockResolvedValue(2);
     expect(await evaluateTrustedPromotion(REC_ID)).toBe(false);
     expect(mockSetTier).not.toHaveBeenCalled();
   });
 
   it("is idempotent on an already-TRUSTED recruiter", async () => {
-    mockTier.mockResolvedValue("TRUSTED");
+    mockTier.mockResolvedValue({ tier: "TRUSTED", isBanned: false });
+    expect(await evaluateTrustedPromotion(REC_ID)).toBe(false);
+    expect(mockSetTier).not.toHaveBeenCalled();
+  });
+
+  it("never hands a gold badge to a removed employer", async () => {
+    mockTier.mockResolvedValue({ tier: "VERIFIED", isBanned: true });
+    mockDistinct.mockResolvedValue(9);
+    expect(await evaluateTrustedPromotion(REC_ID)).toBe(false);
+    expect(mockSetTier).not.toHaveBeenCalled();
+    expect(mockDistinct).not.toHaveBeenCalled();
+  });
+
+  it("reports false for an unknown recruiter instead of throwing", async () => {
+    mockTier.mockResolvedValue(null);
     expect(await evaluateTrustedPromotion(REC_ID)).toBe(false);
     expect(mockSetTier).not.toHaveBeenCalled();
   });

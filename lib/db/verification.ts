@@ -153,10 +153,16 @@ export async function listPendingVerifications() {
   });
 }
 
-export async function getRecruiterTier(recruiterId: string): Promise<RecruiterTier | null> {
-  const row = await prisma.recruiterProfile.findUnique({
+/**
+ * Tier plus ban state. isBanned travels with the tier because every caller
+ * that acts on a tier must also refuse to act on a removed employer, and a
+ * function returning the tier alone makes that easy to forget.
+ */
+export async function getRecruiterTier(
+  recruiterId: string,
+): Promise<{ tier: RecruiterTier; isBanned: boolean } | null> {
+  return prisma.recruiterProfile.findUnique({
     where: { id: recruiterId },
-    select: { tier: true },
+    select: { tier: true, isBanned: true },
   });
-  return row?.tier ?? null;
 }

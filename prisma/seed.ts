@@ -4,6 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 import type { FlagReason, PlanTier } from "../lib/generated/prisma/enums";
 import { PrismaClient } from "../lib/generated/prisma/client";
+import { scanTextForSafetyFlags } from "../lib/services/safety";
 import { daysAgo, hoursAgo, stableId, stableUuid } from "./seed-ids";
 import type { SeedRecruiter } from "./seed-data";
 import { seedData } from "./seed-data";
@@ -47,36 +48,17 @@ const RECRUITER_PLAN: Record<SeedRecruiter["tier"], PlanTier> = {
 };
 
 /**
- * Minimal stand-in for the automated flagger so the moderation queue is not
- * empty. The real implementation lands in lib/services/ in a later phase; this
- * only exists to give each PENDING_REVIEW job a coherent flag.
+ * Flags seeded PENDING_REVIEW jobs with the REAL scanner, so the seeded
+ * moderation queue contains exactly the rows production would produce. (This
+ * used to be a hand-maintained copy of the term list, which drifted from the
+ * scanner the moment its rules gained nuance.)
  */
-const FLAG_TERMS: ReadonlyArray<readonly [string, FlagReason]> = [
-  ["registration fee", "UPFRONT_PAYMENT"],
-  ["security deposit", "UPFRONT_PAYMENT"],
-  ["training fee", "UPFRONT_PAYMENT"],
-  ["equipment purchase", "UPFRONT_PAYMENT"],
-  ["processing fee", "UPFRONT_PAYMENT"],
-  ["refundable", "UPFRONT_PAYMENT"],
-  ["unpaid test", "LONG_UNPAID_TEST"],
-  ["unpaid trial", "LONG_UNPAID_TEST"],
-  ["test task", "LONG_UNPAID_TEST"],
-  ["western union", "OFF_PLATFORM_PAYMENT"],
-  ["paypal", "OFF_PLATFORM_PAYMENT"],
-  ["venmo", "OFF_PLATFORM_PAYMENT"],
-  ["telegram", "OFF_PLATFORM_PAYMENT"],
-  ["whatsapp", "OFF_PLATFORM_PAYMENT"],
-  ["crypto", "OFF_PLATFORM_PAYMENT"],
-  ["usdt", "OFF_PLATFORM_PAYMENT"],
-  ["gift card", "OFF_PLATFORM_PAYMENT"],
-];
-
 const detectFlag = (text: string): { term: string; reason: FlagReason } => {
-  const haystack = text.toLowerCase();
-  for (const [term, reason] of FLAG_TERMS) {
-    if (haystack.includes(term)) return { term, reason };
-  }
-  return { term: "manual review", reason: "OTHER" };
+  const match = scanTextForSafetyFlags(text);
+  return match ? { term: match.matchedTerm, reason: match.reason } : {
+    term: "manual review",
+    reason: "OTHER",
+  };
 };
 
 async function main() {

@@ -19,10 +19,52 @@ describe("scanTextForSafetyFlags", () => {
     });
   });
 
-  it("flags unpaid test tasks", () => {
+  // CLAUDE.md: hold "unpaid test tasks estimated ABOVE 4 HOURS" — the size is
+  // the trigger, not the existence of a take-home.
+  it("flags an unpaid test estimated above 4 hours", () => {
+    expect(
+      scanTextForSafetyFlags(
+        "Shortlisted candidates complete an unpaid trial build. Most people tell us it takes somewhere between twenty and twenty-five hours.",
+      ),
+    ).toMatchObject({ reason: "LONG_UNPAID_TEST", matchedTerm: "unpaid trial" });
+    expect(
+      scanTextForSafetyFlags("There is an unpaid test task; budget 6 to 8 hours for it."),
+    ).toMatchObject({ reason: "LONG_UNPAID_TEST" });
+    expect(
+      scanTextForSafetyFlags("We ask for an unpaid sample — two days of work."),
+    ).toMatchObject({ reason: "LONG_UNPAID_TEST" });
+  });
+
+  it("flags an unpaid test with NO stated bound (it cannot be shown to be small)", () => {
     expect(
       scanTextForSafetyFlags("shortlisted candidates complete an unpaid trial build"),
     ).toMatchObject({ reason: "LONG_UNPAID_TEST", matchedTerm: "unpaid trial" });
+  });
+
+  it("does NOT flag a short, honestly-bounded take-home", () => {
+    expect(
+      scanTextForSafetyFlags(
+        "We use a small unpaid test task to see how you work — it takes about 2 hours and we review it with you.",
+      ),
+    ).toBeNull();
+    expect(
+      scanTextForSafetyFlags("There's an unpaid trial exercise capped at 4 hours."),
+    ).toBeNull();
+    expect(
+      scanTextForSafetyFlags("An unpaid sample of a couple of hours, nothing more."),
+    ).toBeNull();
+  });
+
+  it("does NOT flag a post promising the opposite", () => {
+    expect(
+      scanTextForSafetyFlags("We never ask for unpaid test work — every interview task is paid."),
+    ).toBeNull();
+    expect(
+      scanTextForSafetyFlags("No unpaid trial here; we pay for your time from day one."),
+    ).toBeNull();
+    expect(
+      scanTextForSafetyFlags("We don't do unpaid test tasks, and we don't do take-home marathons."),
+    ).toBeNull();
   });
 
   it("flags payment apps paired with payment-request language", () => {

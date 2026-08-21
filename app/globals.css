@@ -135,6 +135,41 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* ── Brand tokens the guide names but Tailwind has no default for ──────────
+   Motion: the guide gives four durations and two curves, and asks that
+   prefers-reduced-motion cut duration to zero and HOLD the end state.
+   Elevation: exactly one shadow, for modals/menus/toasts only — "choose
+   borders or shadow, never both on the same element". */
+:root {
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-orbit: cubic-bezier(0.55, 0.1, 0.45, 0.9);
+  --duration-micro: 120ms; /* hover, focus */
+  --duration-standard: 200ms; /* panels, menus */
+  --duration-entry: 280ms; /* modals, drawers */
+  --duration-orbit: 1500ms;
+  --elevation: 0 8px 24px rgba(14, 14, 16, 0.1);
+
+  /* The 8px rhythm, named so layout code stops guessing. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-20: 80px;
+  --space-32: 128px;
+
+  --container-marketing: 1240px;
+  --rail-width: 232px;
+}
+
+@theme inline {
+  --shadow-elevation: var(--elevation);
+  --ease-standard: var(--ease-standard);
+  --ease-orbit: var(--ease-orbit);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -152,5 +187,162 @@
   h4 {
     font-family: var(--font-archivo), var(--font-sans), sans-serif;
     letter-spacing: -0.02em;
+  }
+
+  /* The guide's one motion rule, applied globally rather than per-component:
+     cut duration to zero and hold the end state. Not `animation: none`, which
+     would drop elements back to their start frame. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ── The type scale ────────────────────────────────────────────────────────
+   BRANDGUIDE volume one, section 06. Named classes rather than ad-hoc
+   text-* guesses, so a headline can never drift 28px away from its spec.
+   Every size/leading/tracking/weight triple below is quoted from the table. */
+@layer components {
+  .t-display-1 {
+    font-family: var(--font-archivo), var(--font-sans), sans-serif;
+    font-weight: 800;
+    font-size: 38px;
+    line-height: 40px;
+    letter-spacing: -0.03em;
+  }
+  .t-display-2 {
+    font-family: var(--font-archivo), var(--font-sans), sans-serif;
+    font-weight: 700;
+    font-size: 27px;
+    line-height: 32px;
+    letter-spacing: -0.022em;
+  }
+  .t-heading {
+    font-family: var(--font-archivo), var(--font-sans), sans-serif;
+    font-weight: 600;
+    font-size: 21px;
+    line-height: 26px;
+    letter-spacing: -0.014em;
+  }
+  .t-subhead {
+    font-family: var(--font-sans), sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 26px;
+    letter-spacing: -0.008em;
+  }
+  .t-body {
+    font-family: var(--font-sans), sans-serif;
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 26px;
+  }
+  /* Dense product tables only. Marketing prose uses .t-body. */
+  .t-body-dense {
+    font-family: var(--font-sans), sans-serif;
+    font-weight: 400;
+    font-size: 15px;
+    line-height: 22px;
+  }
+  .t-label {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-weight: 500;
+    font-size: 11px;
+    line-height: 15px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  /* Every rate, score, count and date. Tabular so columns align down a page. */
+  .t-data {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-weight: 500;
+    font-size: 15px;
+    line-height: 20px;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  @media (min-width: 640px) {
+    .t-display-1 {
+      font-size: 76px;
+      line-height: 76px;
+    }
+    .t-display-2 {
+      font-size: 44px;
+      line-height: 48px;
+    }
+    .t-heading {
+      font-size: 24px;
+      line-height: 29px;
+    }
+    .t-subhead {
+      font-size: 19px;
+      line-height: 27px;
+    }
+    .t-body {
+      font-size: 17px;
+      line-height: 28px;
+    }
+    .t-label {
+      font-size: 12px;
+      line-height: 16px;
+    }
+  }
+
+  /* "Cap the measure at 62 characters; a line that runs the full container
+     width is the single fastest way to make a considered layout look
+     unconsidered." */
+  .measure {
+    max-width: 62ch;
+  }
+
+  /* The brand's one animated asset: a full turn in 1.5s. Never the lockup. */
+  @keyframes t4u-orbit {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* The skeleton pulse. Opacity only — the guide rules out a shimmer sweep. */
+  @keyframes t4u-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.55;
+    }
+  }
+
+  /* Numbers anywhere, without committing to the full mono treatment. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* The record row — "the atom of the product". Rows share ONE continuous
+     hairline: the group draws the outer border, each row draws only its top
+     rule, and the first row's is suppressed so adjacent rows never double up.
+     Never cards with gaps. */
+  .rowset {
+    border: 1px solid var(--border);
+  }
+  .rowset > * + * {
+    border-top: 1px solid var(--border);
+  }
+  .row-hover {
+    transition: background-color var(--duration-micro) ease-out;
+  }
+  .row-hover:hover {
+    background-color: var(--muted);
   }
 }

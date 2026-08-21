@@ -1,22 +1,29 @@
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+import { controlBase, controlHeight, controlHeightLg } from "./field-styles";
+
+function Input({
+  className,
+  type,
+  inputSize = "default",
+  ...props
+}: React.ComponentProps<"input"> & { inputSize?: "default" | "lg" }) {
   return (
     <input
       type={type}
       data-slot="input"
       className={cn(
-        "flex h-9 w-full min-w-0 rounded-md border border-border bg-input/30 px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none",
-        "placeholder:text-muted-foreground",
-        "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
-        "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
-        "aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20",
-        "file:inline-flex file:border-0 file:bg-transparent file:text-sm file:font-medium",
+        controlBase,
+        inputSize === "lg" ? controlHeightLg : controlHeight,
+        // Numeric fields get tabular figures so rates and counts line up with
+        // the values they will be rendered as after saving.
+        type === "number" && "tabular",
+        "file:inline-flex file:border-0 file:bg-transparent file:text-[15px] file:font-medium",
         className,
       )}
       {...props}
     />
-  )
+  );
 }
 
-export { Input }
+export { Input };

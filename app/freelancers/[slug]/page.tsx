@@ -74,7 +74,7 @@ export default async function FreelancerProfilePage({
   ].filter((l): l is { label: string; href: string } => Boolean(l.href));
 
   return (
-    <main className="flex-1">
+    <main id="main" className="flex-1">
       <script
         type="application/ld+json"
         // Escaped by jsonLdScript — safe against markup injection.

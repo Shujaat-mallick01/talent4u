@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { cn } from "@/lib/utils";
 import { getCurrentProfile, requireRole } from "@/lib/auth/guards";
 import { listApplicationsForFreelancer } from "@/lib/db/application";
 import { timeAgo } from "@/lib/format/time";
@@ -12,10 +14,10 @@ import {
   jobStatusBadge,
 } from "@/lib/profile/badges";
 import { upsellLine } from "@/lib/pricing/catalogue";
+import { APPLICATION_WINDOW_DAYS, EARLY_ACCESS_HOURS } from "@/lib/pricing/plans";
 import { getApplicationQuotaStatus } from "@/lib/services/application";
 import { getViewerBand } from "@/lib/services/entitlements";
 
-import { signOut } from "../../(auth)/actions";
 
 export default async function FreelancerDashboardPage() {
   // Guarded here, not just in the proxy — curl hits the same wall.
@@ -30,95 +32,110 @@ export default async function FreelancerDashboardPage() {
   ]);
 
   return (
-    <main className="flex-1">
-      <div className="mx-auto w-full max-w-4xl px-6 py-10">
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <main id="main" className="flex-1">
+      <div className="w-full px-6 py-8 lg:px-8">
+        <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-border pb-4">
           <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold tracking-tight">
-                {current.profile.displayName}
-              </h1>
+            <h1 className="t-heading">Your applications</h1>
+            <p className="mt-1 flex flex-wrap items-center gap-2 text-[15px] text-muted-foreground">
               <ProfileBadge spec={freelancerVerificationBadge(current.profile.verification)} />
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Signed in as {user.email} ·{" "}
-              <Link
-                href={`/freelancers/${current.profile.slug}`}
-                className="underline hover:text-foreground"
-              >
-                view your public profile
-              </Link>
+              <span>{applications.length === 0 ? "Nothing sent yet" : `${applications.length} sent in total`}</span>
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              render={<Link href="/dashboard/freelancer/engagements">Engagements</Link>}
-            />
-            <Button render={<Link href="/jobs">Browse jobs</Link>} />
-            <form action={signOut}>
-              <Button type="submit" variant="ghost">
-                Sign out
-              </Button>
-            </form>
-          </div>
+          <Button render={<Link href="/jobs">Browse jobs</Link>} />
         </header>
 
-        {/* Quota card */}
+        {/* The quota, as countable slots rather than a percentage bar. Twelve
+            is a number you can see at a glance; 58% is not — and the thing a
+            freelancer actually wants to know is how many are left. */}
         {"limit" in quota ? (
-          <section className="mb-8 rounded-lg border border-border bg-card p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <section className="mb-8 border border-border">
+            <div className="flex flex-wrap items-start justify-between gap-4 p-4">
               <div>
-                <h2 className="text-sm font-semibold">Applications — last 30 days</h2>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  {quota.limit === null
-                    ? `${quota.used} sent · Pro — unlimited`
-                    : `${quota.used} of ${quota.limit} used · ${quota.remaining} left in your rolling 30-day window`}
-                  {quota.nextSlotFreesAt
-                    ? ` · next slot frees ${quota.nextSlotFreesAt.toLocaleDateString("en", { month: "short", day: "numeric" })}`
-                    : ""}
+                <h2 className="t-label text-muted-foreground">
+                  Applications · rolling {APPLICATION_WINDOW_DAYS} days
+                </h2>
+                <p className="mt-1.5 flex items-baseline gap-1.5">
+                  <span className="t-data text-[28px] leading-none">
+                    {quota.limit === null ? quota.used : (quota.remaining ?? 0)}
+                  </span>
+                  <span className="text-[15px] text-muted-foreground">
+                    {quota.limit === null
+                      ? "sent · Pro, no limit"
+                      : `left of ${quota.limit}`}
+                  </span>
                 </p>
+                {quota.nextSlotFreesAt ? (
+                  <p className="mt-1 text-[13px] text-muted-foreground">
+                    One more frees up on{" "}
+                    <span className="tabular">
+                      {quota.nextSlotFreesAt.toLocaleDateString("en", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                    , 30 days after the application that used it.
+                  </p>
+                ) : null}
               </div>
-              {quota.limit !== null && (quota.remaining ?? 0) <= 3 ? (
-                <p className="rounded-[2px] border border-warning/40 bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning">
-                  Running low — {upsellLine("FREELANCER_PRO", band)} removes the limit (billing
-                  launches soon)
-                </p>
+
+              {quota.limit !== null ? (
+                <div className="flex flex-col items-end gap-1.5">
+                  <div
+                    className="flex gap-1"
+                    role="img"
+                    aria-label={`${quota.used} of ${quota.limit} applications used`}
+                  >
+                    {Array.from({ length: quota.limit }, (_, i) => (
+                      <span
+                        key={i}
+                        className={cn(
+                          "h-6 w-1.5 rounded-[1px]",
+                          i < quota.used ? "bg-primary" : "bg-border",
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <span className="t-label text-muted-foreground">
+                    {quota.used} used
+                  </span>
+                </div>
               ) : null}
             </div>
-            {quota.limit !== null ? (
-              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary"
-                  style={{ width: `${Math.min(100, (quota.used / quota.limit) * 100)}%` }}
-                />
-              </div>
+
+            {quota.limit !== null && (quota.remaining ?? 0) <= 3 ? (
+              <p className="border-t border-border bg-muted px-4 py-2.5 text-[15px]">
+                {(quota.remaining ?? 0) === 0
+                  ? "You are out for now. "
+                  : "Running low. "}
+                {upsellLine("FREELANCER_PRO", band)} lifts the limit and shows new jobs{" "}
+                {EARLY_ACCESS_HOURS} hours early — billing launches soon.
+              </p>
             ) : null}
           </section>
         ) : null}
 
-        {/* Applications */}
         <section>
-          <h2 className="mb-3 text-sm font-semibold">Your applications</h2>
           {applications.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border p-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                Nothing yet.{" "}
-                <Link href="/jobs" className="underline hover:text-foreground">
-                  Browse open jobs
-                </Link>{" "}
-                and send your first application.
-              </p>
-            </div>
+            <EmptyState
+              title="No applications yet"
+              guidance="Browsing is free and unlimited — you only spend a slot when you actually apply. Find something worth writing a real cover letter for."
+              action={
+                <Button render={<Link href="/jobs">Browse open jobs</Link>} />
+              }
+            />
           ) : (
-            <ul className="divide-y divide-border rounded-lg border border-border">
+            <ul className="rowset">
               {applications.map((app) => (
-                <li key={app.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-                  <div className="min-w-0">
+                <li
+                  key={app.id}
+                  className="row-hover flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5"
+                >
+                  <div className="min-w-[16rem] flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
                         href={`/jobs/${app.job.slug}`}
-                        className="truncate font-medium hover:underline"
+                        className="truncate font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
                         {app.job.title}
                       </Link>
@@ -127,11 +144,19 @@ export default async function FreelancerDashboardPage() {
                         <ProfileBadge spec={jobStatusBadge(app.job.status)} />
                       ) : null}
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {app.job.recruiter.companyName} · applied {timeAgo(app.createdAt)}
-                      {app.proposedRateUsd ? ` · proposed $${app.proposedRateUsd}` : ""}
+                    <p className="mt-1 truncate text-[15px] text-muted-foreground">
+                      {app.job.recruiter.companyName}
                     </p>
                   </div>
+
+                  {app.proposedRateUsd ? (
+                    <span className="t-data shrink-0 text-right">
+                      ${app.proposedRateUsd.toLocaleString("en-US")}
+                    </span>
+                  ) : null}
+                  <span className="t-label w-24 shrink-0 text-right text-muted-foreground">
+                    {timeAgo(app.createdAt)}
+                  </span>
                 </li>
               ))}
             </ul>

@@ -20,7 +20,5 @@ export default async function RecruiterEngagementsPage({
     redirect(data.reason === "banned" ? "/dashboard/recruiter" : "/onboarding/recruiter");
   }
 
-  return (
-    <EngagementsScreen data={data} noticeCode={params.notice} backHref="/dashboard/recruiter" />
-  );
+  return <EngagementsScreen data={data} noticeCode={params.notice} />;
 }

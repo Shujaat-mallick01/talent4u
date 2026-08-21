@@ -52,7 +52,7 @@ export default async function JobApplicationsPage({
   const decidable = new Set(["SUBMITTED", "VIEWED", "SHORTLISTED", "REJECTED"]);
 
   return (
-    <main className="flex-1">
+    <main id="main" className="flex-1">
       <div className="mx-auto w-full max-w-4xl px-6 py-10">
         <nav className="mb-4 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
           <Link href="/dashboard/recruiter" className="hover:text-foreground">

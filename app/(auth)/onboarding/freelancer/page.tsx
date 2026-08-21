@@ -13,7 +13,7 @@ export default async function FreelancerOnboardingPage() {
   const skillGroups = await listSkillsGroupedByCategory();
 
   return (
-    <main className="flex-1">
+    <main id="main" className="flex-1">
       <FreelancerOnboardingForm email={user.email} skillGroups={skillGroups} />
     </main>
   );

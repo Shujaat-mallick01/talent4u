@@ -14,7 +14,7 @@ export default async function SignUpPage({
   const message = resolveNotice(params.message);
 
   return (
-    <main>
+    <main id="main">
       <h1>Create your account</h1>
       {error ? <p role="alert">{error}</p> : null}
       {message ? <p>{message}</p> : null}

@@ -17,7 +17,7 @@ export default async function NewJobPage() {
   ]);
 
   return (
-    <main className="flex-1">
+    <main id="main" className="flex-1">
       <JobForm categories={categories} skillGroups={skillGroups} />
     </main>
   );

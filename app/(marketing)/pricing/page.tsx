@@ -92,7 +92,7 @@ export default async function PricingPage() {
   const reduced = isReducedBand(band);
 
   return (
-    <main className="flex-1">
+    <main id="main" className="flex-1">
       <div className="mx-auto w-full max-w-5xl px-6 py-14">
         <header className="text-center">
           <p className="text-sm font-medium text-muted-foreground">Pricing</p>

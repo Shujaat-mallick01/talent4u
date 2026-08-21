@@ -21,7 +21,6 @@ export default async function FreelancerEngagementsPage({
     <EngagementsScreen
       data={data}
       noticeCode={params.notice}
-      backHref="/dashboard/freelancer"
     />
   );
 }

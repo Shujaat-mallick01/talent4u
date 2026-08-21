@@ -182,7 +182,7 @@ export default async function JobDetailPage({
       : null;
 
   return (
-    <main className="flex-1">
+    <main id="main" className="flex-1">
       {jsonLd ? (
         <script
           type="application/ld+json"

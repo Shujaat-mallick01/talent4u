@@ -9,8 +9,10 @@ import { getUserPlan } from "@/lib/db/users";
 import { jobStatusBadge, recruiterTierBadge } from "@/lib/profile/badges";
 import { effectiveJobSlots } from "@/lib/pricing/entitlements";
 
-import { signOut } from "../../(auth)/actions";
-import { NOTICE_CLASSES, resolveJobNotice } from "./notices";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Notice } from "@/components/ui/notice";
+
+import { resolveJobNotice } from "./notices";
 import { closeExistingJob, publishExistingJob, withdrawHeldJob } from "./jobs/actions";
 
 const PLAN_LABEL: Record<string, string> = {
@@ -43,90 +45,103 @@ export default async function RecruiterDashboardPage({
   const cap = effectiveJobSlots(plan, current.profile.tier);
   const notice = resolveJobNotice(params);
 
-  const noticeClasses = notice ? NOTICE_CLASSES[notice.tone] : "";
-
   return (
-    <main className="flex-1">
-      <div className="mx-auto w-full max-w-4xl px-6 py-10">
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <main id="main" className="flex-1">
+      <div className="w-full px-6 py-8 lg:px-8">
+        {/* Identity, navigation and sign-out live in the shell now. This
+            header carries only what is specific to this screen: the company's
+            standing, and what they can do about it. */}
+        <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-border pb-4">
           <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold tracking-tight">{current.profile.companyName}</h1>
-              <Link href="/dashboard/recruiter/verification" title="Verification status">
+            <h1 className="t-heading">Your jobs</h1>
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] text-muted-foreground">
+              <Link
+                href="/dashboard/recruiter/verification"
+                className="rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
                 <ProfileBadge spec={recruiterTierBadge(current.profile.tier)} />
               </Link>
-              {current.profile.tier === "UNVERIFIED" ? (
-                <Link
-                  href="/dashboard/recruiter/verification"
-                  className="font-mono text-[11px] uppercase tracking-[0.12em] text-primary hover:underline"
-                >
-                  Get verified →
-                </Link>
-              ) : null}
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {PLAN_LABEL[plan] ?? "Free"} plan · {used} of {cap === null ? "unlimited" : cap} active
-              post {cap === 1 ? "slot" : "slots"} used · signed in as {user.email}
+              <span>
+                {PLAN_LABEL[plan] ?? "Free"} plan ·{" "}
+                <span className="tabular font-medium text-foreground">{used}</span> of{" "}
+                <span className="tabular font-medium text-foreground">
+                  {cap === null ? "unlimited" : cap}
+                </span>{" "}
+                active post {cap === 1 ? "slot" : "slots"} used
+              </span>
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              render={<Link href="/dashboard/recruiter/engagements">Engagements</Link>}
-            />
-            <Button render={<Link href="/dashboard/recruiter/jobs/new">Post a job</Link>} />
-            <form action={signOut}>
-              <Button type="submit" variant="ghost">
-                Sign out
-              </Button>
-            </form>
-          </div>
+          <Button render={<Link href="/dashboard/recruiter/jobs/new">Post a job</Link>} />
         </header>
 
+        {current.profile.tier === "UNVERIFIED" ? (
+          <Notice tone="warning" className="mb-6">
+            Your posts carry an “Unverified” label and you are capped at one at a time until we
+            confirm who you are.{" "}
+            <Link href="/dashboard/recruiter/verification" className="font-medium underline">
+              Get verified
+            </Link>{" "}
+            — it takes a business email, a registration number and a LinkedIn page.
+          </Notice>
+        ) : null}
+
         {notice ? (
-          <p role="status" className={`mb-6 rounded-[2px] border px-3 py-2 text-sm ${noticeClasses}`}>
+          <Notice tone={notice.tone} className="mb-6">
             {notice.message}
-          </p>
+          </Notice>
         ) : null}
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold">Your jobs</h2>
           {jobs.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border p-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                No jobs yet. Post your first job to start receiving applications.
-              </p>
-            </div>
+            <EmptyState
+              title="No jobs yet"
+              guidance="Post your first role to start receiving applications. It takes a title, a description and a category — you can save it as a draft and publish when you are ready."
+              action={
+                <Button render={<Link href="/dashboard/recruiter/jobs/new">Post a job</Link>} />
+              }
+            />
           ) : (
-            <ul className="divide-y divide-border rounded-lg border border-border">
+            /* Rows sharing one hairline, not cards floating with gaps. The
+               applicant count is tabular and right-aligned so the column reads
+               down the page. */
+            <ul className="rowset">
               {jobs.map((job) => {
                 const badge = jobStatusBadge(job.status);
                 const canPublish = job.status === "DRAFT" || job.status === "CLOSED";
                 const canClose = job.status === "ACTIVE";
                 const canEdit = job.status === "DRAFT";
                 const canWithdraw = job.status === "PENDING_REVIEW";
+                const applications = job._count.applications;
                 return (
-                  <li key={job.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-                    <div className="min-w-0">
+                  <li
+                    key={job.id}
+                    className="row-hover flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3.5"
+                  >
+                    <div className="min-w-[16rem] flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate font-medium">{job.title}</span>
+                        <span className="truncate font-semibold">{job.title}</span>
                         <ProfileBadge spec={badge} />
                       </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
+                      <p className="t-label mt-1 text-muted-foreground">
                         {job.publishedAt
                           ? `Published ${dateFmt.format(job.publishedAt)}`
                           : `Created ${dateFmt.format(job.createdAt)}`}
-                        {" · "}
-                        <Link
-                          href={`/dashboard/recruiter/jobs/${job.id}/applications`}
-                          className="underline hover:text-foreground"
-                        >
-                          {job._count.applications}{" "}
-                          {job._count.applications === 1 ? "application" : "applications"}
-                        </Link>
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+
+                    <Link
+                      href={`/dashboard/recruiter/jobs/${job.id}/applications`}
+                      className="group flex shrink-0 items-baseline gap-1.5 rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    >
+                      <span className="t-data w-8 text-right group-hover:text-primary">
+                        {applications}
+                      </span>
+                      <span className="t-label text-muted-foreground group-hover:text-foreground">
+                        {applications === 1 ? "applicant" : "applicants"}
+                      </span>
+                    </Link>
+
+                    <div className="flex shrink-0 items-center gap-2">
                       {canEdit ? (
                         <Button
                           size="sm"

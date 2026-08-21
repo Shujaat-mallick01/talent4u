@@ -31,7 +31,7 @@ export default async function RemovedEmployersPage() {
   const removed = await listRemovedEmployers();
 
   return (
-    <main className="flex-1">
+    <main id="main" className="flex-1">
       <div className="mx-auto w-full max-w-3xl px-6 py-10">
         <header className="border-b border-border pb-6">
           <h1 className="text-2xl font-bold tracking-tight">Removed employers</h1>

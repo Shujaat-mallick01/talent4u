@@ -113,7 +113,7 @@ export default async function JobsBrowsePage({
   const selectedSkills = new Set(filters.skillSlugs ?? []);
 
   return (
-    <main className="flex-1">
+    <main id="main" className="flex-1">
       <div className="mx-auto w-full max-w-5xl px-6 py-10">
         <header className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight">Browse jobs</h1>

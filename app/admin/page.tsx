@@ -12,7 +12,6 @@ import { timeAgo } from "@/lib/format/time";
 import { countryName } from "@/lib/geo/countries";
 import { jobStatusBadge, recruiterTierBadge } from "@/lib/profile/badges";
 
-import { signOut } from "../(auth)/actions";
 import { NOTICE_CLASSES } from "../dashboard/recruiter/notices";
 import {
   approveRecruiterVerification,
@@ -34,7 +33,7 @@ export default async function AdminPage({
 }: {
   searchParams: Promise<{ notice?: string; jobs?: string }>;
 }) {
-  const { user } = await requireRole("ADMIN");
+  await requireRole("ADMIN");
 
   const [counts, flags, reports, verifications, params] = await Promise.all([
     getModerationCounts(),
@@ -46,30 +45,16 @@ export default async function AdminPage({
   const notice = resolveAdminNotice(params.notice, params.jobs);
 
   return (
-    <main className="flex-1">
-      <div className="mx-auto w-full max-w-4xl px-6 py-10">
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Moderation</h1>
-            <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-              {counts.openFlags} open {counts.openFlags === 1 ? "flag" : "flags"} ·{" "}
-              {counts.openReports} {counts.openReports === 1 ? "report" : "reports"} ·{" "}
-              {counts.pendingVerifications} pending{" "}
-              {counts.pendingVerifications === 1 ? "verification" : "verifications"} · {user.email}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              render={<Link href="/removed-employers">Public removals page</Link>}
-            />
-            <form action={signOut}>
-              <Button type="submit" size="sm" variant="ghost">
-                Sign out
-              </Button>
-            </form>
-          </div>
+    <main id="main" className="flex-1">
+      <div className="w-full px-6 py-8 lg:px-8">
+        <header className="mb-6 border-b border-border pb-4">
+          <h1 className="t-heading">Moderation</h1>
+          <p className="t-label mt-1 text-muted-foreground">
+            {counts.openFlags} open {counts.openFlags === 1 ? "flag" : "flags"} ·{" "}
+            {counts.openReports} {counts.openReports === 1 ? "report" : "reports"} ·{" "}
+            {counts.pendingVerifications} pending{" "}
+            {counts.pendingVerifications === 1 ? "verification" : "verifications"}
+          </p>
         </header>
 
         {notice ? (

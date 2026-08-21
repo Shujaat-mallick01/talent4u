@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { Archivo, IBM_Plex_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
-import { SiteFooter } from "@/components/shell/site-footer";
-import { SiteHeader } from "@/components/shell/site-header";
 import { cn } from "@/lib/utils";
 
 // Brand type system (BRANDGUIDE): Archivo display, Inter interface,
@@ -57,9 +55,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           Skip to content
         </a>
-        <SiteHeader />
+        {/* No chrome here. Public pages get the marketing header and footer
+            from PublicChrome; the signed-in product gets the nav rail from
+            AppShell. Rendering both from the root is what gave every dashboard
+            a marketing header, two Sign out buttons, and a footer inviting a
+            signed-in user to sign up. */}
         {children}
-        <SiteFooter />
       </body>
     </html>
   );

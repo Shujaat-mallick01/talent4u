@@ -27,7 +27,7 @@ export default async function OnboardingPage({
   const error = resolveNotice(errorCode);
 
   return (
-    <main>
+    <main id="main">
       <h1>One last thing</h1>
       <p>How will you use Talent4u? This cannot be changed later.</p>
       {error ? <p role="alert">{error}</p> : null}

@@ -23,7 +23,7 @@ export default async function EditJobPage({ params }: { params: Promise<{ id: st
   ]);
 
   return (
-    <main className="flex-1">
+    <main id="main" className="flex-1">
       <JobForm
         categories={categories}
         skillGroups={skillGroups}

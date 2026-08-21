@@ -20,6 +20,41 @@ export async function getUserPlan(userId: string): Promise<PlanTier> {
 }
 
 /**
+ * Everything needed to answer "what may this account do, and what does it
+ * pay" in one query: the live plan, the billing country the price band is
+ * resolved from, the role, and the recruiter's verification tier (which caps
+ * posts and messaging independently of the plan).
+ *
+ * Request-cached because the header, the page body, and any gate in between
+ * all want the same answer in one render.
+ */
+export const getEntitlementContext = cache(async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      role: true,
+      billingCountry: true,
+      subscription: { select: { plan: true, status: true } },
+      recruiter: { select: { tier: true } },
+    },
+  });
+  if (!user) return null;
+
+  const sub = user.subscription;
+  // Same rule as getUserPlan: only a live subscription counts. PAST_DUE and
+  // CANCELED fall back to FREE rather than keeping paid capabilities alive.
+  const plan: PlanTier =
+    sub && (sub.status === "ACTIVE" || sub.status === "TRIALING") ? sub.plan : "FREE";
+
+  return {
+    role: user.role,
+    plan,
+    billingCountry: user.billingCountry,
+    recruiterTier: user.recruiter?.tier ?? null,
+  };
+});
+
+/**
  * Everything the auth layer needs to know about an account in one indexed
  * PK lookup: who they are, which role they chose, and whether onboarding
  * (profile creation) is complete.

@@ -7,7 +7,7 @@ import { getCurrentProfile, requireRole } from "@/lib/auth/guards";
 import { countOccupiedSlots, listJobsForRecruiter } from "@/lib/db/job";
 import { getUserPlan } from "@/lib/db/users";
 import { jobStatusBadge, recruiterTierBadge } from "@/lib/profile/badges";
-import { jobSlotsForPlan } from "@/lib/pricing/plans";
+import { effectiveJobSlots } from "@/lib/pricing/entitlements";
 
 import { signOut } from "../../(auth)/actions";
 import { NOTICE_CLASSES, resolveJobNotice } from "./notices";
@@ -38,7 +38,9 @@ export default async function RecruiterDashboardPage({
     countOccupiedSlots(current.profile.id),
     searchParams,
   ]);
-  const cap = jobSlotsForPlan(plan);
+  // Plan AND verification tier — the same rule publishJobForUser enforces, so
+  // the number on screen is the number the server will apply.
+  const cap = effectiveJobSlots(plan, current.profile.tier);
   const notice = resolveJobNotice(params);
 
   const noticeClasses = notice ? NOTICE_CLASSES[notice.tone] : "";

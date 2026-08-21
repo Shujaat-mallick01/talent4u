@@ -75,7 +75,9 @@ const USER_ID = "00000000-0000-4000-8000-000000000003";
 const RECRUITER_ID = "rec_1";
 
 const profile = (over: Record<string, unknown> = {}) =>
-  ({ id: RECRUITER_ID, isBanned: false, ...over }) as Awaited<
+  // VERIFIED by default: the plan cap is only reachable by a verified
+  // company, since UNVERIFIED is capped at one post whatever they pay.
+  ({ id: RECRUITER_ID, isBanned: false, tier: "VERIFIED", ...over }) as Awaited<
     ReturnType<typeof getRecruiterProfileByUserId>
   >;
 
@@ -178,6 +180,17 @@ describe("publishJobForUser", () => {
     mockPublishTx.mockResolvedValue({ ok: true, status: "ACTIVE" });
     await publishJobForUser(USER_ID, "job_1");
     expect(mockPublishTx.mock.calls[0][0].cap).toBeNull();
+  });
+
+  it("caps an UNVERIFIED company at one post even on the Team plan", async () => {
+    // CLAUDE.md's verification table: UNVERIFIED means "Max 1 post". Paying
+    // for unlimited posts does not lift a restriction about identity.
+    mockProfile.mockResolvedValue(profile({ tier: "UNVERIFIED" }));
+    mockPlan.mockResolvedValue("RECRUITER_TEAM");
+    mockPublishTx.mockResolvedValue({ ok: true, status: "ACTIVE" });
+
+    await publishJobForUser(USER_ID, "job_1");
+    expect(mockPublishTx.mock.calls[0][0].cap).toBe(1);
   });
 
   it("maps a cap hit to the typed error with cap, used, and plan", async () => {

@@ -29,6 +29,9 @@ export async function SiteHeader() {
             <Link href="/jobs" className="text-muted-foreground hover:text-foreground">
               Browse jobs
             </Link>
+            <Link href="/pricing" className="text-muted-foreground hover:text-foreground">
+              Pricing
+            </Link>
           </nav>
         </div>
 

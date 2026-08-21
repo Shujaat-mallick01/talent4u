@@ -12,7 +12,9 @@ import {
   freelancerVerificationBadge,
   jobStatusBadge,
 } from "@/lib/profile/badges";
+import { upsellLine } from "@/lib/pricing/catalogue";
 import { getJobInboxForUser } from "@/lib/services/application";
+import { getViewerBand } from "@/lib/services/entitlements";
 
 import { NOTICE_CLASSES, resolveInboxNotice } from "../../../notices";
 import { decideApplication, saveApplicationNote } from "../../actions";
@@ -44,7 +46,8 @@ export default async function JobApplicationsPage({
 
   const { job, canUseNotes } = inbox;
   const { notice: noticeCode } = await searchParams;
-  const notice = resolveInboxNotice(noticeCode);
+  const band = await getViewerBand();
+  const notice = resolveInboxNotice(noticeCode, band);
 
   const decidable = new Set(["SUBMITTED", "VIEWED", "SHORTLISTED", "REJECTED"]);
 
@@ -178,7 +181,8 @@ export default async function JobApplicationsPage({
                     </form>
                   ) : (
                     <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                      Private notes are on Growth ($79/mo) — billing launches soon
+                      Private notes are on {upsellLine("RECRUITER_GROWTH", band)} — billing
+                      launches soon
                     </p>
                   )}
                 </li>

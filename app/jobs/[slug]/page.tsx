@@ -16,7 +16,10 @@ import { decideJobVisibility, jobPostingJsonLd, type JobViewState } from "@/lib/
 import { applicationStatusBadge, recruiterTierBadge } from "@/lib/profile/badges";
 import { jsonLdScript } from "@/lib/profile/jsonld";
 import { getSession } from "@/lib/auth/session";
+import { upsellLine } from "@/lib/pricing/catalogue";
+import { EARLY_ACCESS_HOURS } from "@/lib/pricing/plans";
 import { getApplicationQuotaStatus } from "@/lib/services/application";
+import { getViewerBand } from "@/lib/services/entitlements";
 import { resolveEarlyAccessCutoff } from "@/lib/services/job-browse";
 import { SITE_URL } from "@/lib/site-url";
 
@@ -148,6 +151,12 @@ export default async function JobDetailPage({
   const budget = budgetLabel(job);
   const { notice } = await searchParams;
   const applyContext = view === "full" ? await resolveApplyContext(job.id) : null;
+  // Quoted at the viewer's own band, never the list price — a logged-out
+  // reader gets STANDARD, which is the honest default for an unknown country.
+  const proUpsell =
+    applyContext?.kind === "quota-exhausted"
+      ? upsellLine("FREELANCER_PRO", await getViewerBand())
+      : null;
 
   const jsonLd =
     view === "full" && job.publishedAt
@@ -331,8 +340,8 @@ export default async function JobDetailPage({
                       {applyContext.nextSlotFreesAt
                         ? `Your next slot frees on ${applyContext.nextSlotFreesAt.toLocaleDateString("en", { month: "short", day: "numeric" })}. `
                         : ""}
-                      Pro ($6/mo) removes the limit and adds 6-hour early access — billing launches
-                      soon.
+                      {proUpsell} removes the limit and adds {EARLY_ACCESS_HOURS}-hour early
+                      access — billing launches soon.
                     </p>
                   </div>
                 ) : (

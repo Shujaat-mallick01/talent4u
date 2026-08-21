@@ -1,3 +1,6 @@
+import type { PriceBand } from "@/lib/pricing/bands";
+import { upsellLine } from "@/lib/pricing/catalogue";
+
 /**
  * Dashboard notices, passed between actions and the page as validated codes —
  * never free text — so the query string cannot inject copy. The cap notice
@@ -70,7 +73,15 @@ export function resolveJobNotice(params: {
 }
 
 /** Notices for the per-job application inbox, as validated codes. */
-export function resolveInboxNotice(notice: string | undefined): JobNotice | null {
+/**
+ * The band is a parameter, not a default: a recruiter in a reduced-price
+ * country must be quoted their own price, and a notice string that hardcoded
+ * the list price would be the one place the pricing config does not reach.
+ */
+export function resolveInboxNotice(
+  notice: string | undefined,
+  band: PriceBand,
+): JobNotice | null {
   switch (notice) {
     case "shortlisted":
       return { tone: "success", message: "Application shortlisted." };
@@ -87,7 +98,7 @@ export function resolveInboxNotice(notice: string | undefined): JobNotice | null
       return {
         tone: "error",
         message:
-          "Notes are part of the Growth plan ($79/mo) — along with candidate search and pipelines. Billing launches soon.",
+          `Notes are part of the ${upsellLine("RECRUITER_GROWTH", band)} plan — along with candidate search and pipelines. Billing launches soon.`,
       };
     case "decision_failed":
       return {

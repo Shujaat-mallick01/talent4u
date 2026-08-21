@@ -11,7 +11,9 @@ import {
   freelancerVerificationBadge,
   jobStatusBadge,
 } from "@/lib/profile/badges";
+import { upsellLine } from "@/lib/pricing/catalogue";
 import { getApplicationQuotaStatus } from "@/lib/services/application";
+import { getViewerBand } from "@/lib/services/entitlements";
 
 import { signOut } from "../../(auth)/actions";
 
@@ -21,9 +23,10 @@ export default async function FreelancerDashboardPage() {
   const current = await getCurrentProfile();
   if (!current || current.role !== "FREELANCER") redirect("/onboarding/freelancer");
 
-  const [applications, quota] = await Promise.all([
+  const [applications, quota, band] = await Promise.all([
     listApplicationsForFreelancer(current.profile.id),
     getApplicationQuotaStatus(user.id),
+    getViewerBand(),
   ]);
 
   return (
@@ -78,7 +81,8 @@ export default async function FreelancerDashboardPage() {
               </div>
               {quota.limit !== null && (quota.remaining ?? 0) <= 3 ? (
                 <p className="rounded-[2px] border border-warning/40 bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning">
-                  Running low — Pro removes the limit ($6/mo, billing launches soon)
+                  Running low — {upsellLine("FREELANCER_PRO", band)} removes the limit (billing
+                  launches soon)
                 </p>
               ) : null}
             </div>

@@ -1,4 +1,4 @@
-import type { PlanTier } from "@/lib/generated/prisma/enums";
+import type { PlanTier, RecruiterTier } from "@/lib/generated/prisma/enums";
 import { Prisma } from "@/lib/generated/prisma/client";
 import {
   closeJobForRecruiter,
@@ -11,7 +11,7 @@ import {
 } from "@/lib/db/job";
 import { findSkillsBySlugs, getCategoryIdBySlug } from "@/lib/db/taxonomy";
 import { getRecruiterProfileByUserId, getUserPlan } from "@/lib/db/users";
-import { jobSlotsForPlan } from "@/lib/pricing/plans";
+import { effectiveJobSlots } from "@/lib/pricing/entitlements";
 import type { JobPostInput } from "@/lib/validations/job";
 
 import { scanTextForSafetyFlags } from "./safety";
@@ -46,14 +46,16 @@ export type PublishJobResult = { ok: true; status: "ACTIVE" | "PENDING_REVIEW" }
 export type CloseJobResult = { ok: true } | JobActionFailure;
 
 type RecruiterStanding =
-  | { ok: true; recruiterId: string }
+  // The tier travels with the id: it caps posts independently of the plan, so
+  // every caller that reads one needs the other.
+  | { ok: true; recruiterId: string; tier: RecruiterTier }
   | { ok: false; reason: "no-recruiter-profile" | "banned" };
 
 async function recruiterStanding(userId: string): Promise<RecruiterStanding> {
   const profile = await getRecruiterProfileByUserId(userId);
   if (!profile) return { ok: false, reason: "no-recruiter-profile" };
   if (profile.isBanned) return { ok: false, reason: "banned" };
-  return { ok: true, recruiterId: profile.id };
+  return { ok: true, recruiterId: profile.id, tier: profile.tier };
 }
 
 type ResolvedTaxonomy =
@@ -149,7 +151,9 @@ export async function publishJobForUser(userId: string, jobId: string): Promise<
   if (!standing.ok) return standing;
 
   const plan = await getUserPlan(userId);
-  const cap = jobSlotsForPlan(plan);
+  // Plan AND tier, stricter wins. CLAUDE.md's verification table caps an
+  // UNVERIFIED company at one post; paying for Growth does not lift that.
+  const cap = effectiveJobSlots(plan, standing.tier);
 
   let result: Awaited<ReturnType<typeof publishJobTx>>;
   try {

@@ -20,6 +20,9 @@ export function SiteFooter() {
           <Link href="/signup" className="hover:text-foreground">
             For companies
           </Link>
+          <Link href="/pricing" className="hover:text-foreground">
+            Pricing
+          </Link>
           <Link href="/removed-employers" className="hover:text-foreground">
             Removed employers
           </Link>

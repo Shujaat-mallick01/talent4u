@@ -127,11 +127,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
           name: current.profile.companyName,
           role: "Company",
           href: `/companies/${current.profile.slug}`,
+          avatarUrl: current.profile.logoUrl,
+          kind: "company" as const,
         }
       : {
           name: current.profile.displayName,
           role: "Freelancer",
           href: `/freelancers/${current.profile.slug}`,
+          avatarUrl: current.profile.avatarUrl,
+          kind: "person" as const,
         };
 
   return (

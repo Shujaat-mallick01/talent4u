@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconArrowLeft, IconArrowRight } from "@/components/ui/icon";
@@ -168,22 +169,34 @@ export default async function FreelancersIndexPage({
                   return (
                     <li key={profile.id} className="row-hover px-4 py-4">
                       <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
-                        <div className={COL_PERSON}>
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <h3 className="text-[16px] font-semibold leading-[22px]">
-                              <Link
-                                href={`/freelancers/${profile.slug}`}
-                                className={cn("hover:underline", LINK_FOCUS)}
-                              >
-                                {profile.displayName}
-                              </Link>
-                            </h3>
-                            {/* Verification is never softened, here or anywhere. */}
-                            <ProfileBadge spec={badge} />
+                        {/* The avatar lives inside the Specialist column so
+                            the caption strip above stays aligned to the rows.
+                            Fixed width, never grows: the headline beside it
+                            reflows instead. */}
+                        <div className={cn("flex items-start gap-3", COL_PERSON)}>
+                          <Avatar
+                            name={profile.displayName}
+                            src={profile.avatarUrl}
+                            size="md"
+                            shape="person"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <h3 className="text-[16px] font-semibold leading-[22px]">
+                                <Link
+                                  href={`/freelancers/${profile.slug}`}
+                                  className={cn("hover:underline", LINK_FOCUS)}
+                                >
+                                  {profile.displayName}
+                                </Link>
+                              </h3>
+                              {/* Verification is never softened, here or anywhere. */}
+                              <ProfileBadge spec={badge} />
+                            </div>
+                            <p className="mt-1 text-[15px] leading-[22px] text-muted-foreground">
+                              {profile.headline}
+                            </p>
                           </div>
-                          <p className="mt-1 text-[15px] leading-[22px] text-muted-foreground">
-                            {profile.headline}
-                          </p>
                         </div>
 
                         <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 md:shrink-0">

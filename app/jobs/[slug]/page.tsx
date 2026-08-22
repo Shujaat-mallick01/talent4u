@@ -4,8 +4,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { MatchMeter } from "@/components/brand/match-meter";
 import { ProfileBadge } from "@/components/profile/profile-badge";
 import { ReportDialog } from "@/components/report/report-dialog";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { IconArrowLeft } from "@/components/ui/icon";
 import { Notice } from "@/components/ui/notice";
@@ -24,7 +26,9 @@ import { EARLY_ACCESS_HOURS } from "@/lib/pricing/plans";
 import { getApplicationQuotaStatus } from "@/lib/services/application";
 import { getViewerBand } from "@/lib/services/entitlements";
 import { resolveEarlyAccessCutoff } from "@/lib/services/job-browse";
+import { getViewerSkillSlugs, scoreJobMatch } from "@/lib/services/job-match";
 import { SITE_URL } from "@/lib/site-url";
+import { cn } from "@/lib/utils";
 import { resolveReportNotice } from "@/app/report/notices";
 
 import { ApplyForm } from "./apply-form";
@@ -41,6 +45,19 @@ import { ApplyForm } from "./apply-form";
  * while you read, with the apply action at the bottom of it. Outcome notices
  * are the first thing under the breadcrumb: a sent application must announce
  * itself above the fold, not five screens down.
+ *
+ * The rail answers two questions in order, because that is the order a
+ * freelancer asks them: who is this employer, and is this job for me.
+ *
+ * "Who is this employer" is the logo, the name, the tier badge, and — the part
+ * a badge alone never carries — a plain sentence saying what that tier
+ * actually means. "Unverified" is a word; "email only, nothing else confirmed"
+ * is information.
+ *
+ * "Is this job for me" is the match panel, and it is deliberately the opposite
+ * of Upwork's: the score is followed by the skill names on both sides of it,
+ * so a freelancer can check the arithmetic against their own profile and fix
+ * it in one click. A match number nobody can audit is a marketing claim.
  */
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
@@ -57,9 +74,36 @@ const truncate = (text: string, max: number) =>
 
 const shortDate = (d: Date) => d.toLocaleDateString("en", { month: "short", day: "numeric" });
 
+const monthYear = (d: Date) => d.toLocaleDateString("en", { month: "long", year: "numeric" });
+
 /** A bare Link carries no focus ring of its own, so every one here gets these. */
 const LINK =
   "rounded-[2px] underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+
+/**
+ * The skill chip, byte-identical to the one on /jobs so the same skill reads
+ * the same in the list and on the post: 2px corner, Mist ground, mono caps,
+ * and no outline — at four-plus per row the hairlines competed with the row
+ * rule. Ink for a skill the viewer has, Slate for one they do not.
+ */
+const SKILL_CHIP =
+  "rounded-[2px] bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium tracking-[0.12em] uppercase";
+
+/**
+ * "Member since March 2024", when the data is there.
+ *
+ * getPublicJobBySlug does not select the recruiter's createdAt today, and
+ * lib/db/job-browse.ts belongs to another engineer this sprint — so rather
+ * than reach across the boundary for one line, this reads the field only if it
+ * is present. The line appears the moment the column joins that select and
+ * stays silently absent until then. (TS narrows an `in` check on an unlisted
+ * property to `unknown`, which is exactly the honesty this needs.)
+ */
+function memberSinceOf(recruiter: PublicJob["recruiter"]): Date | null {
+  if (!("createdAt" in recruiter)) return null;
+  const value: unknown = recruiter.createdAt;
+  return value instanceof Date ? value : null;
+}
 
 // cache()-wrapped so generateMetadata and the page share one execution —
 // one job fetch, one cutoff sample, provably identical visibility decisions.
@@ -200,6 +244,14 @@ export default async function JobDetailPage({
       ? upsellLine("FREELANCER_PRO", await getViewerBand())
       : null;
 
+  // Skill match. getViewerSkillSlugs is request-cached and returns null for
+  // everyone who is not a freelancer with a profile — logged out, employer,
+  // half-onboarded — so that one call is the whole gate. scoreJobMatch returns
+  // null for a job that lists no skills rather than inventing a 100%.
+  const viewerSkills = view === "full" ? await getViewerSkillSlugs() : null;
+  const match = viewerSkills ? scoreJobMatch(viewerSkills, job.skills) : null;
+  const memberSince = memberSinceOf(company);
+
   // Signing in or up from here comes back to this job instead of dumping the
   // reader on a dashboard. The auth pages sanitize and forward ?next=.
   const returnTo = encodeURIComponent(`/jobs/${job.slug}`);
@@ -306,41 +358,52 @@ export default async function JobDetailPage({
             className="lg:col-start-2 lg:row-start-1"
           >
             <div className="border border-border lg:sticky lg:top-[4.5rem]">
-              <div className="flex items-start gap-3 px-4 py-4">
-                {company.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- public logo; next/image optimization is Phase 7.
-                  <img
+              {/* Who is this employer. A logo — squared, because the brand
+                  keeps circles for people — then the name, the tier, and a
+                  sentence spelling the tier out. object-contain because a
+                  wordmark cropped to a square is a worse logo than a small
+                  one. */}
+              <div className="px-4 py-4">
+                <div className="flex items-start gap-3">
+                  <Avatar
+                    name={company.companyName}
                     src={company.logoUrl}
-                    alt={`${company.companyName} logo`}
-                    width={40}
-                    height={40}
-                    className="size-10 shrink-0 rounded-[2px] border border-border object-contain"
+                    size="md"
+                    shape="company"
+                    className="object-contain"
                   />
-                ) : (
-                  <div
-                    aria-hidden
-                    className="flex size-10 shrink-0 items-center justify-center rounded-[2px] border border-border bg-muted text-[15px] font-semibold text-muted-foreground"
-                  >
-                    {company.companyName.slice(0, 1).toUpperCase()}
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <h2 className="text-[15px] font-semibold leading-tight">
-                    <Link
-                      href={`/companies/${company.slug}`}
-                      className="rounded-[2px] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                    >
-                      {company.companyName}
-                    </Link>
-                  </h2>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                    {/* The tier label is prominent and never softened. */}
-                    <ProfileBadge spec={tier} />
-                    <span className="t-label text-muted-foreground">
-                      {countryName(company.country) ?? company.country}
-                    </span>
+                  <div className="min-w-0">
+                    <h2 className="text-[15px] font-semibold leading-tight">
+                      <Link
+                        href={`/companies/${company.slug}`}
+                        className="rounded-[2px] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      >
+                        {company.companyName}
+                      </Link>
+                    </h2>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      {/* The tier label is prominent and never softened. */}
+                      <ProfileBadge spec={tier} />
+                      <span className="t-label text-muted-foreground">
+                        {countryName(company.country) ?? company.country}
+                      </span>
+                    </div>
                   </div>
                 </div>
+
+                {/* The badge is a word; this is what the word means. It is the
+                    same sentence the badge carries as its tooltip, said out
+                    loud — a tooltip is invisible on a phone, and this is the
+                    one page where the reader is deciding whether to trust a
+                    stranger. */}
+                <p className="mt-3 text-[13px] leading-[18px] text-muted-foreground">{tier.title}</p>
+
+                {memberSince ? (
+                  <p className="mt-2 text-[13px] leading-[18px] text-muted-foreground">
+                    On Talent4u since{" "}
+                    <span className="tabular text-foreground">{monthYear(memberSince)}</span>
+                  </p>
+                ) : null}
               </div>
 
               <dl className="border-t border-border">
@@ -358,6 +421,52 @@ export default async function JobDetailPage({
                   <Fact term="Closed" value={shortDate(job.closedAt)} />
                 ) : null}
               </dl>
+
+              {/* Is this job for me — above the apply action, because it is the
+                  question that decides whether the apply action gets used.
+                  Upwork sells its match as a black box. This one names every
+                  skill on both sides of the number, so a freelancer who
+                  disagrees with the score can see exactly which line caused it
+                  and go fix the profile.
+
+                  Red stays disciplined: the meter's dots are the only red the
+                  rail carries while this panel shows, because every rail state
+                  that DOES take a red button — logged out, no profile yet — is
+                  a state with no profile to match against, so the panel is not
+                  there. Signal Red on this view still means "send the
+                  application". */}
+              {match ? (
+                <section aria-labelledby="skill-match" className="border-t border-border px-4 py-4">
+                  <h2 id="skill-match" className="t-label text-muted-foreground">
+                    Skill match
+                  </h2>
+
+                  <div className="mt-3 flex items-end gap-3">
+                    <MatchMeter score={match.score} />
+                    <p className="t-label text-muted-foreground">
+                      {match.matched.length} of {job.skills.length} job skills
+                    </p>
+                  </div>
+
+                  {match.matched.length > 0 ? (
+                    <p className="mt-3 text-[13px] leading-[18px] text-muted-foreground">
+                      <span className="font-medium text-foreground">You have:</span>{" "}
+                      {match.matched.join(", ")}
+                    </p>
+                  ) : null}
+
+                  {match.missing.length > 0 ? (
+                    <p className="mt-2 text-[13px] leading-[18px] text-muted-foreground">
+                      <span className="font-medium text-foreground">Not on your profile:</span>{" "}
+                      {match.missing.join(", ")} —{" "}
+                      <Link href="/dashboard/freelancer/profile" className={LINK}>
+                        add them if you have them
+                      </Link>
+                      .
+                    </p>
+                  ) : null}
+                </section>
+              ) : null}
 
               <div className="border-t border-border px-4 py-4">
                 <h2 className="t-label text-muted-foreground">Apply</h2>
@@ -490,15 +599,28 @@ export default async function JobDetailPage({
             {job.skills.length > 0 ? (
               <section className="mt-8 border-t border-border pt-6">
                 <h2 className="t-label text-muted-foreground">Skills</h2>
-                <ul className="mt-3 flex flex-wrap gap-2">
-                  {job.skills.map((s) => (
-                    <li
-                      key={s.skill.slug}
-                      className="rounded-[2px] border border-border px-2.5 py-1 text-[14px]"
-                    >
-                      {s.skill.name}
-                    </li>
-                  ))}
+                {/* Every skill, alphabetical. Browse sorts the ones you have to
+                    the front because it only has room for four; here the whole
+                    list is on screen, so a stable A–Z order is the more useful
+                    one — the same job reads the same way twice. */}
+                <ul className="mt-3 flex flex-wrap gap-1.5">
+                  {job.skills.map((s) => {
+                    const known = viewerSkills?.has(s.skill.slug) ?? false;
+                    return (
+                      <li
+                        key={s.skill.slug}
+                        className={cn(
+                          SKILL_CHIP,
+                          known ? "text-foreground" : "text-muted-foreground",
+                        )}
+                      >
+                        {s.skill.name}
+                        {/* Ink versus Slate is the visual cue; this is the same
+                            fact said out loud, so it does not depend on colour. */}
+                        {known ? <span className="sr-only"> — on your profile</span> : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             ) : null}

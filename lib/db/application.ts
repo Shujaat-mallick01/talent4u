@@ -138,6 +138,9 @@ export async function getJobWithApplicationsForRecruiter(jobId: string, recruite
               country: true,
               hourlyRateUsd: true,
               verification: true,
+              // The face on the inbox row — a nullable column on a row
+              // already being read, not a new query.
+              avatarUrl: true,
             },
           },
         },

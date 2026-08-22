@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
 import { StarRating } from "@/components/profile/star-rating";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconExternal } from "@/components/ui/icon";
@@ -134,18 +135,32 @@ export default async function FreelancerProfilePage({
 
       <div className="mx-auto w-full max-w-4xl px-6 py-10">
         <header>
-          <p className="t-label text-muted-foreground">Freelancer</p>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <h1 className="t-display-2">{profile.displayName}</h1>
-            {profile.isOpenToWork ? (
-              <ProfileBadge
-                spec={{
-                  label: "Open to work",
-                  tone: "green",
-                  title: "This freelancer says they are available for new work.",
-                }}
-              />
-            ) : null}
+          {/* A stranger arrives from a search result with no idea who this is.
+              The face is the first thing that makes the page a person rather
+              than a record — round, because people are round here and
+              companies get the 2px square. */}
+          <div className="flex items-start gap-4">
+            <Avatar
+              name={profile.displayName}
+              src={profile.avatarUrl}
+              size="lg"
+              shape="person"
+            />
+            <div className="min-w-0">
+              <p className="t-label text-muted-foreground">Freelancer</p>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <h1 className="t-display-2">{profile.displayName}</h1>
+                {profile.isOpenToWork ? (
+                  <ProfileBadge
+                    spec={{
+                      label: "Open to work",
+                      tone: "green",
+                      title: "This freelancer says they are available for new work.",
+                    }}
+                  />
+                ) : null}
+              </div>
+            </div>
           </div>
 
           {/* What they do, in Ink — the first thing the eye should land on

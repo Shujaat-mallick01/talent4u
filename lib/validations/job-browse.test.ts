@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   decodeJobBrowseCursor,
   encodeJobBrowseCursor,
+  JOB_SEARCH_MAX_LENGTH,
   parseJobBrowseParams,
 } from "./job-browse";
 
@@ -64,6 +65,46 @@ describe("parseJobBrowseParams", () => {
     const many = Array.from({ length: 15 }, (_, i) => `skill-${i}`);
     const f = parseJobBrowseParams({ skills: many });
     expect(f.skillSlugs).toHaveLength(10);
+  });
+});
+
+describe("keyword search (q)", () => {
+  it("keeps a plain term as typed", () => {
+    expect(parseJobBrowseParams({ q: "shopify app" }).q).toBe("shopify app");
+  });
+
+  it("trims surrounding whitespace so one term is one URL", () => {
+    expect(parseJobBrowseParams({ q: "  react native \n" }).q).toBe("react native");
+  });
+
+  it("drops an empty or whitespace-only term instead of filtering on nothing", () => {
+    // The GET form always submits q, so `?q=` is the common case, not an edge.
+    expect(parseJobBrowseParams({ q: "" }).q).toBeUndefined();
+    expect(parseJobBrowseParams({ q: "   " }).q).toBeUndefined();
+    expect(parseJobBrowseParams({}).q).toBeUndefined();
+  });
+
+  it("caps a long term rather than rejecting it", () => {
+    const long = "a".repeat(JOB_SEARCH_MAX_LENGTH + 40);
+    const q = parseJobBrowseParams({ q: long }).q;
+    expect(q).toHaveLength(JOB_SEARCH_MAX_LENGTH);
+    expect(q).toBe("a".repeat(JOB_SEARCH_MAX_LENGTH));
+  });
+
+  it("re-trims after the cap so the slice cannot leave a trailing space", () => {
+    const q = parseJobBrowseParams({ q: `${"a".repeat(JOB_SEARCH_MAX_LENGTH - 1)} bbbb` }).q;
+    expect(q).toBe("a".repeat(JOB_SEARCH_MAX_LENGTH - 1));
+  });
+
+  it("takes the first value when the param is repeated", () => {
+    expect(parseJobBrowseParams({ q: ["react", "vue"] }).q).toBe("react");
+  });
+
+  it("passes a term through verbatim — the query layer parameterizes it", () => {
+    // No sanitizing here: Prisma binds it as a parameter and React escapes it
+    // on the way back out. Stripping characters would only break searches for
+    // "c++" or "node.js".
+    expect(parseJobBrowseParams({ q: "c++ & node.js" }).q).toBe("c++ & node.js");
   });
 });
 

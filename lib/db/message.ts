@@ -20,13 +20,23 @@ import { prisma } from "./client";
  *    else's conversation gets nothing rather than a leak.
  */
 
+/**
+ * The counterparty, as every messaging surface needs them. avatarUrl/logoUrl
+ * ride along so an inbox row and a thread header can lead with a face or a
+ * mark instead of a bare string — two nullable columns on rows already being
+ * read, no extra query.
+ */
 const PARTICIPANT_USER = {
   select: {
     id: true,
     email: true,
     role: true,
-    freelancer: { select: { slug: true, displayName: true, verification: true } },
-    recruiter: { select: { slug: true, companyName: true, tier: true, isBanned: true } },
+    freelancer: {
+      select: { slug: true, displayName: true, verification: true, avatarUrl: true },
+    },
+    recruiter: {
+      select: { slug: true, companyName: true, tier: true, isBanned: true, logoUrl: true },
+    },
   },
 } satisfies Prisma.ConversationParticipantSelect["user"];
 

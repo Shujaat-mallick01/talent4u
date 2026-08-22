@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
@@ -80,6 +81,11 @@ export default async function MessagesPage({
             {inbox.conversations.map((c) => {
               const name =
                 c.other?.recruiter?.companyName ?? c.other?.freelancer?.displayName ?? "Unknown";
+              // Circles are people, the 2px square is a company. The shape is
+              // the fastest read in the row: it says which side wrote to you
+              // before a single word is parsed.
+              const isCompany = Boolean(c.other?.recruiter);
+              const avatarSrc = c.other?.recruiter?.logoUrl ?? c.other?.freelancer?.avatarUrl;
               return (
                 <li key={c.id} className="relative">
                   {c.isUnread ? (
@@ -92,6 +98,14 @@ export default async function MessagesPage({
                       "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
                     )}
                   >
+                    {/* Fixed-width column: the avatar never grows and never
+                        pushes the row wider — the text beside it truncates. */}
+                    <Avatar
+                      name={name}
+                      src={avatarSrc}
+                      size="md"
+                      shape={isCompany ? "company" : "person"}
+                    />
                     <div className="min-w-[14rem] flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={cn("truncate", c.isUnread ? "font-semibold" : "font-medium")}>

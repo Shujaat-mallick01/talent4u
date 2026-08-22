@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
 import { StartThread } from "@/components/messages/start-thread";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconArrowLeft, IconArrowRight } from "@/components/ui/icon";
@@ -399,24 +400,33 @@ export default async function JobApplicationsPage({
                           key={app.id}
                           className="row-hover flex flex-wrap items-start gap-x-4 gap-y-2 px-4 py-3.5"
                         >
-                          <div className={cn("self-center", COL.applicant)}>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Link
-                                href={`/freelancers/${fl.slug}`}
-                                className="truncate font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                              >
-                                {fl.displayName}
-                              </Link>
-                              <ProfileBadge spec={freelancerVerificationBadge(fl.verification)} />
+                          {/* The avatar sits INSIDE the applicant column, not
+                              beside it, so COL.applicant keeps its width and
+                              the header strip above stays aligned to the rows.
+                              Initials only: the recruiter-inbox select chain
+                              (lib/db/application.ts) does not carry
+                              avatarUrl — see the note in the handover. */}
+                          <div className={cn("flex items-center gap-3 self-center", COL.applicant)}>
+                            <Avatar name={fl.displayName} src={fl.avatarUrl} size="sm" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Link
+                                  href={`/freelancers/${fl.slug}`}
+                                  className="truncate font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                                >
+                                  {fl.displayName}
+                                </Link>
+                                <ProfileBadge spec={freelancerVerificationBadge(fl.verification)} />
+                              </div>
+                              <p className="mt-1 truncate text-[15px] leading-[22px] text-muted-foreground">
+                                {fl.headline}
+                              </p>
+                              {/* Country moves inline when its column is not on
+                                  screen. Only one of the two is ever rendered. */}
+                              <p className="t-label mt-1 text-muted-foreground lg:hidden">
+                                {country}
+                              </p>
                             </div>
-                            <p className="mt-1 truncate text-[15px] leading-[22px] text-muted-foreground">
-                              {fl.headline}
-                            </p>
-                            {/* Country moves inline when its column is not on
-                                screen. Only one of the two is ever rendered. */}
-                            <p className="t-label mt-1 text-muted-foreground lg:hidden">
-                              {country}
-                            </p>
                           </div>
 
                           <span

@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { MatchMeter } from "@/components/brand/match-meter";
 import { ProfileBadge } from "@/components/profile/profile-badge";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox, ChoiceRow } from "@/components/ui/choice";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, fieldControlProps } from "@/components/ui/field";
-import { IconArrowLeft, IconArrowRight, IconFilter } from "@/components/ui/icon";
+import { IconArrowLeft, IconArrowRight, IconFilter, IconSearch } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/notice";
 import { Select } from "@/components/ui/select";
@@ -16,10 +18,12 @@ import { timeAgo } from "@/lib/format/time";
 import { recruiterTierBadge } from "@/lib/profile/badges";
 import { EARLY_ACCESS_HOURS } from "@/lib/pricing/plans";
 import { resolveEarlyAccessCutoff } from "@/lib/services/job-browse";
+import { getViewerSkillSlugs, scoreJobMatch } from "@/lib/services/job-match";
 import { SITE_URL } from "@/lib/site-url";
 import { cn } from "@/lib/utils";
 import {
   encodeJobBrowseCursor,
+  JOB_SEARCH_MAX_LENGTH,
   parseJobBrowseParams,
   type JobBrowseFilters,
 } from "@/lib/validations/job-browse";
@@ -38,9 +42,17 @@ import {
  * back down to the form.
  */
 
-/** Current filters (and optionally a cursor) as normalized query params. */
+/**
+ * Current filters (and optionally a cursor) as normalized query params.
+ *
+ * Every link on this page is built from here — next page, first page, and the
+ * canonical — so the keyword goes in first and stays attached through
+ * pagination. A search that fell off the "next page" link would silently
+ * widen the result set one click in.
+ */
 function browseQuery(filters: JobBrowseFilters, cursor?: string): URLSearchParams {
   const params = new URLSearchParams();
+  if (filters.q) params.set("q", filters.q);
   if (filters.categorySlug) params.set("category", filters.categorySlug);
   for (const s of filters.skillSlugs ?? []) params.append("skills", s);
   if (filters.engagementType) params.set("engagement", filters.engagementType);
@@ -60,6 +72,13 @@ const DESCRIPTION =
 // ?category=&remote= still canonicalize to bare /jobs). Pointing every cursor
 // page's canonical at page 1 would tell crawlers the deep pages are
 // duplicates and suppress their content.
+//
+// Keyword results are the one exception to index:true. A free-text box is an
+// unbounded URL space — every typo is a distinct thin page over content that
+// already has its own indexable /jobs/[slug] — so ?q= pages are noindex,
+// follow: crawlers still walk through to the jobs themselves, and the
+// filtered facets that ARE finite (category, skills, tier) keep indexing
+// exactly as before.
 export async function generateMetadata({
   searchParams,
 }: {
@@ -72,10 +91,10 @@ export async function generateMetadata({
   ).toString();
   return {
     // The root layout's title template appends the brand.
-    title: "Browse jobs",
+    title: filters.q ? `Jobs matching “${filters.q}”` : "Browse jobs",
     description: DESCRIPTION,
     alternates: { canonical: query ? `${SITE_URL}/jobs?${query}` : `${SITE_URL}/jobs` },
-    robots: { index: true, follow: true },
+    robots: { index: !filters.q, follow: true },
   };
 }
 
@@ -118,6 +137,7 @@ function firstPageHref(filters: JobBrowseFilters): string {
  * pairs, which is why each cell carries its own label rather than relying on
  * the header strip alone.
  */
+const COL_MATCH = "w-[88px] shrink-0";
 const COL_ROLE = "min-w-[13rem] flex-1";
 const COL_BUDGET = "md:w-36";
 const COL_APPLICANTS = "md:w-20";
@@ -127,6 +147,16 @@ const NUM_CELL = "flex items-baseline gap-2 md:block md:text-right";
 const LINK_FOCUS =
   "rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
+/**
+ * The filter form's id. The search input and its submit button sit at the top
+ * of the RESULTS column but belong to this form via the HTML `form`
+ * attribute, so one GET submission carries the keyword and every filter
+ * together. (An element can only own one form, and a form cannot wrap two
+ * grid areas — the attribute is what keeps the markup honest without moving
+ * the search box into the rail.)
+ */
+const FILTER_FORM_ID = "job-filters";
+
 /** Human-readable list of what the viewer has narrowed the list down to. */
 function describeFilters(
   filters: JobBrowseFilters,
@@ -134,6 +164,9 @@ function describeFilters(
   skillNames: string[],
 ): string[] {
   const out: string[] = [];
+  // The keyword leads: it is the filter the reader typed, so it is the one
+  // they will look for when the count surprises them.
+  if (filters.q) out.push(`“${filters.q}”`);
   if (filters.categorySlug) out.push(categoryName ?? filters.categorySlug);
   if (filters.engagementType) {
     out.push((ENGAGEMENT_LABEL[filters.engagementType] ?? filters.engagementType).toLowerCase());
@@ -164,6 +197,9 @@ function describeFixes(
   skillNames: string[],
 ): string[] {
   const fixes: string[] = [];
+  // A keyword is almost always the narrowest thing on the page — one literal
+  // substring against three text columns — so it is named first.
+  if (filters.q) fixes.push(`search for something broader than “${filters.q}”`);
   const skillCount = filters.skillSlugs?.length ?? 0;
   if (skillCount === 1) fixes.push(`drop the ${skillNames[0] ?? "selected"} skill`);
   else if (skillCount > 1) fixes.push(`drop one of the ${skillCount} skills`);
@@ -194,12 +230,22 @@ export default async function JobsBrowsePage({
   const params = await searchParams;
   const filters = parseJobBrowseParams(params);
 
-  const [cutoff, categories, skills] = await Promise.all([
+  // One skill lookup for the whole page — getViewerSkillSlugs is
+  // request-cached, so twelve rows cost one query, not twelve.
+  const [cutoff, categories, skills, viewerSkills] = await Promise.all([
     resolveEarlyAccessCutoff(),
     listCategories(),
     listSkillsForFilter(),
+    getViewerSkillSlugs(),
   ]);
   const { jobs, hasMore } = await browseJobs(filters, cutoff);
+
+  // The match column exists only for a signed-in freelancer who has told us
+  // what they do. Logged-out visitors, recruiters, and a freelancer with an
+  // empty skill list all get the layout unchanged — a column of 0% would be
+  // a worse answer than no column.
+  const matchSkills = viewerSkills !== null && viewerSkills.size > 0 ? viewerSkills : null;
+  const showMatch = matchSkills !== null;
 
   const selectedSkills = new Set(filters.skillSlugs ?? []);
   const selectedSkillNames = skills.filter((s) => selectedSkills.has(s.slug)).map((s) => s.name);
@@ -283,6 +329,42 @@ export default async function JobsBrowsePage({
           {/* Results first in the DOM; grid places them second on the left-rail
               layout. See the layout note at the top of this file. */}
           <section aria-labelledby="results-heading" className="min-w-0 lg:col-start-2 lg:row-start-1">
+            {/* The keyword box leads the results column — it is the control
+                people reach for first, so it is not buried seventh in the
+                filter rail. It belongs to the filter form through the `form`
+                attribute rather than living inside a second form of its own:
+                one GET submission carries the keyword AND every checked
+                filter, it survives with JavaScript off, and the parsed q
+                rides along on every pagination link via browseQuery. */}
+            {/* A search landmark, so this is one keystroke away for a screen
+                reader rather than a text box somewhere inside the results. */}
+            <div role="search" className="pb-6">
+              <label htmlFor="q" className="sr-only">
+                Search jobs by title, description or company
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <IconSearch className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="q"
+                    name="q"
+                    type="search"
+                    form={FILTER_FORM_ID}
+                    inputSize="lg"
+                    maxLength={JOB_SEARCH_MAX_LENGTH}
+                    defaultValue={filters.q ?? ""}
+                    placeholder="Search titles, descriptions and companies"
+                    className="pl-10"
+                  />
+                </div>
+                {/* The page's one Signal Red element. "Apply filters" below
+                    is Ink for the same reason a row action is. */}
+                <Button type="submit" form={FILTER_FORM_ID} size="lg">
+                  Search
+                </Button>
+              </div>
+            </div>
+
             <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-border pb-3">
               <div className="min-w-0">
                 <h2 id="results-heading" className="t-subhead">
@@ -335,10 +417,33 @@ export default async function JobsBrowsePage({
               />
             ) : (
               <>
+                {/* The match number is arithmetic, not a black box, so the
+                    page says out loud what it counted. A freelancer who
+                    disagrees with a score can go and fix the list it was
+                    counted against. */}
+                {showMatch ? (
+                  <p className="mt-6 text-[13px] leading-[18px] text-muted-foreground">
+                    Match is the share of each job’s listed skills that are on your profile.{" "}
+                    <Link
+                      href="/dashboard/freelancer/profile"
+                      className={cn("underline hover:text-foreground", LINK_FOCUS)}
+                    >
+                      Edit your skills
+                    </Link>
+                    .
+                  </p>
+                ) : null}
+
                 {/* Column captions sit above the rule, so the rows below keep
                     one continuous hairline. Hidden from assistive tech because
                     each cell carries its own label. */}
-                <div aria-hidden className="mt-6 hidden gap-x-6 px-4 pb-2 md:flex">
+                <div
+                  aria-hidden
+                  className={cn("hidden gap-x-6 px-4 pb-2 md:flex", showMatch ? "mt-4" : "mt-6")}
+                >
+                  {showMatch ? (
+                    <span className={cn("t-label text-muted-foreground", COL_MATCH)}>Match</span>
+                  ) : null}
                   <span className={cn("t-label text-muted-foreground", COL_ROLE)}>Role</span>
                   <span className={cn("t-label text-right text-muted-foreground", COL_BUDGET)}>
                     Budget USD
@@ -358,55 +463,123 @@ export default async function JobsBrowsePage({
                   {jobs.map((job) => {
                     const budget = budgetRange(job.budgetMinUsd, job.budgetMaxUsd);
                     const applicants = job._count.applications;
+                    // null when the viewer has no skills on file or the job
+                    // lists none — a job with no skills gets no invented score.
+                    const match = matchSkills ? scoreJobMatch(matchSkills, job.skills) : null;
+                    // Skills the viewer already has come first, so the four
+                    // chips that fit are the four that argue for applying.
+                    // Array.sort is stable, so the alphabetical order the
+                    // query pinned survives inside each group.
+                    const chips = matchSkills
+                      ? [...job.skills].sort(
+                          (a, b) =>
+                            Number(matchSkills.has(b.skill.slug)) -
+                            Number(matchSkills.has(a.skill.slug)),
+                        )
+                      : job.skills;
+                    const hiddenChips = Math.max(0, chips.length - 4);
                     return (
                       <li key={job.id} className="row-hover px-4 py-4">
                         <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
-                          <div className={COL_ROLE}>
-                            <h3 className="text-[16px] font-semibold leading-[22px]">
-                              <Link
-                                href={`/jobs/${job.slug}`}
-                                className={cn("hover:underline", LINK_FOCUS)}
-                              >
-                                {job.title}
-                              </Link>
-                            </h3>
-
-                            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] leading-[22px]">
-                              <Link
-                                href={`/companies/${job.recruiter.slug}`}
-                                className={cn(
-                                  "text-muted-foreground hover:text-foreground hover:underline",
-                                  LINK_FOCUS,
+                          {/* Meter and role travel as one column so a narrow
+                              phone shrinks the title rather than stranding the
+                              meter on a line of its own. The 88px + 24px gap
+                              means the title starts at the same x as the
+                              "Role" caption above, with or without the
+                              meter. */}
+                          <div className={cn("flex items-start gap-x-6", COL_ROLE)}>
+                            {showMatch ? (
+                              <div className={cn(COL_MATCH, "pt-0.5")}>
+                                {match ? (
+                                  <MatchMeter score={match.score} showValue />
+                                ) : (
+                                  <span className="t-data text-muted-foreground">
+                                    <span aria-hidden>—</span>
+                                    <span className="sr-only">No skills listed on this job</span>
+                                  </span>
                                 )}
-                              >
-                                {job.recruiter.companyName}
-                              </Link>
-                              {/* The tier label is on every row, always — the
-                                  LIVE tier from the joined recruiter (the ?tier=
-                                  filter uses the indexed snapshot column). */}
-                              <ProfileBadge spec={recruiterTierBadge(job.recruiter.tier)} />
-                            </p>
-
-                            <p className="t-label mt-2 text-muted-foreground">
-                              {[
-                                ENGAGEMENT_LABEL[job.engagementType] ?? job.engagementType,
-                                job.isRemote ? "Remote" : (job.location ?? "On-site"),
-                                job.category.name,
-                              ].join(" · ")}
-                            </p>
-
-                            {job.skills.length > 0 ? (
-                              <ul className="mt-2 flex flex-wrap gap-1.5">
-                                {job.skills.map((s) => (
-                                  <li
-                                    key={s.skill.slug}
-                                    className="rounded-[2px] border border-border px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground"
-                                  >
-                                    {s.skill.name}
-                                  </li>
-                                ))}
-                              </ul>
+                              </div>
                             ) : null}
+
+                            <div className="min-w-0 flex-1">
+                              <h3 className="text-[16px] font-semibold leading-[22px]">
+                                <Link
+                                  href={`/jobs/${job.slug}`}
+                                  className={cn("hover:underline", LINK_FOCUS)}
+                                >
+                                  {job.title}
+                                </Link>
+                              </h3>
+
+                              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] leading-[22px]">
+                                {/* The row's visual anchor: a logo when the
+                                    company has one, its initials when it does
+                                    not. Squared, because companies are not
+                                    people. */}
+                                <Avatar
+                                  name={job.recruiter.companyName}
+                                  src={job.recruiter.logoUrl}
+                                  size="xs"
+                                  shape="company"
+                                />
+                                <Link
+                                  href={`/companies/${job.recruiter.slug}`}
+                                  className={cn(
+                                    "text-muted-foreground hover:text-foreground hover:underline",
+                                    LINK_FOCUS,
+                                  )}
+                                >
+                                  {job.recruiter.companyName}
+                                </Link>
+                                {/* The tier label is on every row, always — the
+                                    LIVE tier from the joined recruiter (the
+                                    ?tier= filter uses the indexed snapshot
+                                    column). */}
+                                <ProfileBadge spec={recruiterTierBadge(job.recruiter.tier)} />
+                              </p>
+
+                              <p className="t-label mt-2 text-muted-foreground">
+                                {[
+                                  ENGAGEMENT_LABEL[job.engagementType] ?? job.engagementType,
+                                  job.isRemote ? "Remote" : (job.location ?? "On-site"),
+                                  job.category.name,
+                                ].join(" · ")}
+                              </p>
+
+                              {/* Four chips, then a count. A Mist ground rather
+                                  than an outline: at four-plus per row the
+                                  hairlines competed with the row rule itself. */}
+                              {chips.length > 0 ? (
+                                <ul className="mt-2 flex flex-wrap gap-1.5">
+                                  {chips.slice(0, 4).map((s) => {
+                                    const known = matchSkills?.has(s.skill.slug) ?? false;
+                                    return (
+                                      <li
+                                        key={s.skill.slug}
+                                        className={cn(
+                                          "rounded-[2px] bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium tracking-[0.12em] uppercase",
+                                          known ? "text-foreground" : "text-muted-foreground",
+                                        )}
+                                      >
+                                        {s.skill.name}
+                                        {/* Ink versus Slate is the visual cue;
+                                            this is the same fact said out loud,
+                                            so it never rests on colour alone. */}
+                                        {known ? (
+                                          <span className="sr-only"> — on your profile</span>
+                                        ) : null}
+                                      </li>
+                                    );
+                                  })}
+                                  {hiddenChips > 0 ? (
+                                    <li className="rounded-[2px] bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium tracking-[0.12em] text-muted-foreground uppercase">
+                                      +{hiddenChips}
+                                      <span className="sr-only"> more skills</span>
+                                    </li>
+                                  ) : null}
+                                </ul>
+                              ) : null}
+                            </div>
                           </div>
 
                           <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 md:shrink-0">
@@ -487,7 +660,12 @@ export default async function JobsBrowsePage({
               not just the scroll position. */}
           <aside id="filters" tabIndex={-1} className="lg:col-start-1 lg:row-start-1">
             <h2 className="t-label pb-3 text-muted-foreground">Filters</h2>
-            <form method="get" action="/jobs" className="space-y-5 border-t border-border pt-5">
+            <form
+              id={FILTER_FORM_ID}
+              method="get"
+              action="/jobs"
+              className="space-y-5 border-t border-border pt-5"
+            >
               <Field label="Category" htmlFor="category">
                 <Select id="category" name="category" defaultValue={filters.categorySlug ?? ""}>
                   <option value="">All categories</option>
@@ -603,7 +781,11 @@ export default async function JobsBrowsePage({
               </details>
 
               <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
-                <Button type="submit">Apply filters</Button>
+                {/* Ink, not red: the view already spends its one Signal Red
+                    on Search at the top of the results column. */}
+                <Button type="submit" variant="secondary">
+                  Apply filters
+                </Button>
                 {hasFilters ? (
                   <Button variant="ghost" render={<Link href="/jobs">Clear</Link>} />
                 ) : null}

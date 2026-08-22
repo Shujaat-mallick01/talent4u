@@ -146,6 +146,9 @@ export async function listPublicFreelancers(
       country: true,
       hourlyRateUsd: true,
       verification: true,
+      // The row's visual anchor. One nullable column on rows already read —
+      // no join, no extra query, and null simply falls back to initials.
+      avatarUrl: true,
       createdAt: true,
     },
   });

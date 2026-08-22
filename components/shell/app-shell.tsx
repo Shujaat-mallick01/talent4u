@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { signOut } from "@/app/(auth)/actions";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { IconLogout, IconSettings } from "@/components/ui/icon";
 
@@ -29,7 +30,7 @@ export function AppShell({
   children,
 }: {
   groups: NavGroup[];
-  account: { name: string; role: string; href?: string };
+  account: { name: string; role: string; href?: string; avatarUrl?: string | null; kind?: "person" | "company" };
   children: React.ReactNode;
 }) {
   /**
@@ -61,6 +62,12 @@ export function AppShell({
 
   const accountRow = (
     <div className="flex items-center gap-2 px-6 py-3">
+      <Avatar
+        name={account.name}
+        src={account.avatarUrl}
+        size="sm"
+        shape={account.kind ?? "person"}
+      />
       <div className="min-w-0 flex-1">
         {account.href ? (
           <Link
@@ -108,6 +115,12 @@ export function AppShell({
             <Logo className="h-5 w-auto" />
           </Link>
           <div className="flex min-w-0 items-center gap-2">
+            <Avatar
+              name={account.name}
+              src={account.avatarUrl}
+              size="sm"
+              shape={account.kind ?? "person"}
+            />
             <div className="min-w-0 text-right">
               <p className="truncate text-[14px] font-medium">{account.name}</p>
               <p className="t-label truncate text-muted-foreground">{account.role}</p>

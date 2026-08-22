@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import type { EngagementType, RecruiterTier } from "@/lib/generated/prisma/enums";
 
 /**
@@ -12,7 +14,27 @@ const RECRUITER_TIERS = new Set(["UNVERIFIED", "VERIFIED", "TRUSTED"]);
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_SKILL_FILTERS = 10;
 
+/** Longest keyword search we put in a URL, and the input's maxLength. */
+export const JOB_SEARCH_MAX_LENGTH = 80;
+
+/**
+ * The keyword box. Trimmed, capped rather than rejected (a pasted paragraph
+ * should still search its first 80 characters instead of erroring), and
+ * dropped entirely when nothing is left — an empty `?q=` from the GET form
+ * must normalize away so it never reaches the canonical or the query.
+ *
+ * The trailing trim runs again after the cap: slicing at 80 can leave a
+ * dangling space, and " react " and "react" must not be two different
+ * shareable URLs for the same result set.
+ */
+const searchTermSchema = z
+  .string()
+  .transform((s) => s.trim().slice(0, JOB_SEARCH_MAX_LENGTH).trim())
+  .pipe(z.string().min(1));
+
 export type JobBrowseFilters = {
+  /** Free-text keyword over title, description and company name. */
+  q?: string;
   categorySlug?: string;
   skillSlugs?: string[];
   engagementType?: EngagementType;
@@ -39,6 +61,9 @@ const parseBudget = (v: string | undefined): number | undefined => {
 
 export function parseJobBrowseParams(params: RawParams): JobBrowseFilters {
   const filters: JobBrowseFilters = {};
+
+  const q = searchTermSchema.safeParse(first(params.q));
+  if (q.success) filters.q = q.data;
 
   const category = first(params.category);
   if (category && SLUG_RE.test(category)) filters.categorySlug = category;

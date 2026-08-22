@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ProfileBadge } from "@/components/profile/profile-badge";
 import { ReportDialog } from "@/components/report/report-dialog";
 import { StarRating } from "@/components/profile/star-rating";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconExternal } from "@/components/ui/icon";
@@ -141,24 +142,16 @@ export default async function CompanyProfilePage({
         ) : null}
 
         <header>
+          {/* One shared Avatar rather than this page's own logo block and its
+              own initials fallback: the square, the hairline and the initials
+              rule now match every company mark on the site. */}
           <div className="flex items-start gap-4">
-            {company.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- public logo from Supabase Storage; next/image optimization is Phase 7.
-              <img
-                src={company.logoUrl}
-                alt={`${company.companyName} logo`}
-                width={56}
-                height={56}
-                className="size-14 shrink-0 rounded-[2px] border border-border object-contain"
-              />
-            ) : (
-              <div
-                aria-hidden
-                className="flex size-14 shrink-0 items-center justify-center rounded-[2px] border border-border bg-muted font-mono text-xl font-medium text-muted-foreground"
-              >
-                {company.companyName.slice(0, 1).toUpperCase()}
-              </div>
-            )}
+            <Avatar
+              name={company.companyName}
+              src={company.logoUrl}
+              size="lg"
+              shape="company"
+            />
             <div className="min-w-0">
               <p className="t-label text-muted-foreground">Employer</p>
               <h1 className="t-display-2 mt-2">{company.companyName}</h1>

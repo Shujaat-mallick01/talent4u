@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Field, fieldControlProps } from "@/components/ui/field";
 import { IconAlert, IconArrowLeft } from "@/components/ui/icon";
@@ -51,6 +52,11 @@ export default async function ConversationPage({
     : other?.freelancer
       ? `/freelancers/${other.freelancer.slug}`
       : null;
+  // A thread has exactly two people, so identity belongs once — here. Putting
+  // a face on every message group would repeat the same two images down the
+  // page and crowd the words, which are the point.
+  const isCompany = Boolean(other?.recruiter);
+  const avatarSrc = other?.recruiter?.logoUrl ?? other?.freelancer?.avatarUrl;
 
   // Day separators, computed before rendering rather than by mutating a
   // variable inside the map — a render pass must not depend on how many times
@@ -78,33 +84,43 @@ export default async function ConversationPage({
           </Link>
         </nav>
 
-        <header className="border-b border-border pb-4">
-          <div className="flex flex-wrap items-center gap-2">
-            {profileHref ? (
-              <Link
-                href={profileHref}
-                className="t-heading rounded-[2px] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                {name}
-              </Link>
-            ) : (
-              <h1 className="t-heading">{name}</h1>
-            )}
-            {other?.recruiter ? (
-              <ProfileBadge spec={recruiterTierBadge(other.recruiter.tier)} />
+        <header className="flex items-start gap-3 border-b border-border pb-4">
+          {/* md, not lg: this header is a name and one line about the job, and
+              a 72px mark beside a 24px heading would outweigh both. */}
+          <Avatar
+            name={name}
+            src={avatarSrc}
+            size="md"
+            shape={isCompany ? "company" : "person"}
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              {profileHref ? (
+                <Link
+                  href={profileHref}
+                  className="t-heading rounded-[2px] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  {name}
+                </Link>
+              ) : (
+                <h1 className="t-heading">{name}</h1>
+              )}
+              {other?.recruiter ? (
+                <ProfileBadge spec={recruiterTierBadge(other.recruiter.tier)} />
+              ) : null}
+            </div>
+            {thread.job ? (
+              <p className="mt-1 text-[15px] text-muted-foreground">
+                About{" "}
+                <Link
+                  href={`/jobs/${thread.job.slug}`}
+                  className="rounded-[2px] underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  {thread.job.title}
+                </Link>
+              </p>
             ) : null}
           </div>
-          {thread.job ? (
-            <p className="mt-1 text-[15px] text-muted-foreground">
-              About{" "}
-              <Link
-                href={`/jobs/${thread.job.slug}`}
-                className="rounded-[2px] underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                {thread.job.title}
-              </Link>
-            </p>
-          ) : null}
         </header>
 
         {notice ? (

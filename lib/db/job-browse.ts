@@ -22,6 +22,7 @@ export const JOB_BROWSE_PAGE_SIZE = 12;
  *
  * Semantics:
  * - Only ACTIVE jobs, ever.
+ * - q: case-insensitive substring over title OR description OR company name.
  * - skills: a job matches if it has ANY of the selected skills.
  * - budget: overlap semantics with NULL as "unbounded" — a job with no stated
  *   budget matches any budget filter.
@@ -42,6 +43,30 @@ export function buildJobBrowseWhere(
 
   if (earlyAccessCutoff) {
     and.push({ publishedAt: { lte: earlyAccessCutoff } });
+  }
+  if (filters.q) {
+    // Plain ILIKE '%term%' across the three fields a searcher actually means:
+    // the role, what it involves, and who is hiring. At this scale — tens of
+    // thousands of ACTIVE rows, already narrowed by status and the window —
+    // one bitmap scan is well inside budget, and it needs no extra schema, no
+    // index maintenance and no ranking model to explain.
+    //
+    // Upgrade path, when ACTIVE rows pass ~100k or this query shows up in the
+    // slow log: add a generated tsvector column (title weight A, company B,
+    // description C) with a GIN index and swap this OR for a single
+    // `@@ websearch_to_tsquery` match, ordering by ts_rank ahead of
+    // publishedAt. That buys stemming and relevance but costs a migration and
+    // gives up mid-word matching, so pg_trgm + GIN is the alternative if
+    // substring behaviour must survive. Either way the change stays inside
+    // this branch: nothing above or below it knows how the match is computed.
+    const contains = { contains: filters.q, mode: "insensitive" } as const;
+    and.push({
+      OR: [
+        { title: contains },
+        { description: contains },
+        { recruiter: { companyName: contains } },
+      ],
+    });
   }
   if (filters.categorySlug) {
     and.push({ category: { slug: filters.categorySlug } });
@@ -99,7 +124,18 @@ export async function browseJobs(filters: JobBrowseFilters, earlyAccessCutoff: D
       publishedAt: true,
       recruiterTier: true,
       category: { select: { slug: true, name: true } },
-      skills: { select: { skill: { select: { slug: true, name: true } } }, take: 6 },
+      // All of them, in a stable order. jobPostSchema caps a post at 10
+      // skills, so `take: 10` is the whole set rather than a truncation —
+      // which matters now that the row scores a match against this list: a
+      // clipped list would quietly shrink the denominator and report a match
+      // percentage the freelancer's own profile disagrees with. The order is
+      // pinned so the four chips a row shows are the same four on every
+      // render.
+      skills: {
+        select: { skill: { select: { slug: true, name: true } } },
+        orderBy: { skill: { name: "asc" } },
+        take: 10,
+      },
       // Live tier alongside the denormalized recruiterTier: the card badge
       // renders the live value at zero extra query cost (the join is already
       // here); the ?tier= FILTER stays on the indexed snapshot column.
@@ -175,6 +211,9 @@ export const getPublicJobBySlug = cache(async (slug: string) => {
           // company page it links to is gone.
           deactivatedAt: true,
           country: true,
+          // "On Talent4u since March 2024" — the tenure line every serious
+          // marketplace answers before asking a stranger to apply.
+          createdAt: true,
         },
       },
     },

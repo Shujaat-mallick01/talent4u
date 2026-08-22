@@ -221,3 +221,40 @@ describe("saved jobs", () => {
     ).toEqual({ allow: false, redirectTo: "/dashboard/recruiter" });
   });
 });
+
+describe("billing", () => {
+  it("is open to both roles — each buys different plans on the same screen", () => {
+    for (const role of ["FREELANCER", "RECRUITER"] as const) {
+      expect(
+        resolveProtectedRoute("/dashboard/billing", { kind: "account", role, hasProfile: true }),
+      ).toEqual({ allow: true });
+    }
+  });
+
+  it("bounces an admin: staff accounts are not customers", () => {
+    expect(
+      resolveProtectedRoute("/dashboard/billing", {
+        kind: "account",
+        role: "ADMIN",
+        hasProfile: false,
+      }),
+    ).toEqual({ allow: false, redirectTo: "/admin" });
+  });
+
+  it("sends a logged-out visitor to sign in, keeping the destination", () => {
+    expect(resolveProtectedRoute("/dashboard/billing", { kind: "logged-out" })).toEqual({
+      allow: false,
+      redirectTo: "/signin?next=%2Fdashboard%2Fbilling",
+    });
+  });
+
+  it("holds an unfinished profile in onboarding", () => {
+    expect(
+      resolveProtectedRoute("/dashboard/billing", {
+        kind: "account",
+        role: "FREELANCER",
+        hasProfile: false,
+      }),
+    ).toEqual({ allow: false, redirectTo: "/onboarding/freelancer" });
+  });
+});

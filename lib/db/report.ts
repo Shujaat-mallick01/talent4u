@@ -1,4 +1,4 @@
-import { isPlausibleId } from "@/lib/services/slug";
+import { isPlausibleId, isUuid } from "@/lib/services/slug";
 import type { ReportTargetType } from "@/lib/validations/report";
 
 import { prisma } from "./client";
@@ -68,8 +68,6 @@ export type CreateReportTxResult =
   | { ok: true; id: string }
   | { ok: false; reason: "duplicate" | "too-many-open" };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
  * Files the report, re-checking the two limits inside the transaction.
  *
@@ -94,7 +92,7 @@ export async function createReportTx(
     // here would be a Postgres cast error (22P02 — a 500) rather than a miss.
     // Skipping the lock still leaves the checks below; it only gives up the
     // serialization, and the FK on reportedById rejects an unknown user.
-    if (UUID.test(reportedById)) {
+    if (isUuid(reportedById)) {
       await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${reportedById}::uuid FOR UPDATE`;
     }
 

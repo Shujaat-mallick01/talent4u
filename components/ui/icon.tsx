@@ -154,6 +154,14 @@ export const IconPin = (p: IconProps) => (
   </Svg>
 );
 
+/** Billing. A card, square-cornered like everything else in this set. */
+export const IconCard = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="6" width="18" height="12" />
+    <path d="M3 10h18M6 14h4" />
+  </Svg>
+);
+
 export const IconMenu = (p: IconProps) => (
   <Svg {...p}>
     <path d="M4 7h16M4 12h16M4 17h16" />

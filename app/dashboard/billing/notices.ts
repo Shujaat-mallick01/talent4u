@@ -1,0 +1,63 @@
+import type { NoticeTone } from "@/components/ui/notice";
+import { isBillingNoticeCode, type BillingNoticeCode } from "@/lib/validations/billing";
+
+/**
+ * Billing outcomes as validated codes — never free text from the URL.
+ *
+ * A page about money is the last place that should render a stranger's
+ * sentence: "?notice=your+card+was+declined,+call+…" on our own domain is a
+ * ready-made phishing page. Anything not in this table resolves to null.
+ *
+ * Note what checkout_complete does NOT say. It reports that Stripe finished,
+ * not that a plan was granted — the plan on this page is read from the row the
+ * webhook writes, and a person who types the URL sees their real plan
+ * unchanged. The success redirect is a courtesy; the signed webhook is the
+ * evidence.
+ */
+
+export type BillingNoticeCopy = { tone: NoticeTone; message: string };
+
+const COPY: Record<BillingNoticeCode, BillingNoticeCopy> = {
+  checkout_complete: {
+    tone: "success",
+    message:
+      "Payment received. Your plan below updates the moment Stripe confirms it — usually seconds. Reload if it still looks unchanged.",
+  },
+  checkout_cancelled: {
+    tone: "info",
+    message: "Checkout closed, nothing was charged. Your plan is unchanged.",
+  },
+  checkout_failed: {
+    tone: "error",
+    message: "Checkout could not be opened. Nothing was charged. Try again in a moment.",
+  },
+  checkout_unavailable: {
+    tone: "error",
+    message: "Payments are not switched on for this deployment yet.",
+  },
+  not_purchasable: {
+    tone: "error",
+    message: "That plan is not available on this account.",
+  },
+  already_on_plan: {
+    tone: "info",
+    message:
+      "You are already on that plan. Use Manage billing to change your card, switch plan, or cancel.",
+  },
+  portal_failed: {
+    tone: "error",
+    message: "The billing portal could not be opened. Try again in a moment.",
+  },
+  portal_unavailable: {
+    tone: "error",
+    message: "Payments are not switched on for this deployment yet.",
+  },
+  no_customer: {
+    tone: "info",
+    message: "There is nothing to manage yet — you have never been charged.",
+  },
+};
+
+export function resolveBillingNotice(code: string | undefined): BillingNoticeCopy | null {
+  return isBillingNoticeCode(code) ? COPY[code] : null;
+}

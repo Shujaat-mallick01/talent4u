@@ -4,6 +4,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import type { NavGroup } from "@/components/shell/nav-items";
 import {
   IconBriefcase,
+  IconCard,
   IconBuilding,
   IconGauge,
   IconHandshakeless,
@@ -74,6 +75,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 label: "Public page",
                 icon: <IconBuilding />,
               },
+              { href: "/dashboard/billing", label: "Plan and billing", icon: <IconCard /> },
             ],
           },
         ]
@@ -119,6 +121,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 label: "Edit profile",
                 icon: <IconSettings />,
               },
+              { href: "/dashboard/billing", label: "Plan and billing", icon: <IconCard /> },
             ],
           },
         ];

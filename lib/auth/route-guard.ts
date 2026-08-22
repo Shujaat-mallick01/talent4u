@@ -27,7 +27,11 @@ const to = (redirectTo: string): RouteDecision => ({ allow: false, redirectTo })
  * /dashboard/freelancer and /dashboard/recruiter prefixes. Without this list
  * the fallthrough treats them as unknown subpaths and bounces everyone home.
  */
-const SHARED_DASHBOARD_AREAS = ["/dashboard/messages", "/dashboard/settings"] as const;
+const SHARED_DASHBOARD_AREAS = [
+  "/dashboard/messages",
+  "/dashboard/settings",
+  "/dashboard/billing",
+] as const;
 
 /** Where a signed-in account belongs right now. */
 export const homeFor = (role: UserRole, hasProfile: boolean): string => {

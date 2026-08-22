@@ -49,6 +49,16 @@ export const isPlausibleSlug = (slug: string): boolean => /^[a-z0-9-]{1,80}$/.te
 export const isPlausibleId = (id: string): boolean => /^[a-z0-9]{1,40}$/i.test(id);
 
 /**
+ * The same guard for the ids that are UUIDs rather than cuids — User.id and
+ * everything keyed off it. Kept separate rather than loosening isPlausibleId
+ * to allow dashes: a uuid column rejects a malformed value with error 22P02
+ * (a 500), and a cuid column would happily accept the dashes and simply miss,
+ * so the two want different answers.
+ */
+export const isUuid = (id: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+/**
  * Which unique constraint a P2002 fired on. Onboarding uses this to tell a
  * retryable slug race apart from a genuine "this account already onboarded"
  * (userId) conflict.

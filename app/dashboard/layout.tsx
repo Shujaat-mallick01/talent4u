@@ -9,6 +9,7 @@ import {
   IconHandshakeless,
   IconMessage,
   IconSearch,
+  IconSettings,
   IconShield,
   IconUser,
 } from "@/components/ui/icon";
@@ -63,6 +64,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 icon: <IconShield />,
               },
               {
+                href: "/dashboard/recruiter/company",
+                label: "Company details",
+                icon: <IconSettings />,
+              },
+              {
                 href: `/companies/${current.profile.slug}`,
                 label: "Public page",
                 icon: <IconBuilding />,
@@ -88,13 +94,28 @@ export default async function DashboardLayout({ children }: { children: React.Re
             ],
           },
           {
-            label: "Find work",
+            // Renamed from "Find work": the group now holds the profile that
+            // does the finding, not only the browse link.
+            label: "Work and profile",
             items: [
               { href: "/jobs", label: "Browse jobs", icon: <IconSearch /> },
+              // Mirrors the recruiter's: standing first, then the public page
+              // it appears on. Without it the only route to verification was
+              // a link nobody had a reason to look for.
+              {
+                href: "/dashboard/freelancer/verification",
+                label: "Verification",
+                icon: <IconShield />,
+              },
               {
                 href: `/freelancers/${current.profile.slug}`,
                 label: "Your profile",
                 icon: <IconUser />,
+              },
+              {
+                href: "/dashboard/freelancer/profile",
+                label: "Edit profile",
+                icon: <IconSettings />,
               },
             ],
           },

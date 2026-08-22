@@ -22,6 +22,13 @@ export type RouteDecision = { allow: true } | { allow: false; redirectTo: string
 const allow: RouteDecision = { allow: true };
 const to = (redirectTo: string): RouteDecision => ({ allow: false, redirectTo });
 
+/**
+ * Dashboard areas that belong to both roles, so they sit outside the
+ * /dashboard/freelancer and /dashboard/recruiter prefixes. Without this list
+ * the fallthrough treats them as unknown subpaths and bounces everyone home.
+ */
+const SHARED_DASHBOARD_AREAS = ["/dashboard/messages", "/dashboard/settings"] as const;
+
 /** Where a signed-in account belongs right now. */
 export const homeFor = (role: UserRole, hasProfile: boolean): string => {
   switch (role) {
@@ -77,9 +84,14 @@ export function resolveProtectedRoute(pathname: string, state: AuthState): Route
     return role === "RECRUITER" && hasProfile ? allow : to(home);
   }
   // Shared product areas: the same screen for both roles, so the only
-  // requirement is a finished profile. Membership of an individual thread is
-  // decided by the service, not by the path.
-  if (pathname.startsWith("/dashboard/messages")) {
+  // requirement is a finished profile. Membership of an individual thread, and
+  // ownership of the account a setting belongs to, are decided by the service
+  // — never by the path.
+  //
+  // ADMIN is excluded rather than merely unrouted: an admin has no side in
+  // anyone's conversation and no public page, so neither screen has anything
+  // on it that is theirs.
+  if (SHARED_DASHBOARD_AREAS.some((prefix) => pathname.startsWith(prefix))) {
     return hasProfile && role !== "ADMIN" ? allow : to(home);
   }
   // Bare /dashboard or an unknown dashboard subpath: send them home.

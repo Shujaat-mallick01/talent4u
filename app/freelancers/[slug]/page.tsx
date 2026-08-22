@@ -291,14 +291,16 @@ export default async function FreelancerProfilePage({
                     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                         <StarRating value={review.rating} count={1} hideCount />
-                        {review.authorRecruiter && !review.authorRecruiter.isBanned ? (
+                        {review.authorRecruiter &&
+                        !review.authorRecruiter.isBanned &&
+                        review.authorRecruiter.deactivatedAt === null ? (
                           <Link
                             href={`/companies/${review.authorRecruiter.slug}`}
                             className="rounded-[2px] font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                           >
                             {review.authorRecruiter.companyName}
                           </Link>
-                        ) : review.authorRecruiter ? (
+                        ) : review.authorRecruiter?.isBanned ? (
                           /* Banning delists the employer but keeps the review
                              they wrote. Say so rather than showing a nameless
                              row. */
@@ -308,6 +310,10 @@ export default async function FreelancerProfilePage({
                           >
                             Removed employer
                           </Link>
+                        ) : review.authorRecruiter ? (
+                          /* Self-deactivated, not banned: the page is gone by
+                             their own choice, which is published nowhere. */
+                          <span className="text-muted-foreground">A company</span>
                         ) : null}
                       </div>
                       <span className="t-data shrink-0 text-muted-foreground">

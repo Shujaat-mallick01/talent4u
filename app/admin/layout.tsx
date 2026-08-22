@@ -22,7 +22,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           href: "/admin",
           label: "Moderation queue",
           icon: <IconFlag />,
-          count: counts.openFlags + counts.openReports + counts.pendingVerifications,
+          count: counts.openFlags +
+            counts.openReports +
+            counts.pendingVerifications +
+            counts.pendingFreelancerVerifications,
         },
       ],
     },

@@ -70,7 +70,7 @@ export async function applyToJobTx(args: {
         where: {
           id: jobId,
           status: "ACTIVE",
-          recruiter: { isBanned: false },
+          recruiter: { isBanned: false, deactivatedAt: null },
           ...(earlyAccessCutoff ? { publishedAt: { lte: earlyAccessCutoff } } : {}),
         },
         select: { id: true },

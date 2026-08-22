@@ -31,7 +31,14 @@ export function buildJobBrowseWhere(
   filters: JobBrowseFilters,
   earlyAccessCutoff: Date | null,
 ): Prisma.JobWhereInput {
-  const and: Prisma.JobWhereInput[] = [{ status: "ACTIVE" }];
+  const and: Prisma.JobWhereInput[] = [
+    { status: "ACTIVE" },
+    // A self-deactivated employer's posts hide with their page. Without this,
+    // browse serves jobs whose company link and JSON-LD hiringOrganization
+    // point at a 404 — and disagrees with the sitemap, which already excludes
+    // them. (Banned needs no predicate here: banning REMOVEs the jobs.)
+    { recruiter: { deactivatedAt: null } },
+  ];
 
   if (earlyAccessCutoff) {
     and.push({ publishedAt: { lte: earlyAccessCutoff } });
@@ -164,6 +171,9 @@ export const getPublicJobBySlug = cache(async (slug: string) => {
           logoUrl: true,
           tier: true,
           isBanned: true,
+          // Self-deactivation hides the post exactly like a ban does — the
+          // company page it links to is gone.
+          deactivatedAt: true,
           country: true,
         },
       },

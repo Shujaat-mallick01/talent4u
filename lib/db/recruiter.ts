@@ -18,8 +18,11 @@ import { prisma } from "./client";
  */
 export const getPublicRecruiterBySlug = cache(async (slug: string) => {
   if (!isPlausibleSlug(slug)) return null;
-  const company = await prisma.recruiterProfile.findUnique({
-    where: { slug },
+  // findFirst so self-deactivation is part of the predicate, indistinguishable
+  // from not-found. (A BAN is different and stays visible logic-side: banned
+  // companies are the subject of the public removals page.)
+  const company = await prisma.recruiterProfile.findFirst({
+    where: { slug, deactivatedAt: null },
     select: {
       id: true,
       slug: true,
@@ -40,7 +43,9 @@ export const getPublicRecruiterBySlug = cache(async (slug: string) => {
           rating: true,
           body: true,
           createdAt: true,
-          authorFreelancer: { select: { displayName: true, slug: true } },
+          // deactivatedAt so the page can unlink an author who took their
+          // profile down — the review stands, the dead link does not.
+          authorFreelancer: { select: { displayName: true, slug: true, deactivatedAt: true } },
         },
         orderBy: { createdAt: "desc" },
         take: 20,

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
+import { ReportDialog } from "@/components/report/report-dialog";
 import { Button } from "@/components/ui/button";
 import { IconArrowLeft } from "@/components/ui/icon";
 import { Notice } from "@/components/ui/notice";
@@ -24,6 +25,7 @@ import { getApplicationQuotaStatus } from "@/lib/services/application";
 import { getViewerBand } from "@/lib/services/entitlements";
 import { resolveEarlyAccessCutoff } from "@/lib/services/job-browse";
 import { SITE_URL } from "@/lib/site-url";
+import { resolveReportNotice } from "@/app/report/notices";
 
 import { ApplyForm } from "./apply-form";
 
@@ -69,7 +71,13 @@ const loadJobView = cache(
     if (!job) return null;
     const cutoff = await resolveEarlyAccessCutoff();
     const view = decideJobVisibility(
-      { status: job.status, publishedAt: job.publishedAt, recruiterBanned: job.recruiter.isBanned },
+      {
+        status: job.status,
+        publishedAt: job.publishedAt,
+        // Deactivation hides the post like a ban: its company page 404s, so a
+        // live post here would link (and emit JSON-LD) into a dead URL.
+        recruiterBanned: job.recruiter.isBanned || job.recruiter.deactivatedAt !== null,
+      },
       cutoff,
     );
     if (view === "not-found") return null;
@@ -180,6 +188,11 @@ export default async function JobDetailPage({
   const budget = budgetLabel(job);
   const { notice } = await searchParams;
   const applyContext = view === "full" ? await resolveApplyContext(job.id) : null;
+  // Reporting needs an account, so the control says which of the two things it
+  // is before anyone opens it. getSession is cache()-wrapped, so this shares
+  // the round trip resolveApplyContext already paid for.
+  const session = await getSession();
+  const reportNotice = resolveReportNotice(notice);
   // Quoted at the viewer's own band, never the list price — a logged-out
   // reader gets STANDARD, which is the honest default for an unknown country.
   const proUpsell =
@@ -254,6 +267,15 @@ export default async function JobDetailPage({
               Track it on your dashboard
             </Link>
             .
+          </Notice>
+        ) : null}
+        {/* A report outcome belongs above the fold for the same reason a sent
+            application does: the control that produced it is at the bottom of
+            the page, and a confirmation nobody scrolls back to is no
+            confirmation. */}
+        {reportNotice ? (
+          <Notice tone={reportNotice.tone} className="mb-6">
+            {reportNotice.message}
           </Notice>
         ) : null}
         {view === "closed" ? (
@@ -493,6 +515,18 @@ export default async function JobDetailPage({
                 </div>
               </section>
             ) : null}
+
+            {/* The route into moderation for everything the scanner's phrase
+                list does not catch. Quiet, at the bottom, on a closed post too
+                — a scam is still worth reporting after the ad comes down. */}
+            <div className="mt-10">
+              <ReportDialog
+                targetType="job"
+                targetId={job.id}
+                slug={job.slug}
+                signedIn={session !== null}
+              />
+            </div>
           </div>
         </div>
       </div>

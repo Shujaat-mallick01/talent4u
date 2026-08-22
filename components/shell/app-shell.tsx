@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { signOut } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
-import { IconLogout } from "@/components/ui/icon";
+import { IconLogout, IconSettings } from "@/components/ui/icon";
 
 import { Logo } from "./logo";
 import { NavItems, NavStrip, type NavGroup } from "./nav-items";
@@ -32,8 +32,35 @@ export function AppShell({
   account: { name: string; role: string; href?: string };
   children: React.ReactNode;
 }) {
+  /**
+   * The two account-level actions, next to each other in both layouts.
+   * Settings sits here rather than in the nav groups because it is about the
+   * account rather than about the work — and because an account screen nobody
+   * can find is the same as not having one.
+   */
+  const accountActions = (
+    <div className="flex shrink-0 items-center gap-1">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Settings"
+        render={
+          <Link href="/dashboard/settings">
+            <IconSettings />
+          </Link>
+        }
+      />
+      {/* The product's only Sign out. */}
+      <form action={signOut}>
+        <Button type="submit" variant="ghost" size="icon-sm" aria-label="Sign out">
+          <IconLogout />
+        </Button>
+      </form>
+    </div>
+  );
+
   const accountRow = (
-    <div className="flex items-center gap-3 px-6 py-3">
+    <div className="flex items-center gap-2 px-6 py-3">
       <div className="min-w-0 flex-1">
         {account.href ? (
           <Link
@@ -47,12 +74,7 @@ export function AppShell({
         )}
         <p className="t-label truncate text-muted-foreground">{account.role}</p>
       </div>
-      {/* The product's only Sign out. */}
-      <form action={signOut}>
-        <Button type="submit" variant="ghost" size="icon-sm" aria-label="Sign out">
-          <IconLogout />
-        </Button>
-      </form>
+      {accountActions}
     </div>
   );
 
@@ -90,11 +112,7 @@ export function AppShell({
               <p className="truncate text-[14px] font-medium">{account.name}</p>
               <p className="t-label truncate text-muted-foreground">{account.role}</p>
             </div>
-            <form action={signOut}>
-              <Button type="submit" variant="ghost" size="icon-sm" aria-label="Sign out">
-                <IconLogout />
-              </Button>
-            </form>
+            {accountActions}
           </div>
         </div>
         <nav aria-label="Product">

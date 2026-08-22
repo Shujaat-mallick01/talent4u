@@ -156,4 +156,46 @@ describe("shared product areas", () => {
       redirectTo: "/signin?next=%2Fdashboard%2Fmessages",
     });
   });
+
+  // Settings is the second shared area: one screen for both roles, so it sits
+  // outside both role prefixes and needs the same treatment as messages.
+  it("lets either role reach settings", () => {
+    for (const state of [freelancer, recruiter]) {
+      expect(resolveProtectedRoute("/dashboard/settings", state)).toEqual({ allow: true });
+    }
+  });
+
+  it("sends an unfinished profile to onboarding before settings", () => {
+    expect(
+      resolveProtectedRoute("/dashboard/settings", {
+        kind: "account",
+        role: "RECRUITER",
+        hasProfile: false,
+      }),
+    ).toEqual({ allow: false, redirectTo: "/onboarding/recruiter" });
+  });
+
+  it("gives an admin no settings screen — they have no profile to configure", () => {
+    expect(
+      resolveProtectedRoute("/dashboard/settings", {
+        kind: "account",
+        role: "ADMIN",
+        hasProfile: true,
+      }),
+    ).toEqual({ allow: false, redirectTo: "/admin" });
+  });
+
+  it("sends a logged-out visitor to sign in, keeping settings as the destination", () => {
+    expect(resolveProtectedRoute("/dashboard/settings", { kind: "logged-out" })).toEqual({
+      allow: false,
+      redirectTo: "/signin?next=%2Fdashboard%2Fsettings",
+    });
+  });
+
+  it("funnels an account-less OAuth session to the role chooser, not settings", () => {
+    expect(resolveProtectedRoute("/dashboard/settings", { kind: "no-account" })).toEqual({
+      allow: false,
+      redirectTo: "/onboarding",
+    });
+  });
 });

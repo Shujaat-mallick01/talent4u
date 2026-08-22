@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { requireRole } from "@/lib/auth/guards";
+import { listPendingFreelancerVerifications } from "@/lib/db/freelancer-verification";
 import { getModerationCounts, listOpenReports } from "@/lib/db/moderation";
 import { listOpenSafetyFlags } from "@/lib/db/safety";
 import { listPendingVerifications } from "@/lib/db/verification";
@@ -13,11 +14,14 @@ import { countryName } from "@/lib/geo/countries";
 import { jobStatusBadge, recruiterTierBadge } from "@/lib/profile/badges";
 
 import { NOTICE_CLASSES } from "../dashboard/recruiter/notices";
+import { resolveFreelancerQueueNotice } from "../dashboard/freelancer/verification/notices";
 import {
+  approveFreelancerVerification,
   approveRecruiterVerification,
   banRecruiter,
   clearFlag,
   decideReport,
+  rejectFreelancerVerification,
   rejectRecruiterVerification,
   upholdFlag,
 } from "./actions";
@@ -35,14 +39,17 @@ export default async function AdminPage({
 }) {
   await requireRole("ADMIN");
 
-  const [counts, flags, reports, verifications, params] = await Promise.all([
-    getModerationCounts(),
-    listOpenSafetyFlags(50),
-    listOpenReports(50),
-    listPendingVerifications(),
-    searchParams,
-  ]);
-  const notice = resolveAdminNotice(params.notice, params.jobs);
+  const [counts, flags, reports, verifications, freelancerVerifications, params] =
+    await Promise.all([
+      getModerationCounts(),
+      listOpenSafetyFlags(50),
+      listOpenReports(50),
+      listPendingVerifications(),
+      listPendingFreelancerVerifications(),
+      searchParams,
+    ]);
+  const notice =
+    resolveAdminNotice(params.notice, params.jobs) ?? resolveFreelancerQueueNotice(params.notice);
 
   return (
     <main id="main" className="flex-1">
@@ -52,8 +59,10 @@ export default async function AdminPage({
           <p className="t-label mt-1 text-muted-foreground">
             {counts.openFlags} open {counts.openFlags === 1 ? "flag" : "flags"} ·{" "}
             {counts.openReports} {counts.openReports === 1 ? "report" : "reports"} ·{" "}
-            {counts.pendingVerifications} pending{" "}
-            {counts.pendingVerifications === 1 ? "verification" : "verifications"}
+            {counts.pendingVerifications} pending company{" "}
+            {counts.pendingVerifications === 1 ? "verification" : "verifications"} ·{" "}
+            {counts.pendingFreelancerVerifications} pending freelancer{" "}
+            {counts.pendingFreelancerVerifications === 1 ? "verification" : "verifications"}
           </p>
         </header>
 
@@ -252,6 +261,104 @@ export default async function AdminPage({
                     </form>
                     <form action={rejectRecruiterVerification} className="flex flex-1 items-start gap-2">
                       <input type="hidden" name="recruiterId" value={v.id} />
+                      <Textarea
+                        name="note"
+                        rows={1}
+                        maxLength={1000}
+                        placeholder="What they need to fix — sent back to them"
+                        className="min-h-9 min-w-64 flex-1"
+                      />
+                      <Button type="submit" size="sm" variant="outline">
+                        Return
+                      </Button>
+                    </form>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Freelancer work-link queue.
+            Approving here does NOT grant a badge: there is no ID provider yet
+            and both freelancer levels claim a government ID check. The
+            decision recorded is "these links are real and they are theirs",
+            which is what will be left standing when ID verification ships. */}
+        <section className="mb-10">
+          <h2 className="mb-1 text-sm font-semibold">Freelancer verifications</h2>
+          <p className="mb-3 max-w-[62ch] text-sm text-muted-foreground">
+            Work links only. Open each one and check it belongs to this person and the work is
+            real. Approving records the review and clears the queue — it does not change their
+            badge, which waits on ID verification.
+          </p>
+          {freelancerVerifications.length === 0 ? (
+            <p className="border border-dashed border-border p-6 text-sm text-muted-foreground">
+              Nobody waiting. Freelancers reach this queue by sending their links from
+              /dashboard/freelancer/verification.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border border border-border">
+              {freelancerVerifications.map((f) => (
+                <li key={f.id} className="p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link href={`/freelancers/${f.slug}`} className="font-medium hover:underline">
+                      {f.displayName}
+                    </Link>
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      {countryName(f.country) ?? f.country} · submitted{" "}
+                      {f.verificationSubmittedAt ? timeAgo(f.verificationSubmittedAt) : "—"}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{f.headline}</p>
+
+                  <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+                    <div>
+                      <dt className="inline font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                        Account
+                      </dt>{" "}
+                      <dd className="inline">{f.user.email}</dd>
+                    </div>
+                    {(
+                      [
+                        ["GitHub", f.githubUrl],
+                        ["Portfolio", f.portfolioUrl],
+                        ["LinkedIn", f.linkedinUrl],
+                      ] as const
+                    ).map(([label, href]) => (
+                      <div key={label}>
+                        <dt className="inline font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                          {label}
+                        </dt>{" "}
+                        <dd className="inline">
+                          {href ? (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer nofollow"
+                              className="underline"
+                            >
+                              open
+                            </a>
+                          ) : (
+                            "—"
+                          )}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  <div className="mt-3 flex flex-wrap items-start gap-2">
+                    <form action={approveFreelancerVerification}>
+                      <input type="hidden" name="freelancerId" value={f.id} />
+                      <Button type="submit" size="sm">
+                        Approve the links
+                      </Button>
+                    </form>
+                    <form
+                      action={rejectFreelancerVerification}
+                      className="flex flex-1 items-start gap-2"
+                    >
+                      <input type="hidden" name="freelancerId" value={f.id} />
                       <Textarea
                         name="note"
                         rows={1}

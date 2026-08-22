@@ -20,17 +20,26 @@ export type ModerationCounts = {
   openFlags: number;
   openReports: number;
   pendingVerifications: number;
+  /** Freelancers waiting on a work-link review. Counted separately from the
+   *  recruiter queue because the two decide different things. */
+  pendingFreelancerVerifications: number;
 };
 
 export async function getModerationCounts(): Promise<ModerationCounts> {
-  const [openFlags, openReports, pendingVerifications] = await Promise.all([
-    prisma.safetyFlag.count({ where: { status: "OPEN" } }),
-    prisma.report.count({ where: { status: "OPEN" } }),
-    prisma.recruiterProfile.count({
-      where: { tier: "UNVERIFIED", verificationSubmittedAt: { not: null }, isBanned: false },
-    }),
-  ]);
-  return { openFlags, openReports, pendingVerifications };
+  const [openFlags, openReports, pendingVerifications, pendingFreelancerVerifications] =
+    await Promise.all([
+      prisma.safetyFlag.count({ where: { status: "OPEN" } }),
+      prisma.report.count({ where: { status: "OPEN" } }),
+      prisma.recruiterProfile.count({
+        where: { tier: "UNVERIFIED", verificationSubmittedAt: { not: null }, isBanned: false },
+      }),
+      // Same filter as listPendingFreelancerVerifications, so the number in
+      // the header and the rows underneath it can never disagree.
+      prisma.freelancerProfile.count({
+        where: { verification: "NONE", verificationSubmittedAt: { not: null }, deactivatedAt: null },
+      }),
+    ]);
+  return { openFlags, openReports, pendingVerifications, pendingFreelancerVerifications };
 }
 
 export async function listOpenReports(limit = 100) {

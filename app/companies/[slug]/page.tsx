@@ -3,11 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
+import { ReportDialog } from "@/components/report/report-dialog";
 import { StarRating } from "@/components/profile/star-rating";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconExternal } from "@/components/ui/icon";
 import { Notice } from "@/components/ui/notice";
+import { getSession } from "@/lib/auth/session";
 import { getPublicRecruiterBySlug } from "@/lib/db/recruiter";
 import { countryName } from "@/lib/geo/countries";
 import { recruiterTierBadge } from "@/lib/profile/badges";
@@ -15,6 +17,7 @@ import { companyOrganizationJsonLd, jsonLdScript } from "@/lib/profile/jsonld";
 import { roundRating } from "@/lib/profile/reviews";
 import { SITE_URL } from "@/lib/site-url";
 import { cn } from "@/lib/utils";
+import { resolveReportNotice } from "@/app/report/notices";
 
 /**
  * Public company profile. SEO-critical and fully server-rendered. A banned
@@ -75,13 +78,20 @@ export async function generateMetadata({
 
 export default async function CompanyProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ notice?: string }>;
 }) {
   const { slug } = await params;
   const company = await getPublicRecruiterBySlug(slug);
   // A banned company's page is delisted; do not render it here.
   if (!company || company.isBanned) notFound();
+
+  // Reporting needs an account, and the outcome comes back as a validated code
+  // on this URL — never as free text.
+  const [{ notice }, session] = await Promise.all([searchParams, getSession()]);
+  const reportNotice = resolveReportNotice(notice);
 
   const rating = roundRating(company.reviewStats.average);
   const reviewCount = company.reviewStats.count;
@@ -122,6 +132,14 @@ export default async function CompanyProfilePage({
       />
 
       <div className="mx-auto w-full max-w-4xl px-6 py-10">
+        {/* The report control is at the bottom of the page; its outcome is not,
+            because a confirmation nobody scrolls back to is no confirmation. */}
+        {reportNotice ? (
+          <Notice tone={reportNotice.tone} className="mb-6">
+            {reportNotice.message}
+          </Notice>
+        ) : null}
+
         <header>
           <div className="flex items-start gap-4">
             {company.logoUrl ? (
@@ -259,13 +277,18 @@ export default async function CompanyProfilePage({
                     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                         <StarRating value={review.rating} count={1} hideCount />
-                        {review.authorFreelancer ? (
+                        {review.authorFreelancer && review.authorFreelancer.deactivatedAt === null ? (
                           <Link
                             href={`/freelancers/${review.authorFreelancer.slug}`}
                             className="rounded-[2px] font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                           >
                             {review.authorFreelancer.displayName}
                           </Link>
+                        ) : review.authorFreelancer ? (
+                          /* The author took their public page down. The review
+                             stands — it is shared history — but their name no
+                             longer renders or links anywhere. */
+                          <span className="text-muted-foreground">A freelancer</span>
                         ) : null}
                       </div>
                       <span className="t-data shrink-0 text-muted-foreground">
@@ -279,6 +302,18 @@ export default async function CompanyProfilePage({
             </>
           )}
         </section>
+
+        {/* Not every scam is in a single post. A company using someone else's
+            name, or asking for a deposit over email after the ad came down, is
+            reported here rather than nowhere. */}
+        <div className="mt-10">
+          <ReportDialog
+            targetType="company"
+            targetId={company.id}
+            slug={company.slug}
+            signedIn={session !== null}
+          />
+        </div>
       </div>
     </main>
   );

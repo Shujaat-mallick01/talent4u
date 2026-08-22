@@ -90,11 +90,17 @@ export default async function RemovedEmployersPage() {
         <footer className="border-t border-border pt-6 text-sm text-muted-foreground">
           <p>
             Seen something that belongs here?{" "}
-            <Link href="/jobs" className="underline hover:text-foreground">
-              Report it from the job post
-            </Link>
-            . We hold posts matching known scam patterns before they ever go live — never pay to
-            apply, and never do long unpaid work for a stranger.
+            <Link
+              href="/jobs"
+              className="rounded-[2px] underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              Open the post
+            </Link>{" "}
+            and use “Report this post” at the bottom of it — or “Report this company” on the
+            company&apos;s own page. It takes an account and one reason; a person reads every one,
+            and we never tell the employer who reported them. We also hold posts matching known
+            scam patterns before they ever go live — never pay to apply, and never do long unpaid
+            work for a stranger.
           </p>
         </footer>
       </div>

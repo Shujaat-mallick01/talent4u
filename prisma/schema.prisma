@@ -85,6 +85,20 @@ model FreelancerProfile {
   portfolioUrl String?
   linkedinUrl  String?
 
+  // The verification queue, mirroring RecruiterProfile's exactly. Without
+  // these there was no path off NONE, so every freelancer wore a permanent
+  // "Not verified" badge next to their name with no way to remove it — the
+  // same mark the product teaches people to distrust on an employer.
+  verificationSubmittedAt DateTime?
+  verificationNote        String?   @db.Text
+  verifiedAt              DateTime?
+
+  // Set when the person takes their public page down. Not a delete: their
+  // applications, engagements and the reviews other people wrote about them
+  // are shared history, and erasing them would rewrite someone else's record.
+  // Every public read filters on this; private history is untouched.
+  deactivatedAt DateTime?
+
   isOpenToWork Boolean @default(true)
   // Denormalized "is Pro". Single writer: the Stripe webhook handler.
   // Kept denormalized because candidate-search ranking cannot afford a join
@@ -106,6 +120,8 @@ model FreelancerProfile {
 
   @@unique([userId, userRole])
   @@index([isOpenToWork, country])
+  // The public browse index: only live profiles, newest first.
+  @@index([deactivatedAt, createdAt(sort: Desc)])
   @@index([searchVector], type: Gin)
 }
 
@@ -149,6 +165,12 @@ model RecruiterProfile {
   isBanned     Boolean       @default(false)
   bannedReason String?
   bannedAt     DateTime?
+
+  // Self-service removal, distinct from a ban. A company that stops hiring can
+  // take their page down without their history — engagements, reviews written
+  // about them, the record of a removal — being rewritten. Public reads filter
+  // on this; a ban stays a separate, moderator-owned fact.
+  deactivatedAt DateTime?
 
   jobs            Job[]
   engagements     Engagement[]

@@ -22,8 +22,12 @@ import { prisma } from "./client";
  */
 export const getPublicFreelancerBySlug = cache(async (slug: string) => {
   if (!isPlausibleSlug(slug)) return null;
-  const profile = await prisma.freelancerProfile.findUnique({
-    where: { slug },
+  // findFirst so deactivation is part of the predicate: a deactivated profile
+  // 404s exactly like one that never existed. The person chose to take the
+  // page down, and "this profile is hidden" would confirm to the whole web
+  // that it exists and was withdrawn.
+  const profile = await prisma.freelancerProfile.findFirst({
+    where: { slug, deactivatedAt: null },
     select: {
       id: true,
       slug: true,
@@ -55,7 +59,9 @@ export const getPublicFreelancerBySlug = cache(async (slug: string) => {
           createdAt: true,
           // isBanned so the page can drop a delisted employer's name/link —
           // banning does not delete the recruiter row or its reviews.
-          authorRecruiter: { select: { companyName: true, slug: true, isBanned: true } },
+          authorRecruiter: {
+            select: { companyName: true, slug: true, isBanned: true, deactivatedAt: true },
+          },
         },
         orderBy: { createdAt: "desc" },
         take: 20,

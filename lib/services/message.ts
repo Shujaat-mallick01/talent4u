@@ -13,6 +13,7 @@ import { getEntitlements } from "@/lib/pricing/entitlements";
 import type { SendMessageInput, StartConversationInput } from "@/lib/validations/message";
 
 import { scanMessageOnWrite } from "./message-safety";
+import { onMessageSent } from "./notify";
 
 /**
  * Messaging orchestration.
@@ -182,6 +183,7 @@ export async function startConversationForUser(
   // Scanned AFTER the write, deliberately: a message is delivered and then
   // flagged for a human, never silently withheld. See message-safety.ts.
   const scan = await scanMessageOnWrite(result.messageId, input.body);
+  onMessageSent(result.conversationId, userId, input.body);
   return { ok: true, conversationId: result.conversationId, flagged: scan.flagged };
 }
 
@@ -212,5 +214,6 @@ export async function sendMessageForUser(
   if (!result.ok) return result;
 
   const scan = await scanMessageOnWrite(result.messageId, input.body);
+  onMessageSent(input.conversationId, userId, input.body);
   return { ok: true, flagged: scan.flagged };
 }

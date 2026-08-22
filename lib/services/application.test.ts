@@ -14,6 +14,8 @@ const { FakeKnownRequestError } = vi.hoisted(() => {
 vi.mock("@/lib/generated/prisma/client", () => ({
   Prisma: { PrismaClientKnownRequestError: FakeKnownRequestError },
 }));
+// Notifications are a side effect; this suite tests the decision itself.
+vi.mock("./notify", () => ({ onApplicationDecided: vi.fn(), onApplicationSubmitted: vi.fn() }));
 
 vi.mock("@/lib/db/application", () => ({
   applyToJobTx: vi.fn(),

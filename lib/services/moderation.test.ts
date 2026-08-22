@@ -3,10 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db/moderation", () => ({
   banRecruiterTx: vi.fn(),
   clearFlagTx: vi.fn(),
+  getSafetyFlagJobId: vi.fn(),
   upholdFlagTx: vi.fn(),
   resolveReport: vi.fn(),
 }));
 vi.mock("@/lib/db/users", () => ({ getUserAuthState: vi.fn() }));
+// Notifications are a side effect of a decision, not part of it.
+vi.mock("./notify", () => ({ onJobPublishedAfterReview: vi.fn() }));
 
 import { banRecruiterTx, clearFlagTx, resolveReport, upholdFlagTx } from "@/lib/db/moderation";
 import { getUserAuthState } from "@/lib/db/users";

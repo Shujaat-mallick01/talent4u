@@ -22,6 +22,7 @@ import {
 } from "@/lib/pricing/plans";
 import type { ApplyToJobInput } from "@/lib/validations/application";
 
+import { onApplicationDecided, onApplicationSubmitted } from "./notify";
 import { isPlausibleId } from "./slug";
 
 /**
@@ -139,6 +140,9 @@ export async function applyToJob(
     return { ok: false, reason: result.reason };
   }
 
+  // The company is told. Runs after the response, and cannot fail the apply.
+  onApplicationSubmitted(result.applicationId);
+
   return {
     ok: true,
     applicationId: result.applicationId,
@@ -237,7 +241,14 @@ export async function setApplicationStatusForUser(
   });
   // 0 rows: not owned, not found, or an illegal/raced transition — all
   // surface identically so ids cannot be probed.
-  return done ? { ok: true } : { ok: false, reason: "invalid-transition" };
+  if (!done) return { ok: false, reason: "invalid-transition" };
+
+  // Only the two outcomes a person is waiting to hear about. VIEWED is not a
+  // decision and mailing it would train people to ignore us.
+  if (to === "SHORTLISTED" || to === "REJECTED") {
+    onApplicationDecided(applicationId, to);
+  }
+  return { ok: true };
 }
 
 /**

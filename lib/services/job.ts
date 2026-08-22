@@ -14,6 +14,7 @@ import { getRecruiterProfileByUserId, getUserPlan } from "@/lib/db/users";
 import { effectiveJobSlots } from "@/lib/pricing/entitlements";
 import type { JobPostInput } from "@/lib/validations/job";
 
+import { onJobHeld } from "./notify";
 import { scanTextForSafetyFlags } from "./safety";
 import { conflictField, pickAvailableSlug, slugify } from "./slug";
 
@@ -175,7 +176,12 @@ export async function publishJobForUser(userId: string, jobId: string): Promise<
     throw error;
   }
 
-  if (result.ok) return { ok: true, status: result.status };
+  if (result.ok) {
+    // A post that silently fails to appear is the worst version of this: the
+    // recruiter assumes it is live and waits for applications that cannot come.
+    if (result.status === "PENDING_REVIEW") onJobHeld(jobId);
+    return { ok: true, status: result.status };
+  }
   if (result.reason === "cap-reached") {
     // cap is non-null whenever the db reports cap-reached.
     return { ok: false, reason: "cap-reached", cap: cap ?? 0, used: result.used, plan };

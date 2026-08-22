@@ -30,6 +30,7 @@ import {
   type EngagementSide,
   type EngagementState,
 } from "./engagement-state";
+import { onEngagementConfirmed, onEngagementProposed } from "./notify";
 import { evaluateTrustedPromotion } from "./recruiter-verification";
 
 /**
@@ -266,7 +267,7 @@ export async function proposeEngagementForUser(
   // A freelancer must not be able to hand a banned company a confirmation.
   if (job.recruiter.isBanned) return { ok: false, reason: "recruiter-banned" };
 
-  return proposeEngagementTx({
+  const filed = await proposeEngagementTx({
     jobId: job.id,
     freelancerId: application.freelancerId,
     recruiterId: job.recruiterId,
@@ -274,6 +275,11 @@ export async function proposeEngagementForUser(
     durationWeeks: input.durationWeeks,
     proposedBy: viewer.side,
   });
+
+  // The other side is being asked to agree to figures about themselves. If we
+  // do not tell them, the claim sits in a dashboard they may never open.
+  if (filed.ok) onEngagementProposed(filed.engagementId, userId);
+  return filed;
 }
 
 // ── Responding ─────────────────────────────────────────────────────────────
@@ -341,6 +347,7 @@ export async function confirmEngagementForUser(
   // Runs after the confirming transaction commits, so the promotion counts a
   // durable engagement. Idempotent, and a no-op for anyone not VERIFIED.
   const promotedToTrusted = await evaluateTrustedPromotion(result.recruiterId);
+  onEngagementConfirmed(engagementId, userId);
   return { ok: true, promotedToTrusted };
 }
 

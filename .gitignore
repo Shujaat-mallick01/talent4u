@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the checked-in list of what is needed. It holds no values, and a
+# repo with no record of its own configuration is one nobody else can run.
+!.env.example
 
 # vercel
 .vercel

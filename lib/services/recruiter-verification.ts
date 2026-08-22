@@ -11,6 +11,7 @@ import {
 import { getUserAuthState } from "@/lib/db/users";
 import type { RecruiterVerificationDetailsInput } from "@/lib/validations/recruiter";
 
+import { onVerificationDecided } from "./notify";
 import { qualifiesForTrusted, verificationReadiness } from "./verification";
 
 /**
@@ -145,6 +146,7 @@ export async function approveVerification(
   });
 
   await evaluateTrustedPromotion(recruiterId);
+  onVerificationDecided(recruiterId, true);
   return { ok: true };
 }
 
@@ -165,6 +167,8 @@ export async function rejectVerification(
   // The tier does not change, so this writes the queue fields only — no
   // pointless fan-out rewriting every job row.
   await recordVerificationRejection(recruiterId, note);
+  // The note is the whole point of a rejection: it tells them what to fix.
+  onVerificationDecided(recruiterId, false, note);
   return { ok: true };
 }
 

@@ -1,12 +1,15 @@
 import {
   banRecruiterTx,
   clearFlagTx,
+  getSafetyFlagJobId,
   upholdFlagTx,
   resolveReport,
   type BanResult,
   type FlagDecisionResult,
 } from "@/lib/db/moderation";
 import { getUserAuthState } from "@/lib/db/users";
+
+import { onJobPublishedAfterReview } from "./notify";
 
 /**
  * Moderation orchestration. Every entry point re-establishes that the caller
@@ -27,7 +30,13 @@ export async function clearFlagAsAdmin(
   flagId: string,
 ): Promise<FlagDecisionResult | ModerationFailure> {
   if (!(await isAdmin(adminUserId))) return { ok: false, reason: "not-admin" };
-  return clearFlagTx(flagId, adminUserId);
+
+  const flag = await getSafetyFlagJobId(flagId);
+  const result = await clearFlagTx(flagId, adminUserId);
+  // Clearing the last flag is the moment a held post goes live. The recruiter
+  // has been waiting on a human since publish, so they are told it landed.
+  if (result.ok && result.jobPublished && flag) onJobPublishedAfterReview(flag);
+  return result;
 }
 
 export async function upholdFlagAsAdmin(

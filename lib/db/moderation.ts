@@ -228,3 +228,19 @@ export async function listRemovedEmployers() {
     },
   });
 }
+
+/**
+ * The job a flag belongs to, read BEFORE the flag is decided.
+ *
+ * Clearing a flag marks it CLEARED, so afterwards there is no reliable way
+ * back to the post it was about — the notification needs the id captured
+ * first.
+ */
+export async function getSafetyFlagJobId(flagId: string): Promise<string | null> {
+  if (!isPlausibleId(flagId)) return null;
+  const flag = await prisma.safetyFlag.findUnique({
+    where: { id: flagId },
+    select: { jobId: true },
+  });
+  return flag?.jobId ?? null;
+}

@@ -33,6 +33,8 @@ export async function getFreelancerProfileForEdit(userId: string) {
       portfolioUrl: true,
       linkedinUrl: true,
       verification: true,
+      // The current photo, for the editor's photo block.
+      avatarUrl: true,
       // Whether a verification submission is sitting in the admin queue —
       // an edit that changes the work links must pull it back out, or a
       // reviewer judges evidence that is no longer what was submitted.
@@ -179,5 +181,21 @@ export async function updateRecruiterProfile(
       description: data.description,
       country: data.country,
     },
+  });
+}
+
+/** Points the freelancer's public page at a freshly uploaded avatar. */
+export async function setFreelancerAvatarUrl(freelancerId: string, url: string): Promise<void> {
+  await prisma.freelancerProfile.update({
+    where: { id: freelancerId },
+    data: { avatarUrl: url },
+  });
+}
+
+/** Points the company page at a freshly uploaded logo. */
+export async function setRecruiterLogoUrl(recruiterId: string, url: string): Promise<void> {
+  await prisma.recruiterProfile.update({
+    where: { id: recruiterId },
+    data: { logoUrl: url },
   });
 }

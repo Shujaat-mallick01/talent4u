@@ -22,6 +22,13 @@ export function resolveProfileEditNotice(code: string | undefined): ProfileEditN
         message:
           "Saved — and because you changed your work links, your pending verification submission was withdrawn. Those links are the evidence a reviewer judges, so re-submit from the verification page when they are final.",
       };
+    case "photo_saved":
+      return { tone: "success", message: "Photo updated. It shows everywhere your name does." };
+    case "photo_failed":
+      return {
+        tone: "error",
+        message: "That image didn't take. Use a PNG, JPEG or WebP under 2 MB and try again.",
+      };
     case "saved":
       return {
         tone: "success",

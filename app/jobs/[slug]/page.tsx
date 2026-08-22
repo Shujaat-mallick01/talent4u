@@ -24,6 +24,8 @@ import { getSession } from "@/lib/auth/session";
 import { upsellLine } from "@/lib/pricing/catalogue";
 import { EARLY_ACCESS_HOURS } from "@/lib/pricing/plans";
 import { getApplicationQuotaStatus } from "@/lib/services/application";
+import { SaveToggle } from "@/components/jobs/save-toggle";
+import { savedJobIdSet } from "@/lib/db/saved-job";
 import { getViewerBand } from "@/lib/services/entitlements";
 import { resolveEarlyAccessCutoff } from "@/lib/services/job-browse";
 import { getViewerSkillSlugs, scoreJobMatch } from "@/lib/services/job-match";
@@ -237,6 +239,13 @@ export default async function JobDetailPage({
   // the round trip resolveApplyContext already paid for.
   const session = await getSession();
   const reportNotice = resolveReportNotice(notice);
+  // The bookmark — for any signed-in freelancer with a profile, on any state
+  // of the apply flow. Saving a job you already applied to is legitimate
+  // (tracking it), so it is not gated on can-apply.
+  const viewerFreelancer = session ? await getFreelancerProfileByUserId(session.userId) : null;
+  const savedSet = viewerFreelancer
+    ? await savedJobIdSet(viewerFreelancer.id, [job.id])
+    : null;
   // Quoted at the viewer's own band, never the list price — a logged-out
   // reader gets STANDARD, which is the honest default for an unknown country.
   const proUpsell =
@@ -389,6 +398,13 @@ export default async function JobDetailPage({
                       </span>
                     </div>
                   </div>
+                  {savedSet ? (
+                    <SaveToggle
+                      jobId={job.id}
+                      saved={savedSet.has(job.id)}
+                      returnTo={`/jobs/${job.slug}`}
+                    />
+                  ) : null}
                 </div>
 
                 {/* The badge is a word; this is what the word means. It is the

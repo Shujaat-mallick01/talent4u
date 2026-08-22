@@ -8,6 +8,7 @@ import {
   IconGauge,
   IconHandshakeless,
   IconMessage,
+  IconPin,
   IconSearch,
   IconSettings,
   IconShield,
@@ -80,6 +81,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {
             items: [
               { href: "/dashboard/freelancer", label: "Applications", icon: <IconGauge /> },
+              { href: "/dashboard/saved", label: "Saved jobs", icon: <IconPin /> },
               {
                 href: "/dashboard/messages",
                 label: "Messages",

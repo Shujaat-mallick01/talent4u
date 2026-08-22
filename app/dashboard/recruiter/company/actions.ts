@@ -3,7 +3,10 @@
 import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/guards";
-import { updateCompanyProfileForUser } from "@/lib/services/profile-edit";
+import {
+  setCompanyLogoForUser,
+  updateCompanyProfileForUser,
+} from "@/lib/services/profile-edit";
 import { companyProfileEditSchema } from "@/lib/validations/profile-edit";
 
 /**
@@ -62,4 +65,11 @@ export async function saveCompanyProfile(
   // "wrong-role" is unreachable after requireRole; treat it as the retryable
   // failure it would be.
   return { fieldErrors: {}, formError: "That didn't save. Try again — nothing was changed." };
+}
+
+/** Sets the company logo — the change onboarding never allowed afterwards. */
+export async function updateLogo(formData: FormData): Promise<void> {
+  const { user } = await requireRole("RECRUITER");
+  const result = await setCompanyLogoForUser(user.id, formData.get("logo"));
+  redirect(`${PAGE}?notice=${result.ok ? "photo_saved" : "photo_failed"}`);
 }

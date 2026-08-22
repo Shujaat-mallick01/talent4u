@@ -6,7 +6,16 @@ import {
   updateFreelancerProfileWithSkills,
   updateRecruiterProfile,
 } from "@/lib/db/profile-edit";
+import {
+  setFreelancerAvatarUrl,
+  setRecruiterLogoUrl,
+} from "@/lib/db/profile-edit";
 import { getUserAuthState } from "@/lib/db/users";
+import {
+  uploadCompanyLogoUpdate,
+  uploadFreelancerAvatar,
+  validateProfileImage,
+} from "@/lib/storage/profile-images";
 import type { RecruiterTier } from "@/lib/generated/prisma/enums";
 import type {
   CompanyProfileEditInput,
@@ -169,4 +178,55 @@ export async function updateCompanyProfileForUser(
   });
 
   return { ok: true, slug: profile.slug };
+}
+
+export type ProfileImageResult = { ok: true; url: string } | { ok: false; message: string };
+
+/**
+ * Uploads and sets the freelancer's avatar. Ownership is the same structural
+ * rule as every other edit here: the profile is looked up by the caller's own
+ * userId, so there is nothing to forge.
+ */
+export async function setFreelancerAvatarForUser(
+  userId: string,
+  file: unknown,
+): Promise<ProfileImageResult> {
+  const account = await getUserAuthState(userId);
+  if (!account || account.role !== "FREELANCER") {
+    return { ok: false, message: "Only a freelancer account can set an avatar." };
+  }
+  const profile = await getFreelancerProfileForEdit(userId);
+  if (!profile) return { ok: false, message: "Set up your profile first." };
+
+  const valid = validateProfileImage(file);
+  if (!valid.ok) return valid;
+
+  const uploaded = await uploadFreelancerAvatar(userId, valid.file);
+  if (!uploaded.ok) return uploaded;
+
+  await setFreelancerAvatarUrl(profile.id, uploaded.url);
+  return { ok: true, url: uploaded.url };
+}
+
+/** Uploads and sets the company logo — the change onboarding never allowed. */
+export async function setCompanyLogoForUser(
+  userId: string,
+  file: unknown,
+): Promise<ProfileImageResult> {
+  const account = await getUserAuthState(userId);
+  if (!account || account.role !== "RECRUITER") {
+    return { ok: false, message: "Only a company account can set a logo." };
+  }
+  const profile = await getRecruiterProfileForEdit(userId);
+  if (!profile) return { ok: false, message: "Set up your company first." };
+  if (profile.isBanned) return { ok: false, message: "This account cannot make changes." };
+
+  const valid = validateProfileImage(file);
+  if (!valid.ok) return valid;
+
+  const uploaded = await uploadCompanyLogoUpdate(userId, valid.file);
+  if (!uploaded.ok) return uploaded;
+
+  await setRecruiterLogoUrl(profile.id, uploaded.url);
+  return { ok: true, url: uploaded.url };
 }

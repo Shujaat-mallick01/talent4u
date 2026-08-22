@@ -9,6 +9,13 @@ export type CompanyEditNotice = { tone: NoticeTone; message: string };
 
 export function resolveCompanyEditNotice(code: string | undefined): CompanyEditNotice | null {
   switch (code) {
+    case "photo_saved":
+      return { tone: "success", message: "Photo updated. It shows everywhere your name does." };
+    case "photo_failed":
+      return {
+        tone: "error",
+        message: "That image didn't take. Use a PNG, JPEG or WebP under 2 MB and try again.",
+      };
     case "saved":
       return {
         tone: "success",

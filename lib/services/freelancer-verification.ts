@@ -6,6 +6,7 @@ import {
   markFreelancerVerificationSubmitted,
 } from "@/lib/db/freelancer-verification";
 import { getUserAuthState } from "@/lib/db/users";
+import { onWorkLinksReviewed } from "./notify";
 import {
   isApprovalMarker,
   WORK_LINKS_APPROVED_NOTE,
@@ -236,6 +237,7 @@ export async function approveFreelancerWorkLinks(
     profile.verificationSubmittedAt,
   );
   if (!claimed) return { ok: false, reason: "not-pending" };
+  onWorkLinksReviewed(freelancerId, true);
   return { ok: true };
 }
 
@@ -267,5 +269,7 @@ export async function rejectFreelancerWorkLinks(
     profile.verificationSubmittedAt,
   );
   if (!claimed) return { ok: false, reason: "not-pending" };
+  // The note is what they see — it is the whole point of a return.
+  onWorkLinksReviewed(freelancerId, false, note);
   return { ok: true };
 }

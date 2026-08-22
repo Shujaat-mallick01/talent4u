@@ -42,8 +42,16 @@ export async function getModerationCounts(): Promise<ModerationCounts> {
   return { openFlags, openReports, pendingVerifications, pendingFreelancerVerifications };
 }
 
+/** What a report points at, resolved so the moderator never pastes a uuid. */
+export type ReportTarget = {
+  /** "Senior React dev — Acme GmbH" for a job, "Acme GmbH" for a company. */
+  label: string;
+  /** Public page, when there still is one; null once the target is hidden. */
+  href: string | null;
+};
+
 export async function listOpenReports(limit = 100) {
-  return prisma.report.findMany({
+  const reports = await prisma.report.findMany({
     where: { status: "OPEN" },
     orderBy: { createdAt: "asc" },
     take: limit,
@@ -56,6 +64,69 @@ export async function listOpenReports(limit = 100) {
       createdAt: true,
       reportedBy: { select: { email: true, role: true } },
     },
+  });
+
+  // Resolve every targetId to a name in two batched reads — a queue of raw
+  // uuids makes the moderator do the lookup by hand, once per row. A target
+  // that no longer resolves (already removed, account gone) keeps its row and
+  // is labeled as gone: the report may still describe conduct worth acting on.
+  const jobIds = reports.filter((r) => r.targetType === "job").map((r) => r.targetId);
+  const companyIds = reports.filter((r) => r.targetType === "company").map((r) => r.targetId);
+
+  const [jobs, companies] = await Promise.all([
+    jobIds.length
+      ? prisma.job.findMany({
+          where: { id: { in: jobIds } },
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            status: true,
+            recruiter: { select: { companyName: true, isBanned: true, deactivatedAt: true } },
+          },
+        })
+      : [],
+    companyIds.length
+      ? prisma.recruiterProfile.findMany({
+          where: { id: { in: companyIds } },
+          select: {
+            id: true,
+            companyName: true,
+            slug: true,
+            isBanned: true,
+            deactivatedAt: true,
+          },
+        })
+      : [],
+  ]);
+  const jobById = new Map(jobs.map((j) => [j.id, j]));
+  const companyById = new Map(companies.map((c) => [c.id, c]));
+
+  return reports.map((r) => {
+    let target: ReportTarget | null = null;
+    if (r.targetType === "job") {
+      const job = jobById.get(r.targetId);
+      if (job) {
+        const hidden =
+          job.recruiter.isBanned ||
+          job.recruiter.deactivatedAt !== null ||
+          (job.status !== "ACTIVE" && job.status !== "CLOSED");
+        target = {
+          label: `${job.title} — ${job.recruiter.companyName}`,
+          href: hidden ? null : `/jobs/${job.slug}`,
+        };
+      }
+    } else {
+      const company = companyById.get(r.targetId);
+      if (company) {
+        const hidden = company.isBanned || company.deactivatedAt !== null;
+        target = {
+          label: company.companyName,
+          href: hidden ? null : `/companies/${company.slug}`,
+        };
+      }
+    }
+    return { ...r, target };
   });
 }
 

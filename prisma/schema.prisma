@@ -112,6 +112,7 @@ model FreelancerProfile {
   skills          SkillOnFreelancer[]
   applications    Application[]
   engagements     Engagement[]
+  savedJobs       SavedJob[]
   reviewsGiven    Review[]            @relation("ReviewAuthorFreelancer")
   reviewsReceived Review[]            @relation("ReviewSubjectFreelancer")
 
@@ -246,6 +247,7 @@ model Job {
   flags         SafetyFlag[]
   conversations Conversation[]
   engagements   Engagement[]
+  savedBy       SavedJob[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -346,6 +348,23 @@ model Application {
   // apply/withdraw/repeat is unlimited applications.
   @@index([freelancerId, createdAt])
   @@index([jobId, status])
+}
+
+// A freelancer's bookmark on a job. The (freelancerId, jobId) primary key IS
+// the toggle's idempotency: saving twice conflicts instead of duplicating,
+// and unsaving is a delete by the same key. Cascade on both sides — a
+// bookmark is pure pointer, never shared history.
+model SavedJob {
+  freelancerId String
+  jobId        String
+  freelancer   FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  job          Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([freelancerId, jobId])
+  // "My saved jobs, newest first."
+  @@index([freelancerId, createdAt(sort: Desc)])
 }
 
 // ─────────────────────────────────────────────

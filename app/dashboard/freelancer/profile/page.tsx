@@ -12,7 +12,10 @@ import { profileStrength } from "@/lib/services/profile-strength";
 import { SITE_URL } from "@/lib/site-url";
 import { cn } from "@/lib/utils";
 
+import { PhotoForm } from "@/components/profile/photo-form";
+
 import { FreelancerProfileEditForm } from "./edit-form";
+import { updateAvatar } from "./actions";
 import { resolveProfileEditNotice } from "./notices";
 
 export const metadata = { title: "Edit your profile" };
@@ -50,7 +53,7 @@ export default async function FreelancerProfileEditPage({
     headline: profile.headline,
     bio: profile.bio,
     hourlyRateUsd: profile.hourlyRateUsd,
-    avatarUrl: null,
+    avatarUrl: profile.avatarUrl,
     githubUrl: profile.githubUrl,
     portfolioUrl: profile.portfolioUrl,
     linkedinUrl: profile.linkedinUrl,
@@ -158,6 +161,15 @@ export default async function FreelancerProfileEditPage({
             .
           </p>
         </section>
+
+        <PhotoForm
+          name={profile.displayName}
+          src={profile.avatarUrl ?? null}
+          shape="person"
+          action={updateAvatar}
+          fieldName="avatar"
+          label="Profile photo"
+        />
 
         <FreelancerProfileEditForm
           initial={{

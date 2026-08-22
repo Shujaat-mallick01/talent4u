@@ -399,9 +399,30 @@ export default async function AdminPage({
                       {report.details}
                     </p>
                   ) : null}
+                  <p className="mt-1 text-sm">
+                    {report.target === null ? (
+                      // The row it named is gone — the conduct described may
+                      // still matter, so the report stays and says so.
+                      <span className="text-muted-foreground">
+                        target no longer exists ({report.targetId.slice(0, 8)}…)
+                      </span>
+                    ) : report.target.href === null ? (
+                      <span className="text-muted-foreground">
+                        {report.target.label} — already hidden
+                      </span>
+                    ) : (
+                      <a
+                        href={report.target.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-medium underline underline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      >
+                        {report.target.label}
+                      </a>
+                    )}
+                  </p>
                   <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-                    by {report.reportedBy.email} · {timeAgo(report.createdAt)} · target{" "}
-                    {report.targetId}
+                    by {report.reportedBy.email} · {timeAgo(report.createdAt)}
                   </p>
                   <div className="mt-3 flex items-center gap-2">
                     <form action={decideReport}>

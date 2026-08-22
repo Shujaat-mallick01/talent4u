@@ -8,6 +8,12 @@ vi.mock("@/lib/db/profile-edit", () => ({
 }));
 vi.mock("@/lib/db/freelancer", () => ({ findExistingSkillSlugs: vi.fn() }));
 vi.mock("@/lib/db/users", () => ({ getUserAuthState: vi.fn() }));
+// Storage is I/O; these suites test the decisions, not the upload.
+vi.mock("@/lib/storage/profile-images", () => ({
+  uploadCompanyLogoUpdate: vi.fn(),
+  uploadFreelancerAvatar: vi.fn(),
+  validateProfileImage: vi.fn(),
+}));
 
 import { findExistingSkillSlugs } from "@/lib/db/freelancer";
 import {

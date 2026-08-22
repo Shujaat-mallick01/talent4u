@@ -94,6 +94,10 @@ export function resolveProtectedRoute(pathname: string, state: AuthState): Route
   if (SHARED_DASHBOARD_AREAS.some((prefix) => pathname.startsWith(prefix))) {
     return hasProfile && role !== "ADMIN" ? allow : to(home);
   }
+  // Saved jobs is a freelancer surface that lives outside the role prefix.
+  if (pathname.startsWith("/dashboard/saved")) {
+    return role === "FREELANCER" && hasProfile ? allow : to(home);
+  }
   // Bare /dashboard or an unknown dashboard subpath: send them home.
   return to(home);
 }

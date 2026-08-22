@@ -3,7 +3,10 @@
 import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/guards";
-import { updateFreelancerProfileForUser } from "@/lib/services/profile-edit";
+import {
+  setFreelancerAvatarForUser,
+  updateFreelancerProfileForUser,
+} from "@/lib/services/profile-edit";
 import { freelancerProfileEditSchema } from "@/lib/validations/profile-edit";
 
 /**
@@ -96,4 +99,15 @@ export async function saveFreelancerProfile(
   // "wrong-role" is unreachable after requireRole; treat it as the retryable
   // failure it would be.
   return { fieldErrors: {}, formError: "That didn't save. Try again — nothing was changed." };
+}
+
+/**
+ * Sets the profile photo. Its own action rather than part of the big save:
+ * a photo change is its own gesture, and multipart upload failing must never
+ * cost the person a page of unsaved text edits.
+ */
+export async function updateAvatar(formData: FormData): Promise<void> {
+  const { user } = await requireRole("FREELANCER");
+  const result = await setFreelancerAvatarForUser(user.id, formData.get("avatar"));
+  redirect(`${PAGE}?notice=${result.ok ? "photo_saved" : "photo_failed"}`);
 }

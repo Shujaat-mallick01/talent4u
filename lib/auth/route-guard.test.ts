@@ -199,3 +199,25 @@ describe("shared product areas", () => {
     });
   });
 });
+
+describe("saved jobs", () => {
+  it("is a freelancer surface outside the role prefix", () => {
+    expect(
+      resolveProtectedRoute("/dashboard/saved", {
+        kind: "account",
+        role: "FREELANCER",
+        hasProfile: true,
+      }),
+    ).toEqual({ allow: true });
+  });
+
+  it("bounces a recruiter home rather than showing an empty list", () => {
+    expect(
+      resolveProtectedRoute("/dashboard/saved", {
+        kind: "account",
+        role: "RECRUITER",
+        hasProfile: true,
+      }),
+    ).toEqual({ allow: false, redirectTo: "/dashboard/recruiter" });
+  });
+});

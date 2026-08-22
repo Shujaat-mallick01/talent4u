@@ -9,11 +9,13 @@ import {
   notifyNewApplication,
   notifyNewMessage,
   notifyVerificationDecision,
+  notifyWorkLinksReviewed,
 } from "@/lib/email/notifications";
 import {
   getApplicationNotificationTargets,
   getConversationNotificationTargets,
   getEngagementNotificationTargets,
+  getFreelancerAccountEmail,
   getJobOwnerEmail,
   getRecruiterAccountEmail,
 } from "@/lib/db/notifications";
@@ -186,5 +188,22 @@ export function onJobPublishedAfterReview(jobId: string): void {
     const t = await getJobOwnerEmail(jobId);
     if (!t) return;
     await notifyJobPublished({ to: t.email, jobTitle: t.jobTitle, jobSlug: t.jobSlug });
+  });
+}
+
+export function onWorkLinksReviewed(
+  freelancerId: string,
+  approved: boolean,
+  note?: string | null,
+): void {
+  fireAndForget("work-links-reviewed", async () => {
+    const t = await getFreelancerAccountEmail(freelancerId);
+    if (!t) return;
+    await notifyWorkLinksReviewed({
+      to: t.email,
+      displayName: t.displayName,
+      approved,
+      note,
+    });
   });
 }

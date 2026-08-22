@@ -11,6 +11,9 @@ import { SITE_URL } from "@/lib/site-url";
 import { canEditVerificationEvidence } from "@/lib/services/profile-edit";
 import { VERIFICATION_PAGE } from "@/lib/validations/profile-edit";
 
+import { PhotoForm } from "@/components/profile/photo-form";
+
+import { updateLogo } from "./actions";
 import { CompanyProfileEditForm } from "./edit-form";
 import { resolveCompanyEditNotice } from "./notices";
 
@@ -89,6 +92,15 @@ export default async function CompanyDetailsPage({
                 it — the changes are waiting for you when you put it back up.
               </Notice>
             ) : null}
+
+            <PhotoForm
+              name={profile.companyName}
+              src={profile.logoUrl ?? null}
+              shape="company"
+              action={updateLogo}
+              fieldName="logo"
+              label="Company logo"
+            />
 
             <CompanyProfileEditForm
               initial={{

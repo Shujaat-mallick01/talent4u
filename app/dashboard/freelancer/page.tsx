@@ -77,7 +77,7 @@ export default async function FreelancerDashboardPage() {
     hourlyRateUsd: profile.hourlyRateUsd,
     // Not selected by the editor's query, and no item scores on it today.
     // Kept null on both surfaces so the two percentages stay identical.
-    avatarUrl: null,
+    avatarUrl: profile.avatarUrl,
     githubUrl: profile.githubUrl,
     portfolioUrl: profile.portfolioUrl,
     linkedinUrl: profile.linkedinUrl,

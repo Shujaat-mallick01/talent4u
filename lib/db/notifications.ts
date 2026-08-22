@@ -178,3 +178,14 @@ export async function getJobOwnerEmail(jobId: string) {
   if (!job || job.recruiter.isBanned) return null;
   return { email: job.recruiter.user.email, jobTitle: job.title, jobSlug: job.slug };
 }
+
+/** The account behind a freelancer profile. */
+export async function getFreelancerAccountEmail(freelancerId: string) {
+  if (!isPlausibleId(freelancerId)) return null;
+  const freelancer = await prisma.freelancerProfile.findUnique({
+    where: { id: freelancerId },
+    select: { displayName: true, user: { select: { email: true } } },
+  });
+  if (!freelancer) return null;
+  return { email: freelancer.user.email, displayName: freelancer.displayName };
+}

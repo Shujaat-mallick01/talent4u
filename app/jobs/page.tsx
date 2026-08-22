@@ -18,6 +18,10 @@ import { timeAgo } from "@/lib/format/time";
 import { recruiterTierBadge } from "@/lib/profile/badges";
 import { EARLY_ACCESS_HOURS } from "@/lib/pricing/plans";
 import { resolveEarlyAccessCutoff } from "@/lib/services/job-browse";
+import { getSession } from "@/lib/auth/session";
+import { savedJobIdSet } from "@/lib/db/saved-job";
+import { getFreelancerProfileByUserId } from "@/lib/db/users";
+import { SaveToggle } from "@/components/jobs/save-toggle";
 import { getViewerSkillSlugs, scoreJobMatch } from "@/lib/services/job-match";
 import { SITE_URL } from "@/lib/site-url";
 import { cn } from "@/lib/utils";
@@ -239,6 +243,22 @@ export default async function JobsBrowsePage({
     getViewerSkillSlugs(),
   ]);
   const { jobs, hasMore } = await browseJobs(filters, cutoff);
+
+  // Which of these the viewer bookmarked — one query, freelancers only. The
+  // session-and-profile resolution is the same request-cached call the match
+  // column already paid for.
+  const session = await getSession();
+  const viewerProfile =
+    session && viewerSkills !== null ? await getFreelancerProfileByUserId(session.userId) : null;
+  const rawCursor = typeof params.cursor === "string" ? params.cursor : undefined;
+  const browseSearch = browseQuery(filters, rawCursor).toString();
+  const browseHref = browseSearch ? `/jobs?${browseSearch}` : "/jobs";
+  const savedIds = viewerProfile
+    ? await savedJobIdSet(
+        viewerProfile.id,
+        jobs.map((j) => j.id),
+      )
+    : null;
 
   // The match column exists only for a signed-in freelancer who has told us
   // what they do. Logged-out visitors, recruiters, and a freelancer with an
@@ -608,6 +628,15 @@ export default async function JobsBrowsePage({
                                 {job.publishedAt ? timeAgo(job.publishedAt) : "—"}
                               </span>
                             </div>
+
+                            {savedIds ? (
+                              <SaveToggle
+                                jobId={job.id}
+                                saved={savedIds.has(job.id)}
+                                returnTo={browseHref}
+                                compact
+                              />
+                            ) : null}
                           </div>
                         </div>
                       </li>

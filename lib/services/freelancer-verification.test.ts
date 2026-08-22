@@ -7,6 +7,7 @@ vi.mock("@/lib/db/freelancer-verification", () => ({
   markFreelancerVerificationSubmitted: vi.fn(),
 }));
 vi.mock("@/lib/db/users", () => ({ getUserAuthState: vi.fn() }));
+vi.mock("./notify", () => ({ onWorkLinksReviewed: vi.fn() }));
 
 import {
   claimFreelancerVerificationDecision,

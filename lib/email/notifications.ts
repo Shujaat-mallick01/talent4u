@@ -314,3 +314,45 @@ export function notifyJobPublished(args: {
     action: { label: "View the post", href: url(`/jobs/${args.jobSlug}`) },
   });
 }
+
+/**
+ * A freelancer's work-link review came back. Scrupulously honest about what
+ * approval does NOT change: the visible badge stays until ID verification
+ * launches, and saying otherwise here would be the exact lie the review flow
+ * was designed to avoid.
+ */
+export function notifyWorkLinksReviewed(args: {
+  to: string;
+  displayName: string;
+  approved: boolean;
+  note?: string | null;
+}): Promise<NotifyOutcome> {
+  return deliver({
+    event: args.approved ? "work-links-approved" : "work-links-returned",
+    to: args.to,
+    subject: args.approved
+      ? "Your work links passed review"
+      : "Your work links need another look",
+    heading: args.approved ? "Links reviewed and confirmed" : "One more pass needed",
+    preheader: args.approved
+      ? "A reviewer confirmed your links. The badge itself waits for ID verification."
+      : "Your submission came back with a note.",
+    reason: "You are receiving this because you submitted your work links for review on Talent4u.",
+    bodyHtml: args.approved
+      ? paragraph(
+          `A reviewer opened your links and confirmed the work behind them is yours. Your visible badge does <strong style="color:#0E0E10;">not</strong> change yet — both badge levels involve an ID check that has not launched — but your review is on record, and you are first in line when it does.`,
+        )
+      : paragraph(`A reviewer could not confirm your links as submitted.`) +
+        (args.note ? quote(args.note) : ""),
+    textLines: args.approved
+      ? [
+          "A reviewer confirmed your work links.",
+          "Your visible badge does not change yet — ID verification has not launched.",
+          "Your review is on record for when it does.",
+        ]
+      : ["A reviewer could not confirm your links as submitted.", ...(args.note ? ["", args.note] : [])],
+    action: args.approved
+      ? { label: "See your verification status", href: url("/dashboard/freelancer/verification") }
+      : { label: "Fix and resubmit", href: url("/dashboard/freelancer/verification") },
+  });
+}

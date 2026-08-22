@@ -7,11 +7,13 @@ import {
   IconBuilding,
   IconGauge,
   IconHandshakeless,
+  IconMessage,
   IconSearch,
   IconShield,
   IconUser,
 } from "@/components/ui/icon";
 import { getCurrentProfile, requireUser } from "@/lib/auth/guards";
+import { countUnreadConversations } from "@/lib/db/message";
 
 /**
  * The signed-in product shell for both roles.
@@ -23,6 +25,9 @@ import { getCurrentProfile, requireUser } from "@/lib/auth/guards";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = await requireUser();
   const current = await getCurrentProfile();
+  // The badge is the whole reason an inbox has one: somebody wrote to you and
+  // nothing else in the product will tell you.
+  const unread = current ? await countUnreadConversations(user.id) : 0;
 
   // Onboarding is not finished; the shell has no profile to render.
   if (!current) {
@@ -36,6 +41,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {
             items: [
               { href: "/dashboard/recruiter", label: "Your jobs", icon: <IconBriefcase /> },
+              {
+                href: "/dashboard/messages",
+                label: "Messages",
+                icon: <IconMessage />,
+                count: unread,
+              },
               {
                 href: "/dashboard/recruiter/engagements",
                 label: "Engagements",
@@ -63,6 +74,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {
             items: [
               { href: "/dashboard/freelancer", label: "Applications", icon: <IconGauge /> },
+              {
+                href: "/dashboard/messages",
+                label: "Messages",
+                icon: <IconMessage />,
+                count: unread,
+              },
               {
                 href: "/dashboard/freelancer/engagements",
                 label: "Engagements",

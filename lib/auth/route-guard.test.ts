@@ -113,3 +113,47 @@ describe("resolveProtectedRoute — admin", () => {
     expectRedirect("/onboarding", admin, "/admin");
   });
 });
+
+/**
+ * Messages are the one product area both roles share, so it sits outside the
+ * /dashboard/freelancer and /dashboard/recruiter prefixes — which meant the
+ * fallthrough treated it as an unknown subpath and bounced everyone home.
+ */
+describe("shared product areas", () => {
+  const freelancer: AuthState = { kind: "account", role: "FREELANCER", hasProfile: true };
+  const recruiter: AuthState = { kind: "account", role: "RECRUITER", hasProfile: true };
+
+  it("lets either role reach messages", () => {
+    for (const state of [freelancer, recruiter]) {
+      expect(resolveProtectedRoute("/dashboard/messages", state)).toEqual({ allow: true });
+      expect(resolveProtectedRoute("/dashboard/messages/abc123", state)).toEqual({ allow: true });
+    }
+  });
+
+  it("sends an unfinished profile to onboarding first", () => {
+    expect(
+      resolveProtectedRoute("/dashboard/messages", {
+        kind: "account",
+        role: "FREELANCER",
+        hasProfile: false,
+      }),
+    ).toEqual({ allow: false, redirectTo: "/onboarding/freelancer" });
+  });
+
+  it("gives an admin no inbox — they have no side in anyone's conversation", () => {
+    expect(
+      resolveProtectedRoute("/dashboard/messages", {
+        kind: "account",
+        role: "ADMIN",
+        hasProfile: true,
+      }),
+    ).toEqual({ allow: false, redirectTo: "/admin" });
+  });
+
+  it("still sends a logged-out visitor to sign in, keeping the destination", () => {
+    expect(resolveProtectedRoute("/dashboard/messages", { kind: "logged-out" })).toEqual({
+      allow: false,
+      redirectTo: "/signin?next=%2Fdashboard%2Fmessages",
+    });
+  });
+});

@@ -35,7 +35,10 @@ export const getEntitlementContext = cache(async (userId: string) => {
       role: true,
       billingCountry: true,
       subscription: { select: { plan: true, status: true } },
-      recruiter: { select: { tier: true } },
+      // isBanned travels with the tier: every caller that acts on a recruiter's
+      // standing must also refuse to act for a removed employer, and a shape
+      // that omits it makes that easy to forget.
+      recruiter: { select: { tier: true, isBanned: true } },
     },
   });
   if (!user) return null;
@@ -51,6 +54,7 @@ export const getEntitlementContext = cache(async (userId: string) => {
     plan,
     billingCountry: user.billingCountry,
     recruiterTier: user.recruiter?.tier ?? null,
+    isBanned: user.recruiter?.isBanned ?? false,
   };
 });
 

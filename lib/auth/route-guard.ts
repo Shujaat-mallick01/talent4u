@@ -76,6 +76,12 @@ export function resolveProtectedRoute(pathname: string, state: AuthState): Route
   if (pathname.startsWith("/dashboard/recruiter")) {
     return role === "RECRUITER" && hasProfile ? allow : to(home);
   }
+  // Shared product areas: the same screen for both roles, so the only
+  // requirement is a finished profile. Membership of an individual thread is
+  // decided by the service, not by the path.
+  if (pathname.startsWith("/dashboard/messages")) {
+    return hasProfile && role !== "ADMIN" ? allow : to(home);
+  }
   // Bare /dashboard or an unknown dashboard subpath: send them home.
   return to(home);
 }

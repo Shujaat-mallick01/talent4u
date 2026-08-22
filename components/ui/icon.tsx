@@ -173,6 +173,13 @@ export const IconFlag = (p: IconProps) => (
   </Svg>
 );
 
+export const IconMessage = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 5h16v11H9l-5 4z" />
+    <path d="M8 9h8M8 12h5" />
+  </Svg>
+);
+
 export const IconExternal = (p: IconProps) => (
   <Svg {...p}>
     <path d="M14 4h6v6M20 4l-8 8" />

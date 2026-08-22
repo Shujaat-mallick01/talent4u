@@ -2,11 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
+import { StartThread } from "@/components/messages/start-thread";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { getCurrentProfile, requireRole } from "@/lib/auth/guards";
 import { listApplicationsForFreelancer } from "@/lib/db/application";
+import { mapApplicationConversations } from "@/lib/db/message";
 import { timeAgo } from "@/lib/format/time";
 import {
   applicationStatusBadge,
@@ -30,6 +32,11 @@ export default async function FreelancerDashboardPage() {
     getApplicationQuotaStatus(user.id),
     getViewerBand(),
   ]);
+  // One query for every row, not one per row.
+  const threads = await mapApplicationConversations(
+    applications.map((a) => a.id),
+    user.id,
+  );
 
   return (
     <main id="main" className="flex-1">
@@ -157,6 +164,21 @@ export default async function FreelancerDashboardPage() {
                   <span className="t-label w-24 shrink-0 text-right text-muted-foreground">
                     {timeAgo(app.createdAt)}
                   </span>
+
+                  {/* A freelancer may always write first — the tier rule that
+                      stops an unverified company opening a thread does not
+                      apply in this direction, which is what lets an unverified
+                      company reply at all. */}
+                  <div className="w-full">
+                    <StartThread
+                      applicationId={app.id}
+                      conversationId={threads.get(app.id)}
+                      canInitiate
+                      counterpartyName={app.job.recruiter.companyName}
+                      returnTo="/dashboard/freelancer"
+                      compact
+                    />
+                  </div>
                 </li>
               ))}
             </ul>

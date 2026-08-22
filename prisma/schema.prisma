@@ -313,6 +313,9 @@ model Application {
   viewedAt        DateTime?
   recruiterNote   String?           @db.Text // Growth tier and above
 
+  // At most one, enforced by Conversation.applicationId being unique.
+  conversation Conversation?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -524,6 +527,25 @@ model Conversation {
   id    String  @id @default(cuid())
   jobId String?
   job   Job?    @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  // The application this thread grew out of, and the reason there can only
+  // ever be one thread per pairing.
+  //
+  // A conversation is about a job between exactly two people, which is
+  // precisely what an Application already identifies —
+  // Application@@unique([jobId, freelancerId]). Hanging the uniqueness here
+  // means two simultaneous "Message" clicks produce one thread and one
+  // constraint violation rather than two threads and a split inbox, without
+  // the service having to lock anything.
+  //
+  // Nullable because a thread does not structurally require an application:
+  // recruiter-initiated outbound messaging from candidate search (a paid
+  // feature, not yet built) will create threads with no application behind
+  // them, and those must not all collide on a single NULL — Postgres treats
+  // NULLs as distinct in a unique index, which is exactly the behaviour that
+  // path needs.
+  applicationId String?      @unique
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
 
   participants  ConversationParticipant[]
   messages      Message[]

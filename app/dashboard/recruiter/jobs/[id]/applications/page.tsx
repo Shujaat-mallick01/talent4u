@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
+import { StartThread } from "@/components/messages/start-thread";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconArrowLeft, IconArrowRight } from "@/components/ui/icon";
@@ -17,6 +18,9 @@ import {
   jobStatusBadge,
 } from "@/lib/profile/badges";
 import { upsellLine } from "@/lib/pricing/catalogue";
+import { mapApplicationConversations } from "@/lib/db/message";
+import { getEntitlementContext } from "@/lib/db/users";
+import { getEntitlements } from "@/lib/pricing/entitlements";
 import { getJobInboxForUser } from "@/lib/services/application";
 import { getViewerBand } from "@/lib/services/entitlements";
 import { cn } from "@/lib/utils";
@@ -145,6 +149,23 @@ export default async function JobApplicationsPage({
   }
 
   const { job, canUseNotes } = inbox;
+
+  // Which applicants already have a thread, in one query rather than one per
+  // row — and whether this company is allowed to write first at all.
+  const [threads, context] = await Promise.all([
+    mapApplicationConversations(
+      job.applications.map((a) => a.id),
+      user.id,
+    ),
+    getEntitlementContext(user.id),
+  ]);
+  const canInitiate = context
+    ? getEntitlements({
+        role: context.role,
+        plan: context.plan,
+        recruiterTier: context.recruiterTier,
+      }).recruiter.initiateMessages
+    : false;
   const { notice: noticeCode, status: statusParam, sort: sortParam } = await searchParams;
   const band = await getViewerBand();
   const notice = resolveInboxNotice(noticeCode, band);
@@ -474,6 +495,19 @@ export default async function JobApplicationsPage({
                                 Withdrawn by the applicant
                               </span>
                             )}
+                          </div>
+
+                          {/* The thing that was missing entirely: a way to
+                              actually talk to the person who applied. */}
+                          <div className="col-span-full mt-1">
+                            <StartThread
+                              applicationId={app.id}
+                              conversationId={threads.get(app.id)}
+                              canInitiate={canInitiate}
+                              counterpartyName={fl.displayName}
+                              returnTo={`/dashboard/recruiter/jobs/${job.id}/applications`}
+                              compact
+                            />
                           </div>
 
                           {/* Collapsed by default so 50 rows stay scannable.

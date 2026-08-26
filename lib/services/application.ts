@@ -15,6 +15,7 @@ import {
   getRecruiterProfileByUserId,
   getUserPlan,
 } from "@/lib/db/users";
+import { getEntitlements } from "@/lib/pricing/entitlements";
 import {
   APPLICATION_WINDOW_DAYS,
   applicationQuotaForPlan,
@@ -211,12 +212,20 @@ export async function getJobInboxForUser(userId: string, jobId: string): Promise
   const job = await getJobWithApplicationsForRecruiter(jobId, standing.recruiterId);
   if (!job) return { ok: false, reason: "not-found" };
 
-  return { ok: true, job, canUseNotes: notesAllowedForPlan(standing.plan) };
+  return { ok: true, job, canUseNotes: notesAllowedForRecruiter(standing.plan) };
 }
 
-/** Recruiter notes are Growth tier and above (CLAUDE.md). */
-export function notesAllowedForPlan(plan: PlanTier): boolean {
-  return plan === "RECRUITER_GROWTH" || plan === "RECRUITER_TEAM";
+/**
+ * Whether private notes are available. Reads the entitlement object rather
+ * than re-deciding it: this file used to carry its own `plan === GROWTH ||
+ * plan === TEAM`, which is the same rule written twice and therefore a rule
+ * that can drift in one place only.
+ *
+ * The role is pinned to RECRUITER because the caller has already resolved a
+ * recruiter profile — a freelancer never reaches this.
+ */
+export function notesAllowedForRecruiter(plan: PlanTier): boolean {
+  return getEntitlements({ role: "RECRUITER", plan }).recruiter.privateNotes;
 }
 
 export type InboxActionResult =
@@ -262,7 +271,7 @@ export async function setApplicationNoteForUser(
 ): Promise<InboxActionResult> {
   const standing = await recruiterStanding(userId);
   if (!standing.ok) return standing;
-  if (!notesAllowedForPlan(standing.plan)) return { ok: false, reason: "plan-required" };
+  if (!notesAllowedForRecruiter(standing.plan)) return { ok: false, reason: "plan-required" };
 
   const done = await setApplicationNoteForRecruiter(applicationId, standing.recruiterId, note);
   return done ? { ok: true } : { ok: false, reason: "not-found" };

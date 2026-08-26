@@ -54,7 +54,7 @@ import {
   canRecruiterTransition,
   getApplicationQuotaStatus,
   getJobInboxForUser,
-  notesAllowedForPlan,
+  notesAllowedForRecruiter,
   recruiterTransitionSources,
   setApplicationNoteForUser,
   setApplicationStatusForUser,
@@ -272,12 +272,12 @@ describe("recruiter transition matrix", () => {
   });
 });
 
-describe("notesAllowedForPlan", () => {
+describe("notesAllowedForRecruiter", () => {
   it("gates notes to Growth and Team", () => {
-    expect(notesAllowedForPlan("FREE")).toBe(false);
-    expect(notesAllowedForPlan("FREELANCER_PRO")).toBe(false);
-    expect(notesAllowedForPlan("RECRUITER_GROWTH")).toBe(true);
-    expect(notesAllowedForPlan("RECRUITER_TEAM")).toBe(true);
+    expect(notesAllowedForRecruiter("FREE")).toBe(false);
+    expect(notesAllowedForRecruiter("FREELANCER_PRO")).toBe(false);
+    expect(notesAllowedForRecruiter("RECRUITER_GROWTH")).toBe(true);
+    expect(notesAllowedForRecruiter("RECRUITER_TEAM")).toBe(true);
   });
 });
 

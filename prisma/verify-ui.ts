@@ -319,6 +319,102 @@ async function main() {
     await audit(label, path, asRecruiter);
   }
 
+  console.log("");
+  console.log("── The paid wall ────────────────────────────");
+  // CLAUDE.md: "Free recruiters must never reach search." Checked over HTTP,
+  // against the real page, by flipping the plan on a seeded recruiter.
+  const payer = await prisma.user.findFirstOrThrow({
+    where: { role: "RECRUITER", recruiter: { isNot: null }, subscription: { isNot: null } },
+    select: { id: true, email: true, subscription: { select: { plan: true, status: true } } },
+  });
+  // Snapshot the whole thing, not just the plan: this flips a real seeded
+  // account's billing to test the wall, and it has to put it back exactly.
+  const before = payer.subscription!;
+  const payerCookie = await cookieFor(payer.email);
+  const setPlan = (plan: "FREE" | "RECRUITER_GROWTH") =>
+    prisma.subscription.update({
+      where: { userId: payer.id },
+      data: { plan, status: "ACTIVE" },
+    });
+  const candidates = async () => {
+    const r = await fetch(`${SITE}/dashboard/recruiter/candidates`, {
+      headers: { cookie: payerCookie },
+      redirect: "manual",
+    });
+    return { status: r.status, html: await r.text() };
+  };
+
+  try {
+    await setPlan("FREE");
+    const walled = await candidates();
+    check("a free recruiter gets a page, not an error", walled.status === 200, `status ${walled.status}`);
+    check("it explains what the plan buys", walled.html.includes("Candidate search is on"));
+    check("it names a price", walled.html.includes("a month"));
+    // A link to a freelancer profile is the one thing only a real result
+    // row produces. "rowset" cannot be used: it is in the inlined CSS AND
+    // in the loading skeleton that Next streams into the same response.
+    check("and shows NO results at all", !walled.html.includes('href="/freelancers/'));
+    check("not even a count of them", !walled.html.includes("on this page"));
+    check("no filter rail to probe with", !walled.html.includes("candidate-filters"));
+
+    await setPlan("RECRUITER_GROWTH");
+    const open = await candidates();
+    check("a Growth recruiter gets the search", open.status === 200, `status ${open.status}`);
+    check("with results", open.html.includes('href="/freelancers/'));
+    check("and filters", open.html.includes("candidate-filters"));
+    check("and no upgrade wall", !open.html.includes("Candidate search is on"));
+
+    // The wall is not a UI trick: filters in the URL do not get past it.
+    await setPlan("FREE");
+    const probed = await fetch(
+      `${SITE}/dashboard/recruiter/candidates?q=react&country=PK&openToWork=true`,
+      { headers: { cookie: payerCookie }, redirect: "manual" },
+    );
+    const probedHtml = await probed.text();
+    check("hand-written filters do not get past it", probedHtml.includes("Candidate search is on"));
+    check("and still leak nothing", !probedHtml.includes('href="/freelancers/'));
+  } finally {
+    await prisma.subscription.update({
+      where: { userId: payer.id },
+      data: { plan: before.plan, status: before.status },
+    });
+  }
+  const after = await prisma.subscription.findUniqueOrThrow({
+    where: { userId: payer.id },
+    select: { plan: true, status: true },
+  });
+  check(
+    "the account it borrowed is put back exactly",
+    after.plan === before.plan && after.status === before.status,
+    `${after.plan}/${after.status} vs ${before.plan}/${before.status}`,
+  );
+
+  console.log("");
+  console.log("── Adaptive chrome ─────────────────────────");
+  // Browsing is public forever, but the frame around it must not throw a
+  // signed-in person back onto the marketing site.
+  const anon = await (await fetch(`${SITE}/jobs`)).text();
+  check("a visitor browsing jobs gets the marketing header", anon.includes("Sign up free"));
+  // A footer-only string: the page's own meta description also promises you
+  // keep 100%, so that phrase cannot tell the two chromes apart.
+  check("and the marketing footer", anon.includes("We match, verify and publish reputation"));
+  check("and no product rail", !anon.includes('aria-label="Sign out"'));
+
+  const inShell = await (await fetch(`${SITE}/jobs`, { headers: { cookie: asFreelancer } })).text();
+  check(
+    "a signed-in freelancer browsing jobs keeps the rail",
+    inShell.includes('aria-label="Sign out"'),
+  );
+  check("with their applications one click away", inShell.includes("/dashboard/freelancer"));
+  check(
+    "and is not invited to sign up for the account they already have",
+    !inShell.includes("We match, verify and publish reputation"),
+  );
+  check(
+    "the jobs page itself renders either way",
+    anon.includes("Browse jobs") && inShell.includes("Browse jobs"),
+  );
+
   console.log("\n── Onboarding ──────────────────────────────────────────────");
   await auditOnboarding();
 

@@ -1,150 +1,30 @@
 import { redirect } from "next/navigation";
 
 import { AppShell } from "@/components/shell/app-shell";
-import type { NavGroup } from "@/components/shell/nav-items";
-import {
-  IconBriefcase,
-  IconCard,
-  IconBuilding,
-  IconGauge,
-  IconHandshakeless,
-  IconMessage,
-  IconPin,
-  IconSearch,
-  IconSettings,
-  IconShield,
-  IconUser,
-} from "@/components/ui/icon";
-import { getCurrentProfile, requireUser } from "@/lib/auth/guards";
-import { countUnreadConversations } from "@/lib/db/message";
+import { buildShellNav } from "@/components/shell/shell-nav";
+import { requireUser } from "@/lib/auth/guards";
 
 /**
  * The signed-in product shell for both roles.
  *
  * Nav is built from the viewer's actual role rather than shown-then-gated, so
  * a freelancer never sees a link that would bounce them, and a recruiter's
- * verification page stops being reachable only by clicking a status pill.
+ * verification page stops being reachable only by clicking a status pill. The
+ * rail itself lives in components/shell/shell-nav.tsx, because public pages
+ * render it too — see AdaptiveChrome.
  */
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = await requireUser();
-  const current = await getCurrentProfile();
-  // The badge is the whole reason an inbox has one: somebody wrote to you and
-  // nothing else in the product will tell you.
-  const unread = current ? await countUnreadConversations(user.id) : 0;
+  const nav = await buildShellNav();
 
   // Onboarding is not finished; the shell has no profile to render.
-  if (!current) {
+  if (!nav) {
     if (user.role === "ADMIN") redirect("/admin");
     redirect(user.role === "RECRUITER" ? "/onboarding/recruiter" : "/onboarding/freelancer");
   }
 
-  const groups: NavGroup[] =
-    current.role === "RECRUITER"
-      ? [
-          {
-            items: [
-              { href: "/dashboard/recruiter", label: "Your jobs", icon: <IconBriefcase /> },
-              {
-                href: "/dashboard/messages",
-                label: "Messages",
-                icon: <IconMessage />,
-                count: unread,
-              },
-              {
-                href: "/dashboard/recruiter/engagements",
-                label: "Engagements",
-                icon: <IconHandshakeless />,
-              },
-            ],
-          },
-          {
-            label: "Company",
-            items: [
-              {
-                href: "/dashboard/recruiter/verification",
-                label: "Verification",
-                icon: <IconShield />,
-              },
-              {
-                href: "/dashboard/recruiter/company",
-                label: "Company details",
-                icon: <IconSettings />,
-              },
-              {
-                href: `/companies/${current.profile.slug}`,
-                label: "Public page",
-                icon: <IconBuilding />,
-              },
-              { href: "/dashboard/billing", label: "Plan and billing", icon: <IconCard /> },
-            ],
-          },
-        ]
-      : [
-          {
-            items: [
-              { href: "/dashboard/freelancer", label: "Applications", icon: <IconGauge /> },
-              { href: "/dashboard/saved", label: "Saved jobs", icon: <IconPin /> },
-              {
-                href: "/dashboard/messages",
-                label: "Messages",
-                icon: <IconMessage />,
-                count: unread,
-              },
-              {
-                href: "/dashboard/freelancer/engagements",
-                label: "Engagements",
-                icon: <IconHandshakeless />,
-              },
-            ],
-          },
-          {
-            // Renamed from "Find work": the group now holds the profile that
-            // does the finding, not only the browse link.
-            label: "Work and profile",
-            items: [
-              { href: "/jobs", label: "Browse jobs", icon: <IconSearch /> },
-              // Mirrors the recruiter's: standing first, then the public page
-              // it appears on. Without it the only route to verification was
-              // a link nobody had a reason to look for.
-              {
-                href: "/dashboard/freelancer/verification",
-                label: "Verification",
-                icon: <IconShield />,
-              },
-              {
-                href: `/freelancers/${current.profile.slug}`,
-                label: "Your profile",
-                icon: <IconUser />,
-              },
-              {
-                href: "/dashboard/freelancer/profile",
-                label: "Edit profile",
-                icon: <IconSettings />,
-              },
-              { href: "/dashboard/billing", label: "Plan and billing", icon: <IconCard /> },
-            ],
-          },
-        ];
-
-  const account =
-    current.role === "RECRUITER"
-      ? {
-          name: current.profile.companyName,
-          role: "Company",
-          href: `/companies/${current.profile.slug}`,
-          avatarUrl: current.profile.logoUrl,
-          kind: "company" as const,
-        }
-      : {
-          name: current.profile.displayName,
-          role: "Freelancer",
-          href: `/freelancers/${current.profile.slug}`,
-          avatarUrl: current.profile.avatarUrl,
-          kind: "person" as const,
-        };
-
   return (
-    <AppShell groups={groups} account={account}>
+    <AppShell groups={nav.groups} account={nav.account}>
       {children}
     </AppShell>
   );

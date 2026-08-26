@@ -1,6 +1,10 @@
-import { PublicChrome } from "@/components/shell/public-chrome";
+import { AdaptiveChrome } from "@/components/shell/adaptive-chrome";
 
-/** SEO-critical public surface: the same chrome a marketing page gets. */
+/**
+ * SEO-critical public surface. The page is identical for everyone; the chrome
+ * around it is the marketing header for a visitor and the product rail for a
+ * signed-in account, so browsing does not eject you from the product.
+ */
 export default function FreelancersLayout({ children }: { children: React.ReactNode }) {
-  return <PublicChrome>{children}</PublicChrome>;
+  return <AdaptiveChrome>{children}</AdaptiveChrome>;
 }

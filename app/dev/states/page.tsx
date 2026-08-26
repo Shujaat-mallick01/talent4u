@@ -87,7 +87,7 @@ function Section({ title, note, children }: { title: string; note?: string; chil
   return (
     <section className="border-t border-border py-8">
       <h2 className="t-heading">{title}</h2>
-      {note ? <p className="mt-1 measure text-[15px] text-muted-foreground">{note}</p> : null}
+      {note ? <p className="mt-1  text-[15px] text-muted-foreground">{note}</p> : null}
       <div className="mt-5">{children}</div>
     </section>
   );
@@ -111,7 +111,7 @@ export default function StatesHarnessPage() {
         <header>
           <p className="t-label text-muted-foreground">Development only</p>
           <h1 className="t-display-2 mt-2">Component states</h1>
-          <p className="mt-3 measure t-body text-[color:var(--color-foreground)]/70">
+          <p className="mt-3  t-body text-[color:var(--color-foreground)]/70">
             Every primitive in every state. Tab through this page to check focus rings, and hover
             each row to check the Mist fill. If a state looks wrong here, it is wrong everywhere.
           </p>

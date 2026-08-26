@@ -214,7 +214,7 @@ function ReviewForm({ card }: { card: EngagementCard }) {
     <form action={writeReview} className="mt-4 border-t border-border pt-4">
       <input type="hidden" name="engagementId" value={card.engagement.id} />
       <p className="t-label text-muted-foreground">Review {subject}</p>
-      <p className="measure mt-2 text-[15px] leading-[22px] text-muted-foreground">
+      <p className=" mt-2 text-[15px] leading-[22px] text-muted-foreground">
         You both confirmed the same rate and duration, so reviews are open. Yours publishes on{" "}
         {subject}&apos;s profile under your name, and you cannot edit it afterwards.
       </p>
@@ -261,7 +261,7 @@ function WrittenReview({
       <div className="mt-1">
         <StarRating value={review.rating} count={1} hideCount />
       </div>
-      <p className="measure mt-1 whitespace-pre-wrap text-[15px] leading-[22px]">{review.body}</p>
+      <p className=" mt-1 whitespace-pre-wrap text-[15px] leading-[22px]">{review.body}</p>
     </div>
   );
 }
@@ -292,7 +292,7 @@ function RespondBlock({ card }: { card: EngagementCard }) {
     <div className="mt-4 border-t border-border pt-4">
       <p className="t-label text-muted-foreground">Waiting on you</p>
 
-      <div className="measure mt-2 space-y-2 text-[15px] leading-[22px] text-muted-foreground">
+      <div className=" mt-2 space-y-2 text-[15px] leading-[22px] text-muted-foreground">
         {card.counterpartyRemoved ? (
           <p>
             {counterparty} has been removed from Talent4u, so there is nothing here left to
@@ -363,12 +363,12 @@ function AwaitingThemBlock({ card }: { card: EngagementCard }) {
     <div className="mt-4 border-t border-border pt-4">
       <p className="t-label text-muted-foreground">Waiting on them</p>
       {card.counterpartyRemoved ? (
-        <p className="measure mt-2 text-[15px] leading-[22px] text-muted-foreground">
+        <p className=" mt-2 text-[15px] leading-[22px] text-muted-foreground">
           You have confirmed these figures, but {counterparty} has been removed from Talent4u and
           can no longer answer. This stays as a record and will not unlock reviews.
         </p>
       ) : (
-        <p className="measure mt-2 text-[15px] leading-[22px] text-muted-foreground">
+        <p className=" mt-2 text-[15px] leading-[22px] text-muted-foreground">
           You have confirmed these figures. {counterparty} has not answered yet, and one side alone
           counts for nothing — nothing is public and no review can be written until they confirm the
           same rate and duration.
@@ -392,7 +392,7 @@ function AwaitingThemBlock({ card }: { card: EngagementCard }) {
               defaultRate={engagement.statedRateUsd}
               defaultWeeks={engagement.durationWeeks}
             />
-            <p className="measure mt-3 text-[15px] leading-[22px] text-muted-foreground">
+            <p className=" mt-3 text-[15px] leading-[22px] text-muted-foreground">
               New figures replace what {counterparty} sees, and anything they confirm afterwards is
               the new pair.
             </p>
@@ -460,7 +460,7 @@ function OneEngagement({ card }: { card: EngagementCard }) {
       {card.canRespond ? <RespondBlock card={card} /> : null}
       {state === "PENDING" && !card.canRespond ? <AwaitingThemBlock card={card} /> : null}
       {state === "DECLINED" ? (
-        <p className="measure mt-3 text-[15px] leading-[22px] text-muted-foreground">
+        <p className=" mt-3 text-[15px] leading-[22px] text-muted-foreground">
           One side said this is not an engagement they had, so it counts for nothing and no review
           can be written. It stays on the record and cannot be filed again.
         </p>

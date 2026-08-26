@@ -33,11 +33,11 @@ export default function ErrorPage({
         </div>
 
         <h1 className="t-display-2 mt-6">This page stopped partway through</h1>
-        <p className="t-body measure mt-4 text-muted-foreground">
+        <p className="t-body  mt-4 text-muted-foreground">
           The failure is on our side, not on your connection and not on anything you typed. Nothing
           you had already saved has changed.
         </p>
-        <p className="t-body measure mt-3 text-muted-foreground">
+        <p className="t-body  mt-3 text-muted-foreground">
           Try loading it again — most of these clear on the second attempt. If it fails twice, wait
           a minute and come back, or carry on from the job list in the meantime.
         </p>

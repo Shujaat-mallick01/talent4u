@@ -50,7 +50,7 @@ export default async function SettingsPage({
       <div className="w-full max-w-3xl px-6 py-8 lg:px-8">
         <header className="mb-6 pb-4">
           <h1 className="t-heading">Settings</h1>
-          <p className="measure mt-2 text-[15px] leading-[22px] text-muted-foreground">
+          <p className=" mt-2 text-[15px] leading-[22px] text-muted-foreground">
             Your sign-in details, the country your price is set from, and whether your public page
             is visible.
           </p>
@@ -85,7 +85,7 @@ export default async function SettingsPage({
             </li>
           </ul>
 
-          <p className="measure mt-3 text-[13px] leading-[18px] text-muted-foreground">
+          <p className=" mt-3 text-[13px] leading-[18px] text-muted-foreground">
             Changing your email is not available yet: a new address has to be confirmed before we
             move your sign-in to it, and that flow is still to be built. Your email is also what a
             company-domain verification is checked against, so it is not a cosmetic field.
@@ -93,7 +93,7 @@ export default async function SettingsPage({
 
           <form action={changeAccountPassword} className="mt-6">
             <h3 className="text-[15px] font-semibold">Change password</h3>
-            <p className="measure mt-1 text-[13px] leading-[18px] text-muted-foreground">
+            <p className=" mt-1 text-[13px] leading-[18px] text-muted-foreground">
               We do not ask for your current one — you are signed in, and that is the proof. If you
               are not the account holder, sign out instead.
             </p>
@@ -132,7 +132,7 @@ export default async function SettingsPage({
           <h2 id="billing-heading" className="t-subhead">
             Billing country
           </h2>
-          <p className="measure mt-2 text-[15px] leading-[22px] text-muted-foreground">
+          <p className=" mt-2 text-[15px] leading-[22px] text-muted-foreground">
             This sets which regional price you get. Prices are lower in countries where they need to
             be, and the same features come with every band — nothing is held back. We check this
             country again at checkout, so it has to be the one you actually bill from.
@@ -162,7 +162,7 @@ export default async function SettingsPage({
             </Button>
           </form>
 
-          <p className="measure mt-4 text-[13px] leading-[18px] text-muted-foreground">
+          <p className=" mt-4 text-[13px] leading-[18px] text-muted-foreground">
             {view.billingCountry
               ? `${view.billingCountryName ?? view.billingCountry} is in the ${view.bandLabel} band: ${view.paidPlanName} is ${view.paidPlanMonthly}`
               : `No country set, so you are on the ${view.bandLabel} band: ${view.paidPlanName} is ${view.paidPlanMonthly}`}
@@ -182,7 +182,7 @@ export default async function SettingsPage({
           <h2 id="visibility-heading" className="t-subhead">
             Public {publicNoun}
           </h2>
-          <p className="measure mt-2 text-[15px] leading-[22px] text-muted-foreground">
+          <p className=" mt-2 text-[15px] leading-[22px] text-muted-foreground">
             {view.profile.deactivated ? (
               <>
                 Your {publicNoun} is currently down. Nobody can open it and search engines are
@@ -204,7 +204,7 @@ export default async function SettingsPage({
 
           <div className="mt-4">
             <p className="t-label text-muted-foreground">What deactivating does</p>
-            <ul className="measure mt-2 list-disc space-y-1 pl-5 text-[15px] leading-[22px]">
+            <ul className=" mt-2 list-disc space-y-1 pl-5 text-[15px] leading-[22px]">
               <li>Your public page returns a 404 and leaves search indexes on the next crawl.</li>
               <li>Your name stops linking anywhere it appears.</li>
               <li>
@@ -222,7 +222,7 @@ export default async function SettingsPage({
           </div>
 
           {isRecruiter ? (
-            <p className="measure mt-4 text-[13px] leading-[18px] text-muted-foreground">
+            <p className=" mt-4 text-[13px] leading-[18px] text-muted-foreground">
               Your job posts hide with the page. You currently have{" "}
               <span className="tabular font-medium text-foreground">{view.activeJobCount}</span>{" "}
               active {view.activeJobCount === 1 ? "post" : "posts"}; while deactivated{" "}
@@ -276,13 +276,13 @@ export default async function SettingsPage({
           <h2 id="danger-heading" className="t-subhead">
             Delete account
           </h2>
-          <p className="measure mt-2 text-[15px] leading-[22px] text-muted-foreground">
+          <p className=" mt-2 text-[15px] leading-[22px] text-muted-foreground">
             Deleting an account is not self-service yet, and we would rather say that than hide the
             section. It removes records other people are part of — applications they read,
             engagements they confirmed, reviews they wrote — so it needs a person to work through
             it, not a button that guesses.
           </p>
-          <p className="measure mt-3 text-[15px] leading-[22px] text-muted-foreground">
+          <p className=" mt-3 text-[15px] leading-[22px] text-muted-foreground">
             Reply to any email from Talent4u and ask us to delete your account; we will confirm what
             goes and what stays before anything is removed. If you only want to disappear from the
             public site, deactivating above does that immediately and is reversible.

@@ -9,7 +9,7 @@ import { IconArrowRight } from "@/components/ui/icon";
  * The 404.
  *
  * Renders inside the root layout only, so it carries no site header — the way
- * back has to be on the page itself. Left-aligned at the same measure as every
+ * back has to be on the page itself. Left-aligned at the same  as every
  * other prose page rather than centred, because a centred 404 with a huge
  * numeral is decoration; this is a dead end that needs directions.
  *
@@ -47,12 +47,12 @@ export default function NotFound() {
         </div>
 
         <h1 className="t-display-2 mt-6">This page isn&apos;t here</h1>
-        <p className="t-body measure mt-4 text-muted-foreground">
+        <p className="t-body  mt-4 text-muted-foreground">
           Nothing on Talent4u answers to that address. If you followed a link to a job, the post may
           have been withdrawn by the employer or taken down in moderation — a job that simply closed
           keeps its page and says so at the top, so this is not one of those.
         </p>
-        <p className="t-body measure mt-3 text-muted-foreground">
+        <p className="t-body  mt-3 text-muted-foreground">
           If the link came from a bookmark or a search result, it is probably just out of date.
           Start again from the job list — browsing and filtering work the same whether or not you
           are signed in.

@@ -336,11 +336,11 @@ const SECTIONS: Section[] = [
 export default function TermsPage() {
   return (
     <main id="main" className="flex-1">
-      <div className="mx-auto w-full max-w-3xl px-6 py-10">
+      <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-10">
         <header className="pb-6">
           <p className="t-label text-muted-foreground">Legal</p>
           <h1 className="t-display-2 mt-2">Terms of use</h1>
-          <p className="t-body measure mt-3 text-muted-foreground">
+          <p className="t-body  mt-3 text-muted-foreground">
             What we do, what we refuse to do, and what gets an account removed. Written to be read
             once, in full, by a person who is about to trust strangers with their working time.
           </p>
@@ -389,10 +389,10 @@ export default function TermsPage() {
               Section {String(i + 1).padStart(2, "0")}
             </p>
             <h2 className="t-heading mt-2">{section.title}</h2>
-            <div className="t-body measure mt-4 space-y-4">{section.body}</div>
+            <div className="t-body  mt-4 space-y-4">{section.body}</div>
           </section>
         ))}
-      </div>
+        </div>
     </main>
   );
 }

@@ -58,7 +58,7 @@ export async function AuthLayout({
             <p className="t-heading mt-8 measure">
               We never touch the money, so we never take a cut of it.
             </p>
-            <p className="mt-3 measure text-[15px] leading-[22px] text-muted-foreground">
+            <p className="mt-3  text-[15px] leading-[22px] text-muted-foreground">
               Companies pay a flat subscription. Freelancers keep everything they earn. You and the
               company agree terms and pay each other directly — we are not in the middle of it.
             </p>

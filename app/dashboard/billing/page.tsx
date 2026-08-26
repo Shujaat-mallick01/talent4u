@@ -48,7 +48,7 @@ export default async function BillingPage({
       <div className="w-full max-w-3xl px-6 py-8 lg:px-8">
         <header className="mb-6 pb-4">
           <h1 className="t-heading">Plan and billing</h1>
-          <p className="measure mt-2 text-[15px] leading-[22px] text-muted-foreground">
+          <p className=" mt-2 text-[15px] leading-[22px] text-muted-foreground">
             Subscriptions only. We never take a cut of what you earn, and no money between you and
             anyone you work with passes through us.
           </p>
@@ -121,7 +121,7 @@ export default async function BillingPage({
             </li>
           </ul>
 
-          <p className="measure mt-4 text-[13px] leading-[18px] text-muted-foreground">
+          <p className=" mt-4 text-[13px] leading-[18px] text-muted-foreground">
             {view.billingCountry
               ? `Prices below are the ${view.bandLabel.toLowerCase()} band for ${view.billingCountryName ?? view.billingCountry}. ${view.bandNote}`
               : "No billing country set, so prices below are the standard band. If you are billed from a country we price lower, set it before you subscribe — the amount is fixed when the subscription starts."}{" "}
@@ -166,7 +166,7 @@ export default async function BillingPage({
                     ) : null}
                   </span>
                 </div>
-                <p className="measure mt-1 text-[13px] leading-[18px] text-muted-foreground">
+                <p className=" mt-1 text-[13px] leading-[18px] text-muted-foreground">
                   {option.tagline}
                 </p>
 
@@ -218,7 +218,7 @@ export default async function BillingPage({
             ))}
           </ul>
 
-          <p className="measure mt-5 text-[13px] leading-[18px] text-muted-foreground">
+          <p className=" mt-5 text-[13px] leading-[18px] text-muted-foreground">
             Payments are handled by Stripe; your card details never reach us. Cancelling stops the
             next charge and leaves everything you have already done in place —{" "}
             <Link

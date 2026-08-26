@@ -96,7 +96,7 @@ export default async function PricingPage() {
 
   return (
     <main id="main" className="flex-1">
-      <div className="mx-auto w-full max-w-5xl px-6 py-14">
+      <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-14">
         <header className="text-center">
           <p className="t-label text-muted-foreground">Pricing</p>
           <h1 className="t-display-2 mt-3">

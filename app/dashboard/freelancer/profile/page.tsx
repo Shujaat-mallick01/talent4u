@@ -73,7 +73,7 @@ export default async function FreelancerProfileEditPage({
           </div>
           {/* The slug is set once and never moves, so say so here rather than
               letting somebody discover it by renaming and losing their links. */}
-          <p className="measure mt-2 text-[15px] leading-[22px] text-muted-foreground">
+          <p className=" mt-2 text-[15px] leading-[22px] text-muted-foreground">
             This is the page a company reads before deciding whether to reply. Its address stays{" "}
             <Link
               href={publicHref}
@@ -138,7 +138,7 @@ export default async function FreelancerProfileEditPage({
                     {item.done ? null : <span className="sr-only">Not done yet. </span>}
                     {item.label}
                   </p>
-                  <p className="measure text-[15px] leading-[22px] text-muted-foreground">
+                  <p className=" text-[15px] leading-[22px] text-muted-foreground">
                     {item.why}
                   </p>
                 </div>

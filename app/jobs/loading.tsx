@@ -12,7 +12,7 @@ import { Skeleton, SkeletonRows } from "@/components/ui/skeleton";
 export default function JobsLoading() {
   return (
     <main id="main" className="flex-1">
-      <div className="mx-auto w-full max-w-5xl px-6 py-10">
+      <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-10">
         <div className="mb-6">
           <Skeleton className="h-8 w-56" />
           <Skeleton className="mt-3 h-4 w-[26rem] max-w-full" />

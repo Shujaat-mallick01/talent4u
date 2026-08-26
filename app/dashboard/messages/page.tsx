@@ -43,7 +43,7 @@ export default async function MessagesPage({
       <div className="w-full px-6 py-8 lg:px-8">
         <header className="mb-6 pb-4">
           <h1 className="t-heading">Messages</h1>
-          <p className="mt-2 measure text-[15px] leading-[22px] text-muted-foreground">
+          <p className="mt-2  text-[15px] leading-[22px] text-muted-foreground">
             Talk directly. Swap emails, phone numbers, anything — we do not police that and we
             never will. We only watch for the scam patterns: anyone asking you to pay to work.
           </p>

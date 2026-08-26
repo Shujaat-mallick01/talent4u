@@ -82,7 +82,7 @@ export function ProposeEngagement({
 
       <TermsFields idPrefix="record" className="mt-4" />
 
-      <p className="measure mt-4 text-[15px] leading-[22px] text-muted-foreground">
+      <p className=" mt-4 text-[15px] leading-[22px] text-muted-foreground">
         {counterparty} sees these exact figures and answers yes or no. Nothing publishes and no
         review opens until they confirm the same rate and duration — and if they decline, neither
         of you can file this claim again.

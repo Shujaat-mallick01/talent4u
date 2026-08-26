@@ -251,11 +251,11 @@ const SECTIONS: Section[] = [
 export default function PrivacyPage() {
   return (
     <main id="main" className="flex-1">
-      <div className="mx-auto w-full max-w-3xl px-6 py-10">
+      <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-10">
         <header className="pb-6">
           <p className="t-label text-muted-foreground">Legal</p>
           <h1 className="t-display-2 mt-2">Privacy</h1>
-          <p className="t-body measure mt-3 text-muted-foreground">
+          <p className="t-body  mt-3 text-muted-foreground">
             What we collect, what we refuse to collect, and who else sees it. Short, because there is
             not much of it.
           </p>
@@ -302,12 +302,12 @@ export default function PrivacyPage() {
               Section {String(i + 1).padStart(2, "0")}
             </p>
             <h2 className="t-heading mt-2">{section.title}</h2>
-            <div className="t-body measure mt-4 space-y-4">{section.body}</div>
+            <div className="t-body  mt-4 space-y-4">{section.body}</div>
           </section>
         ))}
 
         <footer className="mt-10 border-t border-border pt-6">
-          <p className="t-body-dense measure text-muted-foreground">
+          <p className="t-body-dense  text-muted-foreground">
             The rules for using the site are on{" "}
             <Link href="/terms" className={LINK}>
               the terms page
@@ -316,7 +316,7 @@ export default function PrivacyPage() {
             confirm.
           </p>
         </footer>
-      </div>
+        </div>
     </main>
   );
 }

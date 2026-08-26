@@ -304,7 +304,7 @@ export function FreelancerProfileEditForm({
       <section className="space-y-5 border-t border-border pt-8">
         <div>
           <h2 className="t-label text-muted-foreground">Proof of work</h2>
-          <p className="measure mt-1.5 text-[15px] leading-[22px] text-muted-foreground">
+          <p className=" mt-1.5 text-[15px] leading-[22px] text-muted-foreground">
             One linked proof of work is required for a verified badge. All three are optional here.
           </p>
         </div>
@@ -361,7 +361,7 @@ export function FreelancerProfileEditForm({
       <section className="space-y-4 border-t border-border pt-8">
         <div>
           <h2 className="t-label text-muted-foreground">Skills</h2>
-          <p className="measure mt-1.5 text-[15px] leading-[22px] text-muted-foreground">
+          <p className=" mt-1.5 text-[15px] leading-[22px] text-muted-foreground">
             One to {SKILL_MAX}. Years of experience is optional, and recruiters filter on it.
           </p>
           {err.skills ? (

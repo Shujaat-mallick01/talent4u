@@ -59,7 +59,7 @@ export function ReportDialog({
       </summary>
 
       {signedIn ? (
-        <form action={submitReport} className="measure mt-4 space-y-5">
+        <form action={submitReport} className=" mt-4 space-y-5">
           {/* The target travels as ids the server re-resolves; nothing here
               names a status, a severity or an outcome. */}
           <input type="hidden" name="targetType" value={targetType} />
@@ -104,7 +104,7 @@ export function ReportDialog({
           </div>
         </form>
       ) : (
-        <p className="measure mt-4 text-[13px] leading-[18px] text-muted-foreground">
+        <p className=" mt-4 text-[13px] leading-[18px] text-muted-foreground">
           Reporting takes an account, so a moderator can come back to you and so the same report
           cannot be filed a thousand times.{" "}
           <Link

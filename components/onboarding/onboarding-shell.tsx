@@ -103,7 +103,7 @@ export function OnboardingShell({
 
         <h1 className={cn("t-display-2", counted || onBack ? "mt-8" : "")}>{question}</h1>
         {why ? (
-          <p className="measure mt-3 text-[16px] leading-[26px] text-muted-foreground">{why}</p>
+          <p className=" mt-3 text-[16px] leading-[26px] text-muted-foreground">{why}</p>
         ) : null}
 
         <div className="mt-8">{children}</div>

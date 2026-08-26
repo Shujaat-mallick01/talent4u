@@ -133,7 +133,8 @@ export default async function FreelancerProfilePage({
         dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
       />
 
-      <div className="mx-auto w-full max-w-4xl px-6 py-10">
+      <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-10">
+        <div className="w-full max-w-4xl">
         <header>
           {/* A stranger arrives from a search result with no idea who this is.
               The face is the first thing that makes the page a person rather
@@ -165,13 +166,13 @@ export default async function FreelancerProfilePage({
 
           {/* What they do, in Ink — the first thing the eye should land on
               after the name. */}
-          <p className="t-subhead measure mt-3">{profile.headline}</p>
+          <p className="t-subhead  mt-3">{profile.headline}</p>
 
           {/* The badge's meaning in plain words. A hover-only title attribute
               never reaches a touch reader. */}
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <ProfileBadge spec={badge} />
-            <p className="t-body-dense measure text-muted-foreground">{badge.title}</p>
+            <p className="t-body-dense  text-muted-foreground">{badge.title}</p>
           </div>
         </header>
 
@@ -218,7 +219,7 @@ export default async function FreelancerProfilePage({
 
         <section className="mt-8 border-t border-border pt-8">
           <h2 className="t-label text-muted-foreground">About</h2>
-          <div className="t-body measure mt-3 whitespace-pre-wrap">{profile.bio}</div>
+          <div className="t-body  mt-3 whitespace-pre-wrap">{profile.bio}</div>
         </section>
 
         {skillGroups.length > 0 ? (
@@ -291,7 +292,7 @@ export default async function FreelancerProfilePage({
             </div>
           ) : (
             <>
-              <p className="t-body-dense measure mt-3 text-muted-foreground">
+              <p className="t-body-dense  mt-3 text-muted-foreground">
                 Every review below comes from an engagement both sides confirmed, with the rate and
                 duration stated.
                 {reviewCount > profile.reviewsReceived.length
@@ -335,13 +336,14 @@ export default async function FreelancerProfilePage({
                         {dateFmt.format(review.createdAt)}
                       </span>
                     </div>
-                    <p className="t-body-dense measure mt-2 whitespace-pre-wrap">{review.body}</p>
+                    <p className="t-body-dense  mt-2 whitespace-pre-wrap">{review.body}</p>
                   </li>
                 ))}
               </ul>
             </>
           )}
         </section>
+        </div>
       </div>
     </main>
   );

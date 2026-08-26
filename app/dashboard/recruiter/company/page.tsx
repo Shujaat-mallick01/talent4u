@@ -53,7 +53,7 @@ export default async function CompanyDetailsPage({
           </div>
           {/* The slug is set once and never moves, so say so here rather than
               letting somebody discover it by renaming and losing their links. */}
-          <p className="measure mt-2 text-[15px] leading-[22px] text-muted-foreground">
+          <p className=" mt-2 text-[15px] leading-[22px] text-muted-foreground">
             Freelancers read this before applying. Its address stays{" "}
             <Link
               href={publicHref}
@@ -118,7 +118,7 @@ export default async function CompanyDetailsPage({
                 evidence can be swapped afterwards certifies nothing. */}
             <section className="mt-10 border-t border-border pt-8">
               <h2 className="t-subhead">Verification evidence</h2>
-              <p className="measure mt-1.5 text-[15px] leading-[22px] text-muted-foreground">
+              <p className=" mt-1.5 text-[15px] leading-[22px] text-muted-foreground">
                 {evidenceEditable
                   ? "These three are checked against each other when you submit for review. Edit them on the verification page — changing them there takes any pending submission back out of the queue, so a reviewer never judges details you have since replaced."
                   : "Your badge was granted on these three, so they stay exactly as they were reviewed. Changing them means being reviewed again."}

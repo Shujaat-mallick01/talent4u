@@ -529,7 +529,7 @@ export default async function JobApplicationsPage({
                                 <IconArrowRight className="size-4 transition-transform duration-[120ms] group-open:rotate-90" />
                                 Cover letter · {words} {words === 1 ? "word" : "words"}
                               </summary>
-                              <p className="measure mt-1 mb-2 border-l border-border pl-4 text-[15px] leading-[22px] whitespace-pre-wrap">
+                              <p className=" mt-1 mb-2 border-l border-border pl-4 text-[15px] leading-[22px] whitespace-pre-wrap">
                                 {app.coverLetter}
                               </p>
                             </details>
@@ -574,7 +574,7 @@ export default async function JobApplicationsPage({
             </section>
 
             {!canUseNotes ? (
-              <p className="measure mt-4 text-[15px] leading-[22px] text-muted-foreground">
+              <p className=" mt-4 text-[15px] leading-[22px] text-muted-foreground">
                 Private notes sit on {upsellLine("RECRUITER_GROWTH", band)}: a note against each
                 applicant that only your team reads, kept with the application so the next person
                 to open this inbox knows where you left off. Growth also opens candidate search,

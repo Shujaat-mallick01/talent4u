@@ -109,7 +109,7 @@ export function ProfilePreview({
         ) : null}
       </div>
 
-      <p className="measure mt-4 text-[13px] leading-[18px] text-muted-foreground">
+      <p className=" mt-4 text-[13px] leading-[18px] text-muted-foreground">
         Browsing and applying never costs a commission. This page is what a company reads before
         deciding whether to reply — you can change any of it later.
       </p>

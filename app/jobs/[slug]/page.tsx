@@ -299,7 +299,8 @@ export default async function JobDetailPage({
         />
       ) : null}
 
-      <div className="mx-auto w-full max-w-5xl px-6 py-8">
+      <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-8">
+        <div className="w-full max-w-5xl">
         <nav aria-label="Breadcrumb" className="mb-6">
           <Link
             href="/jobs"
@@ -355,7 +356,7 @@ export default async function JobDetailPage({
             {job.category.name}
             {job.publishedAt ? ` · Posted ${timeAgo(job.publishedAt)}` : ""}
           </p>
-          <h1 className="t-heading measure mt-2">{job.title}</h1>
+          <h1 className="t-heading  mt-2">{job.title}</h1>
         </header>
 
         {/* Two columns from lg up. The rail is first in the DOM so a phone gets
@@ -609,7 +610,7 @@ export default async function JobDetailPage({
 
             <section>
               <h2 className="t-label text-muted-foreground">Job description</h2>
-              <div className="t-body measure mt-3 whitespace-pre-wrap">{job.description}</div>
+              <div className="t-body  mt-3 whitespace-pre-wrap">{job.description}</div>
             </section>
 
             {job.skills.length > 0 ? (
@@ -644,7 +645,7 @@ export default async function JobDetailPage({
             {view === "full" && applyContext?.kind === "can-apply" ? (
               <section id="apply" className="mt-8 scroll-mt-20 border-t border-border pt-6">
                 <h2 className="t-subhead">Write your application</h2>
-                <p className="t-body-dense measure mt-1 text-muted-foreground">
+                <p className="t-body-dense  mt-1 text-muted-foreground">
                   Applying is free. Talent4u takes 0% of what you earn — you and{" "}
                   {company.companyName} agree the rate between yourselves.
                 </p>
@@ -666,6 +667,7 @@ export default async function JobDetailPage({
               />
             </div>
           </div>
+        </div>
         </div>
       </div>
     </main>

@@ -184,7 +184,7 @@ export default async function FreelancerDashboardPage() {
                 Next · worth {strength.next.weight}%
               </h2>
               <p className="mt-1 font-semibold">{strength.next.label}</p>
-              <p className="measure mt-0.5 text-[15px] leading-[22px] text-muted-foreground">
+              <p className=" mt-0.5 text-[15px] leading-[22px] text-muted-foreground">
                 {strength.next.why}
               </p>
             </div>
@@ -230,7 +230,7 @@ export default async function FreelancerDashboardPage() {
                 <h2 className="t-label text-muted-foreground">
                   Applications · rolling {APPLICATION_WINDOW_DAYS} days
                 </h2>
-                <p className="measure mt-1 text-[13px] leading-[18px] text-muted-foreground">
+                <p className=" mt-1 text-[13px] leading-[18px] text-muted-foreground">
                   {quota.nextSlotFreesAt ? (
                     <>
                       One more frees up on{" "}

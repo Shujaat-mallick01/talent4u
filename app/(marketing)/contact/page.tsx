@@ -105,11 +105,11 @@ const INCLUDE = [
 export default function ContactPage() {
   return (
     <main id="main" className="flex-1">
-      <div className="mx-auto w-full max-w-3xl px-6 py-10">
+      <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-10">
         <header className="pb-6">
           <p className="t-label text-muted-foreground">Support</p>
           <h1 className="t-display-2 mt-2">Contact us</h1>
-          <p className="t-body measure mt-3 text-muted-foreground">
+          <p className="t-body  mt-3 text-muted-foreground">
             One mailbox, read by the people who build this. Below is where each kind of message goes
             and what to put in it, so the first reply is an answer rather than a request for details.
           </p>
@@ -124,7 +124,7 @@ export default function ContactPage() {
           queue directly, today.
         </Notice>
 
-        <p className="t-body measure mt-6">
+        <p className="t-body  mt-6">
           Write to{" "}
           <a href={`mailto:${SUPPORT_EMAIL}`} className={LINK}>
             {SUPPORT_EMAIL}
@@ -141,7 +141,7 @@ export default function ContactPage() {
             {ROUTES.map((route) => (
               <div key={route.term} className="row-hover px-4 py-4">
                 <dt className="text-[15px] font-semibold leading-[22px]">{route.term}</dt>
-                <dd className="t-body-dense measure mt-1.5 text-muted-foreground">{route.body}</dd>
+                <dd className="t-body-dense  mt-1.5 text-muted-foreground">{route.body}</dd>
               </div>
             ))}
           </dl>
@@ -149,12 +149,12 @@ export default function ContactPage() {
 
         <section className="surface-card mt-5 p-6 sm:p-7">
           <h2 className="t-heading">Reporting a scam</h2>
-          <p className="t-body measure mt-3">
+          <p className="t-body  mt-3">
             The report control lives on the job post and the company page, because that is where the
             evidence is. Open the post you are worried about and use it there — it reaches the same
             moderation queue that holds posts matching known scam patterns before they ever publish.
           </p>
-          <p className="t-body-dense measure mt-3 text-muted-foreground">
+          <p className="t-body-dense  mt-3 text-muted-foreground">
             Two rules worth keeping whatever a company tells you: never pay to apply — no
             registration fee, deposit, training fee or equipment purchase is ever legitimate — and
             never do more than about four hours of unpaid test work for a stranger.
@@ -180,14 +180,14 @@ export default function ContactPage() {
 
         <section className="surface-card mt-5 p-6 sm:p-7">
           <h2 className="t-heading">What to include</h2>
-          <ul className="t-body measure mt-3 space-y-2 pl-5">
+          <ul className="t-body  mt-3 space-y-2 pl-5">
             {INCLUDE.map((line) => (
               <li key={line} className="list-disc">
                 {line}
               </li>
             ))}
           </ul>
-          <p className="t-body-dense measure mt-4 text-muted-foreground">
+          <p className="t-body-dense  mt-4 text-muted-foreground">
             We are a small team and we will read everything once the mailbox is live — until
             then no reply time is promised, because none is possible. When it is, anything
             involving money taken from a freelancer jumps the queue.
@@ -195,7 +195,7 @@ export default function ContactPage() {
         </section>
 
         <footer className="mt-10 border-t border-border pt-6">
-          <p className="t-body-dense measure text-muted-foreground">
+          <p className="t-body-dense  text-muted-foreground">
             The rules we moderate under are on{" "}
             <Link href="/terms#removal" className={LINK}>
               the terms page
@@ -207,7 +207,7 @@ export default function ContactPage() {
             .
           </p>
         </footer>
-      </div>
+        </div>
     </main>
   );
 }

@@ -123,6 +123,26 @@ async function audit(label: string, path: string, cookie?: string): Promise<void
     undersized.length ? `${undersized.length} of ${lockups.length} under 120px` : "",
   );
 
+  // The page frame. Every public page hangs off one container token, so the
+  // left edge of its content lines up with the logo in the header above it.
+  // Six different widths used to be in play — 1240, 1024, 896, 768 — under a
+  // single header, and nothing lined up with anything. The FIRST centred
+  // container inside <main> is the frame; narrower columns inside it are the
+  // page's own business.
+  const mainStart = html.indexOf("<main");
+  if (mainStart !== -1) {
+    const frame = [...html.slice(mainStart).matchAll(/class="([^"]*mx-auto[^"]*)"/g)]
+      .map((m) => m[1])
+      .find((c) => /max-w-/.test(c));
+    if (frame) {
+      check(
+        `${label} hangs off the shared container`,
+        frame.includes("container-marketing"),
+        frame.length > 90 ? `${frame.slice(0, 90)}…` : frame,
+      );
+    }
+  }
+
   // Ad-hoc display type. The scale is .t-display-*/.t-heading/.t-subhead; a
   // text-3xl in a heading means a page that never got the type system.
   const adHoc = [...html.matchAll(/<h[12][^>]*class="([^"]*)"/g)]

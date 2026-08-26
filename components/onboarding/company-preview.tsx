@@ -88,7 +88,7 @@ export function CompanyPreview({
         ) : null}
       </div>
 
-      <p className="measure mt-4 text-[13px] leading-[18px] text-muted-foreground">
+      <p className=" mt-4 text-[13px] leading-[18px] text-muted-foreground">
         Unverified means one live role at a time, an “Unverified” label on it, and no starting
         conversations. Verifying lifts all three — and freelancers do check.
       </p>

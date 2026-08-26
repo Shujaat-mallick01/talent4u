@@ -317,7 +317,7 @@ export default async function JobsBrowsePage({
       <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-10">
         <header className="pb-6">
           <h1 className="t-display-2">Browse jobs</h1>
-          <p className="t-body measure mt-3 text-muted-foreground">
+          <p className="t-body  mt-3 text-muted-foreground">
             Every job here is commission-free. You agree a rate directly with the employer and keep
             100% of it — Talent4u never takes a cut and never handles the payment.
           </p>

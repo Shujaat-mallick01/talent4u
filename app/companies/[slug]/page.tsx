@@ -132,7 +132,8 @@ export default async function CompanyProfilePage({
         dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
       />
 
-      <div className="mx-auto w-full max-w-4xl px-6 py-10">
+      <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-10">
+        <div className="w-full max-w-4xl">
         {/* The report control is at the bottom of the page; its outcome is not,
             because a confirmation nobody scrolls back to is no confirmation. */}
         {reportNotice ? (
@@ -165,7 +166,7 @@ export default async function CompanyProfilePage({
               travels with it — never softened, never hover-only. */}
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <ProfileBadge spec={tier} />
-            <p className="t-body-dense measure text-muted-foreground">{tier.title}</p>
+            <p className="t-body-dense  text-muted-foreground">{tier.title}</p>
           </div>
 
           {company.tier === "UNVERIFIED" ? (
@@ -212,7 +213,7 @@ export default async function CompanyProfilePage({
         {company.description ? (
           <section className="mt-8 border-t border-border pt-8">
             <h2 className="t-label text-muted-foreground">About</h2>
-            <div className="t-body measure mt-3 whitespace-pre-wrap">{company.description}</div>
+            <div className="t-body  mt-3 whitespace-pre-wrap">{company.description}</div>
           </section>
         ) : null}
 
@@ -255,7 +256,7 @@ export default async function CompanyProfilePage({
             </div>
           ) : (
             <>
-              <p className="t-body-dense measure mt-3 text-muted-foreground">
+              <p className="t-body-dense  mt-3 text-muted-foreground">
                 Every review below comes from an engagement both sides confirmed, with the rate and
                 duration stated.
                 {reviewCount > company.reviewsReceived.length
@@ -288,7 +289,7 @@ export default async function CompanyProfilePage({
                         {dateFmt.format(review.createdAt)}
                       </span>
                     </div>
-                    <p className="t-body-dense measure mt-2 whitespace-pre-wrap">{review.body}</p>
+                    <p className="t-body-dense  mt-2 whitespace-pre-wrap">{review.body}</p>
                   </li>
                 ))}
               </ul>
@@ -306,6 +307,7 @@ export default async function CompanyProfilePage({
             slug={company.slug}
             signedIn={session !== null}
           />
+        </div>
         </div>
       </div>
     </main>

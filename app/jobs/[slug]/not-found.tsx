@@ -46,7 +46,7 @@ export default function JobNotFound() {
         </div>
 
         <h1 className="t-display-2 mt-6">This job has no public page</h1>
-        <p className="t-body measure mt-4 text-muted-foreground">
+        <p className="t-body  mt-4 text-muted-foreground">
           The link was valid at some point, or it was never yours to see yet. Three things put a job
           here:
         </p>
@@ -56,7 +56,7 @@ export default function JobNotFound() {
           {REASONS.map((reason) => (
             <li key={reason.title} className="px-4 py-3.5">
               <h3 className="font-semibold">{reason.title}</h3>
-              <p className="t-body-dense measure mt-1 text-muted-foreground">{reason.body}</p>
+              <p className="t-body-dense  mt-1 text-muted-foreground">{reason.body}</p>
             </li>
           ))}
         </ul>

@@ -32,7 +32,7 @@ export default async function RemovedEmployersPage() {
 
   return (
     <main id="main" className="flex-1">
-      <div className="mx-auto w-full max-w-3xl px-6 py-10">
+      <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-10">
         <header className="pb-6">
           <h1 className="t-display-2">Removed employers</h1>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -103,7 +103,7 @@ export default async function RemovedEmployersPage() {
             work for a stranger.
           </p>
         </footer>
-      </div>
+        </div>
     </main>
   );
 }

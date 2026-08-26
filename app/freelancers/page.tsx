@@ -92,7 +92,7 @@ export default async function FreelancersIndexPage({
       <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-10">
         <header className="pb-6">
           <h1 className="t-display-2">Freelancers</h1>
-          <p className="t-body measure mt-3 text-muted-foreground">
+          <p className="t-body  mt-3 text-muted-foreground">
             Everyone below says they are open to work. You contact them, agree a rate between
             yourselves, and keep the whole of it — Talent4u takes 0% of what anyone earns and never
             handles the payment.
@@ -268,7 +268,7 @@ export default async function FreelancersIndexPage({
         </section>
 
         <footer className="mt-10 border-t border-border pt-6">
-          <p className="t-body-dense measure text-muted-foreground">
+          <p className="t-body-dense  text-muted-foreground">
             A badge says what we checked, not how good someone is. “Not verified” means we have not
             confirmed their identity yet — read their linked work, and remember that reviews here
             only appear once both sides confirm they worked together.{" "}

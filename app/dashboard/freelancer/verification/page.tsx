@@ -144,7 +144,7 @@ export default async function FreelancerVerificationPage({
             <h1 className="t-heading">Verification</h1>
             <ProfileBadge spec={badge} />
           </div>
-          <p className="measure mt-2 text-[15px] leading-[22px] text-muted-foreground">
+          <p className=" mt-2 text-[15px] leading-[22px] text-muted-foreground">
             Recruiters see this next to your name on your public profile and on every application
             you send. It has two halves: a government ID check, and at least one link to work you
             have actually done.
@@ -168,7 +168,7 @@ export default async function FreelancerVerificationPage({
         <section className="surface-card mb-8 p-5">
           <h2 className="t-label text-muted-foreground">Status</h2>
           <p className="t-subhead mt-1.5">{copy.title}</p>
-          <p className="measure mt-1 text-[15px] leading-[22px] text-muted-foreground">
+          <p className=" mt-1 text-[15px] leading-[22px] text-muted-foreground">
             {copy.body}
           </p>
         </section>
@@ -176,7 +176,7 @@ export default async function FreelancerVerificationPage({
         {/* What is being reviewed. */}
         <section className="mb-8">
           <h2 className="t-subhead mb-1">Your work links</h2>
-          <p className="measure mb-3 text-[15px] leading-[22px] text-muted-foreground">
+          <p className=" mb-3 text-[15px] leading-[22px] text-muted-foreground">
             One is enough. More gives a reviewer more to go on, and gives a recruiter more reason to
             read past your headline.
           </p>
@@ -223,7 +223,7 @@ export default async function FreelancerVerificationPage({
 
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 {profile.deactivatedAt !== null ? (
-                  <p className="measure text-[15px] leading-[22px] text-muted-foreground">
+                  <p className=" text-[15px] leading-[22px] text-muted-foreground">
                     Your profile is deactivated, and a review needs a live page to point at.{" "}
                     <Link
                       href="/dashboard/settings"
@@ -269,7 +269,7 @@ export default async function FreelancerVerificationPage({
                     <ProfileBadge spec={spec} />
                     {current ? <span className="t-label text-foreground">You are here</span> : null}
                   </div>
-                  <p className="measure min-w-[16rem] flex-1 text-[15px] leading-[22px] text-muted-foreground">
+                  <p className=" min-w-[16rem] flex-1 text-[15px] leading-[22px] text-muted-foreground">
                     {level.requirement}
                   </p>
                 </li>
@@ -277,7 +277,7 @@ export default async function FreelancerVerificationPage({
             })}
           </ul>
 
-          <p className="measure mt-4 text-[15px] leading-[22px] text-muted-foreground">
+          <p className=" mt-4 text-[15px] leading-[22px] text-muted-foreground">
             ID verification is not live yet, so the badge on your profile stays{" "}
             <span className="font-medium text-foreground">Not verified</span> for now — including
             after a reviewer has confirmed your links. Both levels above say a government ID was

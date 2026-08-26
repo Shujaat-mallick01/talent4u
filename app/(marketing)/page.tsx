@@ -105,7 +105,7 @@ export default async function LandingPage() {
 
             <h1 className="t-display-1 mt-6">Keep 100% of what you earn.</h1>
 
-            <p className="mt-6 measure t-body text-[color:var(--color-foreground)]/75">
+            <p className="mt-6  t-body text-[color:var(--color-foreground)]/75">
               Companies pay a flat subscription to post. Freelancers apply and get hired directly.
               We take nothing from either side, because we are never holding the money in the first
               place.
@@ -186,7 +186,7 @@ export default async function LandingPage() {
           <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
             <div className="lg:col-span-4">
               <h2 className="t-display-2">What we do instead</h2>
-              <p className="mt-4 measure t-body text-[color:var(--color-foreground)]/75">
+              <p className="mt-4  t-body text-[color:var(--color-foreground)]/75">
                 Matching, verification, reputation and discovery. Not payments, not contracts, and
                 not standing between you and the person you are working with.
               </p>
@@ -203,7 +203,7 @@ export default async function LandingPage() {
                   </span>
                   <div className="min-w-0">
                     <dt className="t-subhead">{promise.title}</dt>
-                    <dd className="measure mt-2 text-[16px] leading-[26px] text-muted-foreground">
+                    <dd className=" mt-2 text-[16px] leading-[26px] text-muted-foreground">
                       {promise.body}
                     </dd>
                   </div>
@@ -242,7 +242,7 @@ export default async function LandingPage() {
           <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
             <div className="lg:col-span-7">
               <h2 className="t-display-2">Start free. Stay free if you want to.</h2>
-              <p className="mt-4 measure t-body text-[color:var(--color-foreground)]/75">
+              <p className="mt-4  t-body text-[color:var(--color-foreground)]/75">
                 Browsing every job is free forever, signed in or not — job pages are public because
                 they should be. Applying is free up to {freeQuota} a month. Posting your first role
                 is free. Pro exists for people applying every week, and it costs less than one

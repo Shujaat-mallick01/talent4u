@@ -42,7 +42,7 @@ const canonical = (page: number) =>
 const href = (page: number) => (page > 1 ? `/freelancers?page=${page}` : "/freelancers");
 
 const LINK_FOCUS =
-  "rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 /** Column geometry, declared once so the header strip and rows cannot drift. */
 const COL_PERSON = "min-w-[15rem] flex-1";
@@ -89,8 +89,8 @@ export default async function FreelancersIndexPage({
 
   return (
     <main id="main" className="flex-1">
-      <div className="mx-auto w-full max-w-5xl px-6 py-10">
-        <header className="border-b border-border pb-6">
+      <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-10">
+        <header className="pb-6">
           <h1 className="t-display-2">Freelancers</h1>
           <p className="t-body measure mt-3 text-muted-foreground">
             Everyone below says they are open to work. You contact them, agree a rate between
@@ -111,7 +111,7 @@ export default async function FreelancersIndexPage({
         </Notice>
 
         <section aria-labelledby="results-heading" className="mt-8">
-          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-border pb-3">
+          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 pb-3">
             <div className="min-w-0">
               <h2 id="results-heading" className="t-subhead">
                 Open to work

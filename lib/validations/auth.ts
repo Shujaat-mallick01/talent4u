@@ -7,10 +7,17 @@ export const selectableRoleSchema = z.enum(["FREELANCER", "RECRUITER"]);
 
 export type SelectableRole = z.infer<typeof selectableRoleSchema>;
 
+/**
+ * Signing up is an email and a password, and nothing else.
+ *
+ * Role used to live here, which meant the one irreversible decision in the
+ * product was demanded before the account existed. It is asked immediately
+ * afterwards instead, by chooseRole on /onboarding — the same path OAuth
+ * accounts have always taken.
+ */
 export const signUpSchema = z.object({
   email: z.email("Enter a valid email address."),
   password: z.string().min(8, "Password must be at least 8 characters."),
-  role: selectableRoleSchema,
 });
 
 export const signInSchema = z.object({

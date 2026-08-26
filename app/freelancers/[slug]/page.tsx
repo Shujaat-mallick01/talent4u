@@ -39,7 +39,7 @@ const dateFmt = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 /** One cell of the ruled fact panel: mono label over a tabular value. */
 function Fact({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
   return (
-    <div className="bg-background px-4 py-3">
+    <div className="bg-card px-4 py-3">
       <dt className="t-label text-muted-foreground">{label}</dt>
       <dd className={cn("t-data mt-1.5", muted && "text-muted-foreground")}>{value}</dd>
     </div>
@@ -176,7 +176,7 @@ export default async function FreelancerProfilePage({
         </header>
 
         {/* The comparison panel: one hairline grid, every value tabular. */}
-        <dl className="mt-6 grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-3 lg:grid-cols-6">
+        <dl className="surface-card mt-6 grid grid-cols-2 gap-px overflow-hidden bg-border sm:grid-cols-3 lg:grid-cols-6">
           <Fact
             label="Rate"
             value={
@@ -205,7 +205,7 @@ export default async function FreelancerProfilePage({
                   href={l.href}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
-                  className="inline-flex min-h-11 items-center gap-2 rounded-[2px] border border-border px-4 text-[15px] font-medium transition-colors duration-[120ms] ease-out hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border px-4 text-[15px] font-medium transition-colors duration-[120ms] ease-out hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   {l.label}
                   <IconExternal className="size-4 text-muted-foreground" />
@@ -235,7 +235,7 @@ export default async function FreelancerProfilePage({
                     {skills.map((s) => (
                       <li
                         key={s.slug}
-                        className="inline-flex items-baseline gap-1.5 rounded-[2px] border border-border px-2 py-1 text-[15px] leading-5"
+                        className="inline-flex items-baseline gap-1.5 rounded-md border border-border px-2.5 py-1 text-[15px] leading-5"
                       >
                         {s.name}
                         {s.yearsExp ? (
@@ -311,7 +311,7 @@ export default async function FreelancerProfilePage({
                         review.authorRecruiter.deactivatedAt === null ? (
                           <Link
                             href={`/companies/${review.authorRecruiter.slug}`}
-                            className="rounded-[2px] font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                            className="rounded-xs font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                           >
                             {review.authorRecruiter.companyName}
                           </Link>
@@ -321,7 +321,7 @@ export default async function FreelancerProfilePage({
                              row. */
                           <Link
                             href="/removed-employers"
-                            className="rounded-[2px] text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                            className="rounded-xs text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                           >
                             Removed employer
                           </Link>

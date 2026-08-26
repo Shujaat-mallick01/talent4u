@@ -18,7 +18,7 @@ export function ProfileBadge({ spec }: { spec: BadgeSpec }) {
     <span
       title={spec.title}
       className={cn(
-        "inline-flex items-center rounded-[2px] border px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.12em]",
+        "inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.12em]",
         TONE[spec.tone],
       )}
     >

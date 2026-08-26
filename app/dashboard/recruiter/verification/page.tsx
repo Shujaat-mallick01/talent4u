@@ -86,9 +86,9 @@ export default async function VerificationPage({
           </Link>
         </nav>
 
-        <header className="mb-6 border-b border-border pb-4">
+        <header className="mb-6 pb-4">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">Verification</h1>
+            <h1 className="t-heading">Verification</h1>
             <ProfileBadge spec={recruiterTierBadge(profile.tier)} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -100,14 +100,14 @@ export default async function VerificationPage({
         {notice ? (
           <p
             role="status"
-            className={`mb-6 rounded-[2px] border px-3 py-2 text-sm ${NOTICE_CLASSES[notice.tone]}`}
+            className={`mb-6 rounded-lg border px-3 py-2 text-sm ${NOTICE_CLASSES[notice.tone]}`}
           >
             {notice.message}
           </p>
         ) : null}
 
         {profile.verificationNote ? (
-          <div className="mb-6 rounded-[2px] border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div className="mb-6 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             <p className="font-medium">Your last submission was returned</p>
             <p className="mt-1">{profile.verificationNote}</p>
           </div>
@@ -119,12 +119,12 @@ export default async function VerificationPage({
           <p className="mb-3 text-sm text-muted-foreground">
             All three are required. A reviewer checks that they describe the same company.
           </p>
-          <ul className="divide-y divide-border border border-border">
+          <ul className="rowset">
             {readiness.requirements.map((req) => (
               <li key={req.key} className="flex items-start gap-3 p-4">
                 <span
                   aria-hidden
-                  className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-[2px] border text-[11px] font-bold ${
+                  className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-[5px] border text-[11px] font-bold ${
                     req.met
                       ? "border-success/40 bg-success/10 text-success"
                       : "border-border bg-muted text-muted-foreground"

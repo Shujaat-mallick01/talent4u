@@ -1,4 +1,4 @@
-import { Orbit } from "@/components/brand/orbit";
+import { Logo } from "@/components/shell/logo";
 import { getProof } from "@/lib/marketing/proof";
 
 /**
@@ -32,9 +32,9 @@ export async function AuthLayout({
 
   return (
     <main id="main" className="flex-1">
-      <div className="mx-auto grid w-full max-w-[1240px] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="flex flex-col justify-center px-6 py-12 lg:py-20 lg:pr-16">
-          <div className="w-full max-w-[420px]">
+      <div className="grid grid-cols-1 lg:grid-cols-2">
+        <div className="flex flex-col items-center justify-center px-6 py-12 lg:items-end lg:py-24 lg:pr-16">
+          <div className="surface-card w-full max-w-[550px] p-8 sm:p-10">
             <h1 className="t-display-2">{title}</h1>
             {intro ? (
               <div className="mt-3 text-[15px] leading-[22px] text-muted-foreground">{intro}</div>
@@ -48,9 +48,13 @@ export async function AuthLayout({
           </div>
         </div>
 
-        <aside className="hidden border-l border-border bg-muted lg:flex lg:flex-col lg:justify-between lg:px-12 lg:py-20">
-          <div>
-            <Orbit className="size-24 text-primary" />
+        <aside className="hidden border-l border-border bg-card lg:flex lg:flex-col lg:justify-between lg:py-24 lg:pr-6 lg:pl-16">
+          <div className="max-w-[460px]">
+            {/* The lockup, not the orbit on its own: two arcs of red dots
+                with nothing between them read as a spinner mid-rotation, and
+                a login page that looks like it is still loading is not the
+                first impression to spend the brand mark on. */}
+            <Logo className="w-[184px]" />
             <p className="t-heading mt-8 measure">
               We never touch the money, so we never take a cut of it.
             </p>
@@ -60,7 +64,7 @@ export async function AuthLayout({
             </p>
           </div>
 
-          <dl className="mt-12 border-t border-border">
+          <dl className="mt-12 max-w-[460px] border-t border-border">
             {proof.points.map((point) => (
               <div
                 key={point.label}

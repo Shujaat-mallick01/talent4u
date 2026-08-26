@@ -42,6 +42,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --radius-xs: 4px;
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -56,9 +57,32 @@
    Mist #F4F4F5. One accent: Signal Red #E51315 (<10% of pixels), Deep Red
    #A80E10 for hover/red text, Ember #FF6B6D as red-on-dark. Status colours
    Success #0B7A4B, Warning #8A5200, Info #1B4FD1 — status only, never
-   decorative. Focus rings are Info blue. Single 2px corner radius. */
+   decorative. Focus rings are Info blue.
+
+   ── AMENDMENT, volume two: "warm console" ───────────────────────────────
+   Volume one specified a single 2px corner radius, hairline borders in place
+   of elevation ("choose borders or shadow, never both"), and a page on pure
+   Paper. In practice that read as unfinished rather than austere: a screen of
+   2px rectangles separated by 1px grey lines looks like a wireframe someone
+   forgot to design, and it made a product about people's livelihoods feel
+   like a database admin tool.
+
+   Three rules are amended, and ONLY three. Everything that makes the brand
+   identifiable is untouched: Signal Red as the one accent, Ink, Slate, the
+   Archivo/Inter pairing, the type scale, the 8px rhythm, tabular numerals.
+
+     1. RADIUS   2px -> 14px. One radius still, scaled by the --radius-*
+                 ramp, so nothing has to guess.
+     2. SURFACE  Cards carry soft elevation and NO border, on a very slightly
+                 sunken page. Borders and shadow are still never combined —
+                 the rule is kept, the winning side is swapped.
+     3. TINT     Filled surfaces exist now (chips behind icons, hover fills).
+                 They are NEUTRAL — Mist and Slate. Signal Red stays scarce
+                 and stays a signal: roughly one red thing per view, the one
+                 that is asking to be acted on. A palette where everything is
+                 gently branded is a palette where nothing means anything. */
 :root {
-  --background: #ffffff; /* Paper */
+  --background: #f4f4f6; /* the page: sunken, so white cards visibly sit ON it */
   --foreground: #0e0e10; /* Ink */
   --card: #ffffff;
   --card-foreground: #0e0e10;
@@ -66,11 +90,13 @@
   --popover-foreground: #0e0e10;
   --primary: #e51315; /* Signal Red */
   --primary-foreground: #ffffff;
-  --secondary: #f4f4f5; /* Mist */
+  /* Mist, deepened a shade so fills and chips still read against the sunken
+     page rather than dissolving into it. */
+  --secondary: #f1f1f3;
   --secondary-foreground: #0e0e10;
-  --muted: #f4f4f5; /* Mist */
+  --muted: #f1f1f3;
   --muted-foreground: #585860; /* Slate */
-  --accent: #f4f4f5;
+  --accent: #f1f1f3;
   --accent-foreground: #0e0e10;
   --destructive: #a80e10; /* Deep Red */
   --border: #e2e2e5; /* Line */
@@ -84,7 +110,7 @@
   --chart-3: #3a3a40;
   --chart-4: #a80e10;
   --chart-5: #0e0e10;
-  --radius: 2px;
+  --radius: 14px;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -99,9 +125,13 @@
    Ink surface and follows the guide's one on-dark rule: red becomes Ember
    #FF6B6D (6.96:1 on Ink). */
 .dark {
+  --elevation-card: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --elevation-card-hover: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 28px rgba(0, 0, 0, 0.45);
   --background: #0e0e10; /* Ink */
   --foreground: #f4f4f5;
-  --card: #161618;
+  /* On Ink a shadow is invisible, so a dark card separates by being lighter
+     than the page instead. Same structure, different mechanism. */
+  --card: #1a1a1d;
   --card-foreground: #f4f4f5;
   --popover: #161618;
   --popover-foreground: #f4f4f5;
@@ -138,8 +168,11 @@
 /* ── Brand tokens the guide names but Tailwind has no default for ──────────
    Motion: the guide gives four durations and two curves, and asks that
    prefers-reduced-motion cut duration to zero and HOLD the end state.
-   Elevation: exactly one shadow, for modals/menus/toasts only — "choose
-   borders or shadow, never both on the same element". */
+   Elevation (amended, volume two): three shadows, not one. Cards carry
+   --elevation-card and no border; hovering a card that leads somewhere lifts
+   it to --elevation-card-hover; modals and menus keep the original
+   --elevation. The volume-one rule that a surface never has both a border and
+   a shadow still holds everywhere. */
 :root {
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-orbit: cubic-bezier(0.55, 0.1, 0.45, 0.9);
@@ -148,6 +181,10 @@
   --duration-entry: 280ms; /* modals, drawers */
   --duration-orbit: 1500ms;
   --elevation: 0 8px 24px rgba(14, 14, 16, 0.1);
+  /* Two layers on purpose: the tight one draws the edge the border used to
+     draw, the wide one gives the lift. A single large blur reads as fog. */
+  --elevation-card: 0 1px 2px rgba(14, 14, 16, 0.06), 0 6px 20px rgba(14, 14, 16, 0.06);
+  --elevation-card-hover: 0 1px 2px rgba(14, 14, 16, 0.06), 0 10px 28px rgba(14, 14, 16, 0.1);
 
   /* The 8px rhythm, named so layout code stops guessing. */
   --space-1: 4px;
@@ -160,12 +197,19 @@
   --space-20: 80px;
   --space-32: 128px;
 
-  --container-marketing: 1240px;
+  /* The marketing/page container. BRANDGUIDE volume one specifies 1240px;
+     widened to 1440 on the product owner's instruction, which buys the jobs
+     list a usable filter rail without squeezing the results beside it. Every
+     page reads this token rather than repeating a number — nine of them had
+     their own copy of 1240 before, which is nine chances to drift. */
+  --container-marketing: 1440px;
   --rail-width: 232px;
 }
 
 @theme inline {
   --shadow-elevation: var(--elevation);
+  --shadow-card: var(--elevation-card);
+  --shadow-card-hover: var(--elevation-card-hover);
   --ease-standard: var(--ease-standard);
   --ease-orbit: var(--ease-orbit);
 }
@@ -334,7 +378,12 @@
      rule, and the first row's is suppressed so adjacent rows never double up.
      Never cards with gaps. */
   .rowset {
+    background-color: var(--card);
     border: 1px solid var(--border);
+    border-radius: var(--radius);
+    /* Rounded corners have to clip the children, or the first row's square
+       top corners poke through the group's rounded ones. */
+    overflow: hidden;
   }
   .rowset > * + * {
     border-top: 1px solid var(--border);
@@ -344,5 +393,65 @@
   }
   .row-hover:hover {
     background-color: var(--muted);
+  }
+
+  /* ── Volume two: surfaces ───────────────────────────────────────────────
+     A card is elevation and radius, never a border — the volume-one rule
+     that a surface has one or the other, never both, still holds. */
+  .surface-card {
+    background-color: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--elevation-card);
+  }
+
+  /* Only for a card that is itself a link or button. A card that merely sits
+     there must not animate on hover — movement is a promise that something
+     will happen if you click. */
+  .surface-card-interactive {
+    transition:
+      box-shadow var(--duration-standard) var(--ease-standard),
+      transform var(--duration-standard) var(--ease-standard);
+  }
+  .surface-card-interactive:hover {
+    box-shadow: var(--elevation-card-hover);
+    transform: translateY(-2px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .surface-card-interactive:hover {
+      transform: none;
+    }
+  }
+
+  /* The tinted square behind an icon. Neutral by decision: see the volume-two
+     amendment above. Mist fill, Slate glyph, radius scaled down so a small
+     chip does not read as a circle. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: calc(var(--radius) * 0.8);
+    background-color: var(--muted);
+    color: var(--muted-foreground);
+  }
+  .chip-sm {
+    width: 28px;
+    height: 28px;
+    border-radius: calc(var(--radius) * 0.55);
+  }
+  .chip-lg {
+    width: 48px;
+    height: 48px;
+    border-radius: calc(var(--radius) * 0.9);
+  }
+
+  /* The exception, and it is meant to be rare: the one thing on a screen that
+     is asking to be acted on. If two of these are visible at once, one of
+     them is wrong. */
+  .chip-signal {
+    background-color: color-mix(in srgb, var(--primary) 10%, transparent);
+    color: var(--primary);
   }
 }

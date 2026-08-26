@@ -12,7 +12,7 @@ export default function AdminLoading() {
   return (
     <main id="main" className="flex-1">
       <div className="w-full px-6 py-8 lg:px-8">
-        <div className="mb-6 border-b border-border pb-4">
+        <div className="mb-6 pb-4">
           <Skeleton className="h-7 w-40" />
           <Skeleton className="mt-2 h-3 w-80 max-w-full" />
         </div>

@@ -33,8 +33,8 @@ export default async function RemovedEmployersPage() {
   return (
     <main id="main" className="flex-1">
       <div className="mx-auto w-full max-w-3xl px-6 py-10">
-        <header className="border-b border-border pb-6">
-          <h1 className="text-2xl font-bold tracking-tight">Removed employers</h1>
+        <header className="pb-6">
+          <h1 className="t-display-2">Removed employers</h1>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             Companies we have removed from Talent4u, with the reason. We publish this because a
             marketplace that moderates in private is asking you to take its word for it — and
@@ -50,18 +50,18 @@ export default async function RemovedEmployersPage() {
 
         <section className="py-6">
           {removed.length === 0 ? (
-            <div className="border border-dashed border-border p-10 text-center">
-              <p className="text-sm text-muted-foreground">
+            <div className="rounded-lg border border-dashed border-border bg-card p-10 text-center">
+              <p className="text-[15px] leading-[22px] text-muted-foreground">
                 No employers have been removed yet. When one is, it will be listed here — with the
                 reason, permanently.
               </p>
             </div>
           ) : (
             <>
-              <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+              <p className="t-label mb-3 text-muted-foreground">
                 {removed.length} {removed.length === 1 ? "company" : "companies"} removed
               </p>
-              <ul className="divide-y divide-border border border-border">
+              <ul className="rowset">
                 {removed.map((company) => (
                   <li key={company.id} className="p-4">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -92,7 +92,7 @@ export default async function RemovedEmployersPage() {
             Seen something that belongs here?{" "}
             <Link
               href="/jobs"
-              className="rounded-[2px] underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="rounded-xs underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               Open the post
             </Link>{" "}

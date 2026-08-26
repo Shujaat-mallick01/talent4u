@@ -36,7 +36,7 @@ export function Notice({
     <div
       role={tone === "error" ? "alert" : "status"}
       className={cn(
-        "flex items-start gap-2 rounded-[2px] border px-3 py-2.5 text-[15px] leading-[22px]",
+        "flex items-start gap-2 rounded-lg border px-3 py-2.5 text-[15px] leading-[22px]",
         classes,
         className,
       )}

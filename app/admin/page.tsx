@@ -54,7 +54,7 @@ export default async function AdminPage({
   return (
     <main id="main" className="flex-1">
       <div className="w-full px-6 py-8 lg:px-8">
-        <header className="mb-6 border-b border-border pb-4">
+        <header className="mb-6 pb-4">
           <h1 className="t-heading">Moderation</h1>
           <p className="t-label mt-1 text-muted-foreground">
             {counts.openFlags} open {counts.openFlags === 1 ? "flag" : "flags"} ·{" "}
@@ -69,7 +69,7 @@ export default async function AdminPage({
         {notice ? (
           <p
             role="status"
-            className={`mb-6 rounded-[2px] border px-3 py-2 text-sm ${NOTICE_CLASSES[notice.tone]}`}
+            className={`mb-6 rounded-lg border px-3 py-2 text-sm ${NOTICE_CLASSES[notice.tone]}`}
           >
             {notice.message}
           </p>
@@ -84,11 +84,11 @@ export default async function AdminPage({
               nothing is waiting on you.
             </p>
           ) : (
-            <ul className="divide-y divide-border border border-border">
+            <ul className="rowset">
               {flags.map((flag) => (
                 <li key={flag.id} className="p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-[2px] border border-warning/40 bg-warning/10 px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-warning">
+                    <span className="rounded-full border border-warning/40 bg-warning/10 px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-warning">
                       {flag.reason.replace(/_/g, " ")}
                     </span>
                     {flag.matchedTerm ? (
@@ -200,7 +200,7 @@ export default async function AdminPage({
               describe the same company before approving.
             </p>
           ) : (
-            <ul className="divide-y divide-border border border-border">
+            <ul className="rowset">
               {verifications.map((v) => (
                 <li key={v.id} className="p-4">
                   <div className="flex flex-wrap items-center gap-2">
@@ -297,7 +297,7 @@ export default async function AdminPage({
               /dashboard/freelancer/verification.
             </p>
           ) : (
-            <ul className="divide-y divide-border border border-border">
+            <ul className="rowset">
               {freelancerVerifications.map((f) => (
                 <li key={f.id} className="p-4">
                   <div className="flex flex-wrap items-center gap-2">
@@ -385,7 +385,7 @@ export default async function AdminPage({
               No open reports.
             </p>
           ) : (
-            <ul className="divide-y divide-border border border-border">
+            <ul className="rowset">
               {reports.map((report) => (
                 <li key={report.id} className="p-4">
                   <p className="text-sm">

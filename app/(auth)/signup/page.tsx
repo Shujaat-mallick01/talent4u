@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AuthDivider, AuthLayout } from "@/components/auth/auth-layout";
-import { RoleChoice } from "@/components/auth/role-choice";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -30,7 +29,9 @@ export default async function SignUpPage({
   return (
     <AuthLayout
       title="Create an account"
-      intro={<>Free, no card. Browsing and applying costs nothing.</>}
+      intro={
+        <>Free, no card. Browsing and applying costs nothing. We ask what you are here for next.</>
+      }
       footer={
         <>
           Already have an account?{" "}
@@ -53,8 +54,6 @@ export default async function SignUpPage({
 
       <form action={signUpWithPassword} className="space-y-5">
         {params.next ? <input type="hidden" name="next" value={params.next} /> : null}
-
-        <RoleChoice />
 
         <Field label="Email" htmlFor="email">
           <Input id="email" type="email" name="email" autoComplete="email" required />

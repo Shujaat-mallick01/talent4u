@@ -14,7 +14,7 @@ export default function DashboardLoading() {
   return (
     <main id="main" className="flex-1">
       <div className="w-full px-6 py-8 lg:px-8">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-border pb-4">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4 pb-4">
           <div>
             <Skeleton className="h-7 w-44" />
             <Skeleton className="mt-2 h-4 w-64 max-w-full" />

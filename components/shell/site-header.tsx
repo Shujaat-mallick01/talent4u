@@ -19,17 +19,23 @@ export async function SiteHeader() {
   const account = session ? await getUserAuthState(session.userId) : null;
 
   return (
-    <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 sticky top-0 z-40">
-      <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-4 px-6">
-        <div className="flex items-center gap-6">
+    <header className="border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 sticky top-0 z-40">
+      <div className="mx-auto flex h-20 w-full max-w-[var(--container-marketing)] items-center justify-between gap-6 px-6">
+        <div className="flex items-center gap-8">
           <Link href="/" aria-label="Talent4u home" className="flex items-center">
-            <Logo className="h-6 w-auto" />
+            <Logo className="w-[128px]" />
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link href="/jobs" className="text-muted-foreground hover:text-foreground">
+          <nav className="hidden items-center gap-5 text-[15px] sm:flex">
+            <Link
+              href="/jobs"
+              className="rounded-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
               Browse jobs
             </Link>
-            <Link href="/pricing" className="text-muted-foreground hover:text-foreground">
+            <Link
+              href="/pricing"
+              className="rounded-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
               Pricing
             </Link>
           </nav>

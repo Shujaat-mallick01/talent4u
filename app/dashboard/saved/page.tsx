@@ -38,7 +38,7 @@ export default async function SavedJobsPage() {
   return (
     <main id="main" className="flex-1">
       <div className="w-full px-6 py-8 lg:px-8">
-        <header className="mb-6 border-b border-border pb-4">
+        <header className="mb-6 pb-4">
           <h1 className="t-heading">Saved jobs</h1>
           <p className="mt-1 text-[15px] text-muted-foreground">
             {saved.length === 0

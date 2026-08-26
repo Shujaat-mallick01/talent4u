@@ -65,7 +65,7 @@ export function NavItems({ groups }: { groups: NavGroup[] }) {
                     <span className="shrink-0">{item.icon}</span>
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
                     {item.count ? (
-                      <span className="t-label shrink-0 rounded-[2px] bg-primary px-1.5 py-0.5 text-primary-foreground">
+                      <span className="t-label shrink-0 rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground">
                         {item.count}
                       </span>
                     ) : null}
@@ -110,7 +110,7 @@ export function NavStrip({ groups }: { groups: NavGroup[] }) {
               <span className="shrink-0">{item.icon}</span>
               {item.label}
               {item.count ? (
-                <span className="t-label rounded-[2px] bg-primary px-1 text-primary-foreground">
+                <span className="t-label rounded-full bg-primary px-1 text-primary-foreground">
                   {item.count}
                 </span>
               ) : null}

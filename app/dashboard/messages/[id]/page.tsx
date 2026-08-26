@@ -77,14 +77,14 @@ export default async function ConversationPage({
         <nav className="mb-4">
           <Link
             href="/dashboard/messages"
-            className="t-label inline-flex min-h-11 items-center gap-1.5 rounded-[2px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="t-label inline-flex min-h-11 items-center gap-1.5 rounded-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <IconArrowLeft className="size-4" />
             All messages
           </Link>
         </nav>
 
-        <header className="flex items-start gap-3 border-b border-border pb-4">
+        <header className="flex items-start gap-3 pb-4">
           {/* md, not lg: this header is a name and one line about the job, and
               a 72px mark beside a 24px heading would outweigh both. */}
           <Avatar
@@ -98,7 +98,7 @@ export default async function ConversationPage({
               {profileHref ? (
                 <Link
                   href={profileHref}
-                  className="t-heading rounded-[2px] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className="t-heading rounded-xs hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   {name}
                 </Link>
@@ -114,7 +114,7 @@ export default async function ConversationPage({
                 About{" "}
                 <Link
                   href={`/jobs/${thread.job.slug}`}
-                  className="rounded-[2px] underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className="rounded-xs underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   {thread.job.title}
                 </Link>

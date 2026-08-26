@@ -2,15 +2,20 @@
  * The one control surface every form element shares.
  *
  * BRANDGUIDE: "a 1px Line border that turns 1px Ink on focus plus a 2px Info
- * focus ring", 2px radius, no shadow ever ("choose borders or shadow, never
- * both on the same element"). Invalid state uses Deep Red on the border with
- * the message named below the field.
+ * focus ring", and no shadow ever — a control is a bordered surface, so under
+ * the volume-one rule that still holds ("borders or shadow, never both") it
+ * does not get elevation. Radius follows the volume-two token. Invalid state
+ * uses Deep Red on the border with the message named below the field.
+ *
+ * The fill is --card rather than --background: the page is now very slightly
+ * sunken, and a control filled with the page colour stops looking like
+ * something you can type into.
  *
  * Kept in one place so input, textarea, select and the native primitives that
  * still exist in forms cannot drift apart from each other.
  */
 export const controlBase = [
-  "w-full min-w-0 rounded-[2px] border border-border bg-background",
+  "w-full min-w-0 rounded-md border border-border bg-card",
   "font-sans text-[15px] leading-[22px] text-foreground",
   "transition-colors duration-[120ms] ease-out outline-none",
   "placeholder:text-muted-foreground",
@@ -32,7 +37,7 @@ export const controlHeightLg = "h-11 px-3.5";
  * div-with-role reimplementation loses.
  */
 export const checkControl = [
-  "size-4 shrink-0 appearance-none rounded-[2px] border border-foreground bg-background",
+  "size-4 shrink-0 appearance-none rounded-[5px] border border-foreground bg-card",
   "transition-colors duration-[120ms] ease-out outline-none",
   "checked:border-primary checked:bg-primary",
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
@@ -43,7 +48,7 @@ export const checkControl = [
 ].join(" ");
 
 export const radioControl = [
-  "size-4 shrink-0 appearance-none rounded-full border border-foreground bg-background",
+  "size-4 shrink-0 appearance-none rounded-full border border-foreground bg-card",
   "transition-colors duration-[120ms] ease-out outline-none",
   "checked:border-[5px] checked:border-primary",
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",

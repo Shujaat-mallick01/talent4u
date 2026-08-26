@@ -58,7 +58,7 @@ export function ProposeEngagement({
   const counterparty = side === "FREELANCER" ? "The company" : "The freelancer";
 
   return (
-    <form id={RECORD_ANCHOR} action={proposeEngagement} className="border border-border p-4 sm:p-5">
+    <form id={RECORD_ANCHOR} action={proposeEngagement} className="surface-card p-5 sm:p-6">
       <Field
         label="Which work?"
         htmlFor={pickerId}

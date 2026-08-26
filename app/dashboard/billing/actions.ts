@@ -35,6 +35,8 @@ export async function startCheckoutAction(formData: FormData): Promise<void> {
     if (result.reason === "unavailable") back("checkout_unavailable");
     if (result.reason === "not-purchasable") back("not_purchasable");
     if (result.reason === "already-on-plan") back("already_on_plan");
+    if (result.reason === "manage-in-portal") back("manage_in_portal");
+    if (result.reason === "account-removed") back("account_removed");
     back("checkout_failed");
   }
 

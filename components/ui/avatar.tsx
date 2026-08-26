@@ -53,7 +53,7 @@ export function Avatar({
   shape?: "person" | "company";
   className?: string;
 }) {
-  const radius = shape === "person" ? "rounded-full" : "rounded-[2px]";
+  const radius = shape === "person" ? "rounded-full" : "rounded-md";
 
   if (src) {
     return (

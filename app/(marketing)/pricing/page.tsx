@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -34,40 +36,41 @@ export const metadata: Metadata = {
 function PlanColumn({ card, highlight }: { card: PlanCard; highlight?: boolean }) {
   return (
     <div
-      className={`flex flex-col border p-5 ${
-        highlight ? "border-primary" : "border-border"
-      }`}
+      className={cn(
+        "surface-card flex flex-col p-6",
+        // The featured plan is marked with a ring rather than a border, so it
+        // does not become the one surface on the page carrying both a border
+        // and a shadow. One red element per view, and on this page it is this.
+        highlight && "ring-1 ring-primary",
+      )}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-semibold">{card.copy.name}</h3>
+        <h3 className="t-subhead">{card.copy.name}</h3>
         {card.price.isReduced ? (
-          <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-success">
-            Regional price
-          </span>
+          <span className="t-label text-success">Regional price</span>
         ) : null}
       </div>
 
-      <p className="mt-1 text-sm text-muted-foreground">{card.copy.tagline}</p>
+      <p className="mt-1.5 text-[15px] leading-[22px] text-muted-foreground">{card.copy.tagline}</p>
 
-      <p className="mt-4">
-        <span className="text-3xl font-bold tracking-tight">{card.price.display}</span>
+      <p className="mt-5 flex items-baseline gap-1.5">
+        <span className="t-data tabular text-[32px] leading-none text-foreground">
+          {card.price.display}
+        </span>
         {card.price.cents > 0 ? (
-          <span className="text-sm text-muted-foreground"> /month</span>
+          <span className="text-[15px] text-muted-foreground">/month</span>
         ) : null}
       </p>
       {card.price.isReduced ? (
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          <span className="line-through">{card.listPrice.display}</span> standard
+        <p className="mt-1.5 text-[13px] leading-[18px] text-muted-foreground">
+          <span className="tabular line-through">{card.listPrice.display}</span> standard
         </p>
       ) : null}
 
-      <ul className="mt-4 flex-1 space-y-1.5 text-sm">
+      <ul className="mt-5 flex-1 space-y-2">
         {card.features.map((f) => (
-          <li key={f.label} className="flex gap-2">
-            <span
-              aria-hidden
-              className={f.included ? "text-success" : "text-muted-foreground/50"}
-            >
+          <li key={f.label} className="flex gap-2.5 text-[15px] leading-[22px]">
+            <span aria-hidden className={f.included ? "text-success" : "text-muted-foreground/50"}>
               {f.included ? "✓" : "—"}
             </span>
             <span className={f.included ? "" : "text-muted-foreground/70"}>
@@ -78,8 +81,8 @@ function PlanColumn({ card, highlight }: { card: PlanCard; highlight?: boolean }
         ))}
       </ul>
 
-      <p className="mt-5 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-        {card.price.cents === 0 ? "Available now" : "Billing launches soon"}
+      <p className="t-label mt-6 text-muted-foreground">
+        {card.price.cents === 0 ? "Free, no card" : "Subscribe from your dashboard"}
       </p>
     </div>
   );
@@ -95,16 +98,16 @@ export default async function PricingPage() {
     <main id="main" className="flex-1">
       <div className="mx-auto w-full max-w-5xl px-6 py-14">
         <header className="text-center">
-          <p className="text-sm font-medium text-muted-foreground">Pricing</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+          <p className="t-label text-muted-foreground">Pricing</p>
+          <h1 className="t-display-2 mt-3">
             We charge a subscription, never a cut.
           </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+          <p className="t-body mx-auto mt-4 max-w-2xl text-muted-foreground">
             0% commission on anyone&apos;s earnings. We do not hold, escrow, or transmit money
             between users — so there is nothing for us to take a percentage of.
           </p>
           {reduced ? (
-            <p className="mx-auto mt-4 max-w-xl rounded-[2px] border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
+            <p className="mx-auto mt-5 max-w-xl rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-[15px] leading-[22px] text-success">
               {BAND_SPECS[band].note}
               {billingCountry
                 ? ` Prices below are for ${countryName(billingCountry) ?? billingCountry}.`
@@ -114,8 +117,8 @@ export default async function PricingPage() {
         </header>
 
         <section className="mt-12">
-          <h2 className="text-sm font-semibold">For freelancers</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h2 className="t-subhead">For freelancers</h2>
+          <p className="mt-1.5 text-[15px] leading-[22px] text-muted-foreground">
             Browsing and applying is free. Pro is for people applying every week.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -130,8 +133,8 @@ export default async function PricingPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="text-sm font-semibold">For companies</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h2 className="t-subhead">For companies</h2>
+          <p className="mt-1.5 text-[15px] leading-[22px] text-muted-foreground">
             Post free. Candidate search, filters, and pipelines are the paid features.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
@@ -145,34 +148,34 @@ export default async function PricingPage() {
           </div>
         </section>
 
-        <section className="mt-12 border-t border-border pt-8">
-          <h2 className="text-sm font-semibold">Questions people actually ask</h2>
-          <dl className="mt-4 grid gap-6 sm:grid-cols-2">
-            <div>
-              <dt className="font-medium">Do you take a percentage of what I earn?</dt>
-              <dd className="mt-1 text-sm text-muted-foreground">
+        <section className="mt-14">
+          <h2 className="t-subhead">Questions people actually ask</h2>
+          <dl className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div className="surface-card p-5">
+              <dt className="t-subhead text-[17px] leading-6">Do you take a percentage of what I earn?</dt>
+              <dd className="mt-2 text-[15px] leading-[22px] text-muted-foreground">
                 No. Not on your first job, not on your hundredth. We never hold or transfer your
                 money, so we are never in a position to take a cut of it. You invoice and get paid
                 however you and the company agree.
               </dd>
             </div>
-            <div>
-              <dt className="font-medium">Why is my price different from the list price?</dt>
-              <dd className="mt-1 text-sm text-muted-foreground">
+            <div className="surface-card p-5">
+              <dt className="t-subhead text-[17px] leading-6">Why is my price different from the list price?</dt>
+              <dd className="mt-2 text-[15px] leading-[22px] text-muted-foreground">
                 Prices are set per purchasing-power band from your billing country. The features are
                 identical in every band — a reduced price is not a reduced product.
               </dd>
             </div>
-            <div>
-              <dt className="font-medium">Can I talk to people off-platform?</dt>
-              <dd className="mt-1 text-sm text-muted-foreground">
+            <div className="surface-card p-5">
+              <dt className="t-subhead text-[17px] leading-6">Can I talk to people off-platform?</dt>
+              <dd className="mt-2 text-[15px] leading-[22px] text-muted-foreground">
                 Yes, freely. Exchange emails, phone numbers, whatever suits you. We do not police
                 that, and we never will — a marketplace that traps you is one that has to.
               </dd>
             </div>
-            <div>
-              <dt className="font-medium">What do you actually do, then?</dt>
-              <dd className="mt-1 text-sm text-muted-foreground">
+            <div className="surface-card p-5">
+              <dt className="t-subhead text-[17px] leading-6">What do you actually do, then?</dt>
+              <dd className="mt-2 text-[15px] leading-[22px] text-muted-foreground">
                 Matching, verification, reputation, and discovery. We check who companies are, hold
                 scam-pattern posts before they publish, publish every employer we remove, and lock
                 reviews until both sides confirm the work happened.
@@ -181,7 +184,7 @@ export default async function PricingPage() {
           </dl>
         </section>
 
-        <section className="mt-12 flex flex-wrap items-center justify-center gap-3 border-t border-border pt-8">
+        <section className="mt-14 flex flex-wrap items-center justify-center gap-3">
           <Button size="lg" render={<Link href="/jobs">Browse open jobs</Link>} />
           <Button size="lg" variant="outline" render={<Link href="/signup">Create a free account</Link>} />
         </section>

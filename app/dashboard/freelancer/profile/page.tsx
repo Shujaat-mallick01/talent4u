@@ -66,7 +66,7 @@ export default async function FreelancerProfileEditPage({
   return (
     <main id="main" className="flex-1">
       <div className="mx-auto w-full max-w-3xl px-6 py-8 lg:px-8">
-        <header className="mb-6 border-b border-border pb-4">
+        <header className="mb-6 pb-4">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="t-heading">Edit your profile</h1>
             <ProfileBadge spec={freelancerVerificationBadge(profile.verification)} />
@@ -77,7 +77,7 @@ export default async function FreelancerProfileEditPage({
             This is the page a company reads before deciding whether to reply. Its address stays{" "}
             <Link
               href={publicHref}
-              className="rounded-[2px] font-medium text-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="rounded-xs font-medium text-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               {new URL(SITE_URL).host}
               {publicHref}
@@ -112,7 +112,7 @@ export default async function FreelancerProfileEditPage({
                   <span
                     key={i}
                     className={cn(
-                      "h-4 w-1.5 rounded-[1px]",
+                      "h-4 w-1.5 rounded-full",
                       i < filled ? "bg-primary" : "bg-border",
                     )}
                   />
@@ -130,7 +130,7 @@ export default async function FreelancerProfileEditPage({
                 ) : (
                   <span
                     aria-hidden
-                    className="mt-0.5 size-5 shrink-0 rounded-[2px] border border-border"
+                    className="mt-0.5 size-5 shrink-0 rounded-[5px] border border-border"
                   />
                 )}
                 <div className="min-w-[14rem] flex-1">
@@ -154,7 +154,7 @@ export default async function FreelancerProfileEditPage({
             from your{" "}
             <Link
               href="/dashboard/freelancer/verification"
-              className="rounded-[2px] font-medium text-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="rounded-xs font-medium text-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               verification page
             </Link>

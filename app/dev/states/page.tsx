@@ -107,7 +107,7 @@ export default function StatesHarnessPage() {
 
   return (
     <main id="main" className="flex-1">
-      <div className="mx-auto w-full max-w-[1240px] px-6 py-12">
+      <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-12">
         <header>
           <p className="t-label text-muted-foreground">Development only</p>
           <h1 className="t-display-2 mt-2">Component states</h1>
@@ -273,7 +273,7 @@ export default function StatesHarnessPage() {
         <Section title="Icons" note="One family: 24px grid, 1.5px stroke, square caps, monochrome, inheriting text colour.">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
             {ICONS.map(([name, Icon]) => (
-              <div key={name} className="flex items-center gap-2 border border-border px-3 py-2">
+              <div key={name} className="surface-card flex items-center gap-2 px-3 py-2">
                 <Icon />
                 <span className="truncate text-[13px] text-muted-foreground">{name}</span>
               </div>

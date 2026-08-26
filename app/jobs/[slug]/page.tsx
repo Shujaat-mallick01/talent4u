@@ -80,7 +80,7 @@ const monthYear = (d: Date) => d.toLocaleDateString("en", { month: "long", year:
 
 /** A bare Link carries no focus ring of its own, so every one here gets these. */
 const LINK =
-  "rounded-[2px] underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "rounded-xs underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 /**
  * The skill chip, byte-identical to the one on /jobs so the same skill reads
@@ -89,7 +89,7 @@ const LINK =
  * rule. Ink for a skill the viewer has, Slate for one they do not.
  */
 const SKILL_CHIP =
-  "rounded-[2px] bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium tracking-[0.12em] uppercase";
+  "rounded-full bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium tracking-[0.12em] uppercase";
 
 /**
  * "Member since March 2024", when the data is there.
@@ -303,7 +303,7 @@ export default async function JobDetailPage({
         <nav aria-label="Breadcrumb" className="mb-6">
           <Link
             href="/jobs"
-            className="inline-flex items-center gap-1.5 rounded-[2px] text-[15px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="inline-flex items-center gap-1.5 rounded-xs text-[15px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <IconArrowLeft className="size-4" />
             All jobs
@@ -350,7 +350,7 @@ export default async function JobDetailPage({
           </Notice>
         ) : null}
 
-        <header className="border-b border-border pb-6">
+        <header className="pb-6">
           <p className="t-label text-muted-foreground">
             {job.category.name}
             {job.publishedAt ? ` · Posted ${timeAgo(job.publishedAt)}` : ""}
@@ -366,7 +366,7 @@ export default async function JobDetailPage({
             aria-label="Job summary"
             className="lg:col-start-2 lg:row-start-1"
           >
-            <div className="border border-border lg:sticky lg:top-[4.5rem]">
+            <div className="surface-card overflow-hidden lg:sticky lg:top-[4.5rem]">
               {/* Who is this employer. A logo — squared, because the brand
                   keeps circles for people — then the name, the tier, and a
                   sentence spelling the tier out. object-contain because a
@@ -385,7 +385,7 @@ export default async function JobDetailPage({
                     <h2 className="text-[15px] font-semibold leading-tight">
                       <Link
                         href={`/companies/${company.slug}`}
-                        className="rounded-[2px] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        className="rounded-xs hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
                         {company.companyName}
                       </Link>

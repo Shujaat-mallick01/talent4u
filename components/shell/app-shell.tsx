@@ -88,14 +88,14 @@ export function AppShell({
   return (
     <div className="flex min-h-full flex-1 flex-col lg:flex-row">
       {/* Rail — 1024px and up. */}
-      <aside className="sticky top-0 z-30 hidden h-dvh w-[232px] shrink-0 flex-col border-r border-border bg-background lg:flex">
+      <aside className="sticky top-0 z-30 hidden h-dvh w-[232px] shrink-0 flex-col border-r border-border bg-card lg:flex">
         <div className="border-b border-border px-6 py-4">
           <Link
             href="/"
             aria-label="Talent4u home"
             className="inline-flex focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            <Logo className="h-6 w-auto" />
+            <Logo className="w-[132px]" />
           </Link>
         </div>
         <nav aria-label="Product" className="flex-1 overflow-y-auto py-4">
@@ -105,14 +105,14 @@ export function AppShell({
       </aside>
 
       {/* Compact header + link strip — below 1024px. */}
-      <div className="sticky top-0 z-30 border-b border-border bg-background lg:hidden">
+      <div className="sticky top-0 z-30 border-b border-border bg-card lg:hidden">
         <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3">
           <Link
             href="/"
             aria-label="Talent4u home"
             className="inline-flex focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            <Logo className="h-5 w-auto" />
+            <Logo className="w-[120px]" />
           </Link>
           <div className="flex min-w-0 items-center gap-2">
             <Avatar

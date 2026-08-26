@@ -81,7 +81,7 @@ export default async function SignInPage({
         <p className="text-[15px]">
           <Link
             href="/forgot-password"
-            className="rounded-[2px] text-muted-foreground underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="rounded-xs text-muted-foreground underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             Forgot your password?
           </Link>

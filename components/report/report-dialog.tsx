@@ -53,7 +53,7 @@ export function ReportDialog({
 
   return (
     <details className="border-t border-border pt-6">
-      <summary className="t-label inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-[2px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+      <summary className="t-label inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
         <IconFlag className="size-4" />
         {label}
       </summary>
@@ -109,7 +109,7 @@ export function ReportDialog({
           cannot be filed a thousand times.{" "}
           <Link
             href={`/signin?next=${encodeURIComponent(path)}`}
-            className="rounded-[2px] underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="rounded-xs underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             Sign in
           </Link>{" "}

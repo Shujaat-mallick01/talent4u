@@ -42,9 +42,9 @@ const GROUPS: { heading: string; links: { href: string; label: string }[] }[] = 
 export function SiteFooter() {
   return (
     <footer className="border-t border-border">
-      <div className="mx-auto flex w-full max-w-5xl flex-wrap justify-between gap-x-12 gap-y-8 px-6 py-10 text-sm text-muted-foreground">
-        <div className="max-w-xs">
-          <Logo className="h-5 w-auto text-foreground" />
+      <div className="mx-auto grid w-full max-w-[var(--container-marketing)] gap-x-12 gap-y-10 px-6 py-14 text-[15px] text-muted-foreground sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr]">
+        <div className="max-w-sm">
+          <Logo className="w-[144px] text-foreground" />
           <p className="mt-2">0% commission. You keep 100% of what you earn.</p>
           <p className="mt-2 text-[13px] leading-[18px]">
             We match, verify and publish reputation. We never hold, escrow or transmit money between
@@ -52,25 +52,23 @@ export function SiteFooter() {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-x-12 gap-y-8">
-          {GROUPS.map((group) => (
-            <nav key={group.heading} aria-label={group.heading}>
-              <h2 className="t-label text-muted-foreground">{group.heading}</h2>
-              <ul className="mt-3 space-y-2">
-                {group.links.map((link) => (
-                  <li key={link.label}>
-                    <Link
-                      href={link.href}
-                      className="rounded-[2px] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ))}
-        </div>
+        {GROUPS.map((group) => (
+          <nav key={group.heading} aria-label={group.heading}>
+            <h2 className="t-label text-muted-foreground">{group.heading}</h2>
+            <ul className="mt-4 space-y-2.5">
+              {group.links.map((link) => (
+                <li key={link.label}>
+                  <Link
+                    href={link.href}
+                    className="rounded-xs transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
       </div>
     </footer>
   );

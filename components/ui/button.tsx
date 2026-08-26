@@ -6,7 +6,9 @@ import { cn } from "@/lib/utils";
 /**
  * BRANDGUIDE section 08, "Buttons — one primary per view".
  *
- * Spec: 40px tall, 20px horizontal padding, Inter 600 at 15px, 2px radius,
+ * Spec: 40px tall, 20px horizontal padding, Inter 600 at 15px, the shared
+ * radius token (volume two: 14px, stepped down to --radius-md here so a 40px
+ * control does not read as a pill),
  * Signal Red primary that deepens to Deep Red on hover, Ink-bordered
  * secondary, and a visible 2px Info focus ring at 2px offset that is never
  * removed on mouse input. Labels name the outcome — "Send offer", never
@@ -19,7 +21,7 @@ import { cn } from "@/lib/utils";
 const buttonVariants = cva(
   [
     "group/button relative inline-flex shrink-0 items-center justify-center gap-2",
-    "rounded-[2px] border whitespace-nowrap select-none",
+    "rounded-md border whitespace-nowrap select-none",
     "font-sans text-[15px] font-semibold leading-none",
     "transition-colors duration-[120ms] ease-out outline-none",
     // The focus ring the accessibility spec makes non-negotiable.

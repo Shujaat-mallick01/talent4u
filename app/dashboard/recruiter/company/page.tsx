@@ -46,7 +46,7 @@ export default async function CompanyDetailsPage({
   return (
     <main id="main" className="flex-1">
       <div className="mx-auto w-full max-w-3xl px-6 py-8 lg:px-8">
-        <header className="mb-6 border-b border-border pb-4">
+        <header className="mb-6 pb-4">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="t-heading">Company details</h1>
             <ProfileBadge spec={recruiterTierBadge(profile.tier)} />
@@ -57,7 +57,7 @@ export default async function CompanyDetailsPage({
             Freelancers read this before applying. Its address stays{" "}
             <Link
               href={publicHref}
-              className="rounded-[2px] font-medium text-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="rounded-xs font-medium text-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               {new URL(SITE_URL).host}
               {publicHref}

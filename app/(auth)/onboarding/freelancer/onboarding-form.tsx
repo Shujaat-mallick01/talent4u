@@ -2,16 +2,17 @@
 
 import { useActionState, useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Notice } from "@/components/ui/notice";
-import { Steps } from "@/components/ui/steps";
+import { OnboardingShell, StepNav } from "@/components/onboarding/onboarding-shell";
+import { ProfilePreview } from "@/components/onboarding/profile-preview";
 import { Checkbox } from "@/components/ui/choice";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Notice } from "@/components/ui/notice";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { COUNTRIES } from "@/lib/geo/countries";
 import type { SkillCategoryGroup } from "@/lib/db/freelancer";
+import { cn } from "@/lib/utils";
 
 import { submitFreelancerOnboarding, type FreelancerOnboardingState } from "./actions";
 
@@ -20,22 +21,38 @@ const initialFreelancerOnboardingState: FreelancerOnboardingState = {
   formError: null,
 };
 
-const STEPS = ["About you", "Work details", "Skills"] as const;
+/**
+ * Six questions instead of three forms.
+ *
+ * The previous shape asked for a name, a headline AND a 120-character bio on
+ * one screen before anything else happened — the hardest thing in the whole
+ * flow, demanded at the moment someone has invested the least. Writing a bio
+ * is much easier once you have already told us your name, said what you do,
+ * and picked your skills, because by then the answer is half-written and you
+ * have watched a profile appear beside you as you typed.
+ *
+ * Still ONE form and ONE submit. Steps are `hidden` fieldsets, so there is a
+ * single Server Action, a single Zod schema, and no half-written row if
+ * somebody closes the tab at question four.
+ */
+const STEP_COUNT = 6;
 
 // Which step each server-validated field lives on, so a server error jumps
-// the user back to the right place.
+// back to the question that caused it rather than to the top.
 const FIELD_STEP: Record<string, number> = {
   displayName: 0,
-  headline: 0,
-  bio: 0,
-  country: 1,
-  timezone: 1,
-  hourlyRateUsd: 1,
-  githubUrl: 1,
-  portfolioUrl: 1,
-  linkedinUrl: 1,
-  skills: 2,
+  headline: 1,
+  country: 2,
+  timezone: 2,
+  skills: 3,
+  bio: 4,
+  hourlyRateUsd: 4,
+  githubUrl: 5,
+  portfolioUrl: 5,
+  linkedinUrl: 5,
 };
+
+const BIO_MIN = 120;
 
 const FALLBACK_TZ = [
   "UTC",
@@ -132,6 +149,19 @@ export function FreelancerOnboardingForm({
     [selectedSkills],
   );
 
+  const skillNameBySlug = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const group of skillGroups) {
+      for (const skill of group.skills) map.set(skill.slug, skill.name);
+    }
+    return map;
+  }, [skillGroups]);
+
+  const selectedSkillNames = useMemo(
+    () => Array.from(selectedSkills.keys(), (slug) => skillNameBySlug.get(slug) ?? slug),
+    [selectedSkills, skillNameBySlug],
+  );
+
   const toggleSkill = (slug: string) =>
     setSelectedSkills((prev) => {
       const next = new Map(prev);
@@ -147,243 +177,208 @@ export function FreelancerOnboardingForm({
       return next;
     });
 
-  // Light client gating so users don't advance with obviously-empty steps.
-  // The server re-validates everything regardless.
-  const canAdvance = (from: number): boolean => {
-    if (from === 0) {
-      return displayName.trim().length >= 2 && headline.trim().length >= 10 && bio.trim().length >= 120;
-    }
-    if (from === 1) {
-      return country !== "" && timezone !== "";
-    }
-    return true;
-  };
-
   const err = state.fieldErrors;
+  const bioLength = bio.trim().length;
+
+  /**
+   * Whether the question on screen has a usable answer. Convenience only —
+   * every one of these is re-checked server-side by the Zod schema, which is
+   * the check that counts.
+   */
+  const GATES: { ok: boolean; hint: string }[] = [
+    { ok: displayName.trim().length >= 2, hint: "At least two characters." },
+    { ok: headline.trim().length >= 10, hint: "At least ten characters." },
+    { ok: country !== "" && timezone !== "", hint: "Pick a country and a timezone." },
+    { ok: selectedSkills.size > 0, hint: "Choose at least one." },
+    { ok: bioLength >= BIO_MIN, hint: `${bioLength} of ${BIO_MIN} characters.` },
+    { ok: true, hint: "" },
+  ];
+
+  const QUESTIONS: { question: string; why: React.ReactNode }[] = [
+    {
+      question: "What should we call you?",
+      why: "The name companies will see. Your real name or the one you trade under — not a username.",
+    },
+    {
+      question: "What do you do?",
+      why: "One line, the way you would say it to someone at a conference. This sits under your name everywhere you appear.",
+    },
+    {
+      question: "Where do you work from?",
+      why: "Companies filter on both, and your timezone is what tells them whether your hours overlap with theirs.",
+    },
+    {
+      question: "What are you good at?",
+      why: "Pick everything you would genuinely take work in. This is what search matches you on, so an empty list means an empty inbox.",
+    },
+    {
+      question: "Tell companies who you are",
+      why: "What you do, who you do it for, and what came of it. Recruiters skim — lead with specifics, not adjectives.",
+    },
+    {
+      question: "Where can they see your work?",
+      why: "Optional, and the single biggest thing that gets a reply. One real link beats any description of it.",
+    },
+  ];
+
+  const isLast = step === STEP_COUNT - 1;
+  const current = QUESTIONS[step];
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-6 py-10">
-      <header className="mb-8">
-        <h1 className="t-heading">Set up your profile</h1>
-        <p className="mt-2 measure text-[15px] leading-[22px] text-muted-foreground">
-          This is your public page — it is what a company reads before deciding whether to reply.
-          You can come back to any of it later.
-        </p>
-        <p className="t-label mt-2 text-muted-foreground">{email}</p>
-        <Steps steps={STEPS} current={step} className="mt-6" />
-      </header>
-
+    <OnboardingShell
+      stepIndex={step}
+      stepCount={STEP_COUNT}
+      question={current.question}
+      why={current.why}
+      onBack={step === 0 ? undefined : () => setStep((s) => Math.max(0, s - 1))}
+      aside={
+        <ProfilePreview
+          displayName={displayName}
+          headline={headline}
+          bio={bio}
+          country={country}
+          hourlyRateUsd={hourlyRateUsd}
+          skills={selectedSkillNames}
+          isOpenToWork={isOpenToWork}
+        />
+      }
+    >
       {state.formError ? (
-        <Notice tone="error" className="mb-5">
+        <Notice tone="error" className="mb-6">
           {state.formError}
         </Notice>
       ) : null}
 
       {/* noValidate: steps are toggled with `hidden`, and the browser refuses
-          to submit when a native constraint fails on a control it can't focus
+          to submit when a native constraint fails on a control it cannot focus
           (one in a hidden fieldset). Server-side Zod is the real validator and
           surfaces messages through fieldErrors + FIELD_STEP. */}
-      <form action={formAction} noValidate className="space-y-6">
-        {/* Always-mounted carriers so every step's value submits regardless of
-            which step is visible. */}
+      <form action={formAction} noValidate>
+        {/* Always mounted, so every answer submits whichever step is showing. */}
         <input type="hidden" name="skills" value={skillsJson} />
         <input type="hidden" name="isOpenToWork" value={isOpenToWork ? "on" : ""} />
 
-        {/* Step 1 — About you */}
-        <fieldset hidden={step !== 0} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="displayName">Display name</Label>
-            <Input
-              id="displayName"
-              name="displayName"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              aria-invalid={Boolean(err.displayName)}
-              placeholder="Jane Cooper"
-              autoComplete="name"
-            />
-            <FieldError message={err.displayName} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="headline">Headline</Label>
-            <Input
-              id="headline"
-              name="headline"
-              value={headline}
-              onChange={(e) => setHeadline(e.target.value)}
-              aria-invalid={Boolean(err.headline)}
-              placeholder="Senior Shopify developer for high-volume stores"
-            />
-            <p className="text-[13px] leading-[18px] text-muted-foreground">One line. {headline.trim().length}/120</p>
-            <FieldError message={err.headline} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="bio">Bio</Label>
-            <Textarea
-              id="bio"
-              name="bio"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              aria-invalid={Boolean(err.bio)}
-              rows={7}
-              placeholder="What you do, who you do it for, and the results you've delivered. Recruiters skim — lead with specifics."
-            />
+        {/* 1 — Name */}
+        <fieldset hidden={step !== 0}>
+          <Label htmlFor="displayName" className="sr-only">
+            Display name
+          </Label>
+          <Input
+            id="displayName"
+            name="displayName"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            aria-invalid={Boolean(err.displayName)}
+            placeholder="Jane Cooper"
+            autoComplete="name"
+            inputSize="lg"
+            className="max-w-md"
+          />
+          <FieldError message={err.displayName} />
+          <p className="t-label mt-4 text-muted-foreground">Signed in as {email}</p>
+        </fieldset>
+
+        {/* 2 — Headline */}
+        <fieldset hidden={step !== 1}>
+          <Label htmlFor="headline" className="sr-only">
+            Headline
+          </Label>
+          <Input
+            id="headline"
+            name="headline"
+            value={headline}
+            onChange={(e) => setHeadline(e.target.value)}
+            aria-invalid={Boolean(err.headline)}
+            placeholder="Senior Shopify developer for high-volume stores"
+            inputSize="lg"
+            maxLength={120}
+          />
+          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
             <p className="text-[13px] leading-[18px] text-muted-foreground">
-              {bio.trim().length} characters (120 minimum)
+              Good: “Shopify developer for stores doing $1M+”. Weak: “Passionate full-stack
+              developer”.
             </p>
-            <FieldError message={err.bio} />
+            <p className="t-data text-[13px] text-muted-foreground">{headline.trim().length}/120</p>
+          </div>
+          <FieldError message={err.headline} />
+        </fieldset>
+
+        {/* 3 — Location */}
+        <fieldset hidden={step !== 2} className="grid max-w-lg gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="country">Country</Label>
+            <Select
+              id="country"
+              name="country"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              aria-invalid={Boolean(err.country)}
+            >
+              <option value="">Select…</option>
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+            <FieldError message={err.country} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="timezone">Timezone</Label>
+            <Select
+              id="timezone"
+              name="timezone"
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+              aria-invalid={Boolean(err.timezone)}
+            >
+              <option value="">Select…</option>
+              {timezones.map((tz) => (
+                <option key={tz} value={tz}>
+                  {tz.replace(/_/g, " ")}
+                </option>
+              ))}
+            </Select>
+            <FieldError message={err.timezone} />
           </div>
         </fieldset>
 
-        {/* Step 2 — Work details */}
-        <fieldset hidden={step !== 1} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="country">Country</Label>
-              <Select
-                id="country"
-                name="country"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                aria-invalid={Boolean(err.country)}
-                
-              >
-                <option value="">Select…</option>
-                {COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-              <FieldError message={err.country} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="timezone">Timezone</Label>
-              <Select
-                id="timezone"
-                name="timezone"
-                value={timezone}
-                onChange={(e) => setTimezone(e.target.value)}
-                aria-invalid={Boolean(err.timezone)}
-                
-              >
-                <option value="">Select…</option>
-                {timezones.map((tz) => (
-                  <option key={tz} value={tz}>
-                    {tz.replace(/_/g, " ")}
-                  </option>
-                ))}
-              </Select>
-              <FieldError message={err.timezone} />
-            </div>
-          </div>
+        {/* 4 — Skills */}
+        <fieldset hidden={step !== 3}>
+          <p className="text-[15px] text-muted-foreground">
+            <span className="t-data text-foreground">{selectedSkills.size}</span> selected · add
+            years where you can, recruiters filter on it
+          </p>
+          <FieldError message={err.skills} />
 
-          <div className="space-y-1.5">
-            <Label htmlFor="hourlyRateUsd">Hourly rate (USD, optional)</Label>
-            <Input
-              id="hourlyRateUsd"
-              name="hourlyRateUsd"
-              type="number"
-              inputMode="numeric"
-              value={hourlyRateUsd}
-              onChange={(e) => setHourlyRateUsd(e.target.value)}
-              aria-invalid={Boolean(err.hourlyRateUsd)}
-              placeholder="45"
-              className="max-w-40"
-            />
-            <FieldError message={err.hourlyRateUsd} />
-          </div>
-
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox
-              checked={isOpenToWork}
-              onChange={(e) => setIsOpenToWork(e.target.checked)}
-              className="size-4 rounded border-border"
-            />
-            I&apos;m open to work right now
-          </label>
-
-          <fieldset className="space-y-3 rounded-[2px] border border-border p-4">
-            <legend className="px-1 text-xs font-medium text-muted-foreground">
-              Proof of work (optional, but strongly recommended)
-            </legend>
-            <div className="space-y-1.5">
-              <Label htmlFor="githubUrl">GitHub</Label>
-              <Input
-                id="githubUrl"
-                name="githubUrl"
-                value={githubUrl}
-                onChange={(e) => setGithubUrl(e.target.value)}
-                aria-invalid={Boolean(err.githubUrl)}
-                placeholder="https://github.com/username"
-                inputMode="url"
-              />
-              <FieldError message={err.githubUrl} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="portfolioUrl">Portfolio / website</Label>
-              <Input
-                id="portfolioUrl"
-                name="portfolioUrl"
-                value={portfolioUrl}
-                onChange={(e) => setPortfolioUrl(e.target.value)}
-                aria-invalid={Boolean(err.portfolioUrl)}
-                placeholder="https://yoursite.dev"
-                inputMode="url"
-              />
-              <FieldError message={err.portfolioUrl} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="linkedinUrl">LinkedIn</Label>
-              <Input
-                id="linkedinUrl"
-                name="linkedinUrl"
-                value={linkedinUrl}
-                onChange={(e) => setLinkedinUrl(e.target.value)}
-                aria-invalid={Boolean(err.linkedinUrl)}
-                placeholder="https://linkedin.com/in/username"
-                inputMode="url"
-              />
-              <FieldError message={err.linkedinUrl} />
-            </div>
-          </fieldset>
-        </fieldset>
-
-        {/* Step 3 — Skills */}
-        <fieldset hidden={step !== 2} className="space-y-4">
-          <div>
-            <p className="text-sm font-medium">Pick your skills</p>
-            <p className="text-[13px] leading-[18px] text-muted-foreground">
-              Choose 1–20. Add years of experience where you can — recruiters filter on it.{" "}
-              {selectedSkills.size} selected.
-            </p>
-            <FieldError message={err.skills} />
-          </div>
-
-          <div className="space-y-5">
+          <div className="mt-5 space-y-6">
             {skillGroups.map((group) => (
               <div key={group.slug}>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {group.name}
-                </h3>
-                <ul className="space-y-1.5">
+                <h2 className="t-label mb-2.5 text-muted-foreground">{group.name}</h2>
+                <ul className="flex flex-wrap gap-2">
                   {group.skills.map((skill) => {
                     const selected = selectedSkills.has(skill.slug);
                     return (
-                      <li
-                        key={skill.slug}
-                        className="flex items-center justify-between gap-3 rounded-[2px] border border-border px-3 py-2"
-                      >
-                        <label className="flex items-center gap-2 text-sm">
+                      <li key={skill.slug}>
+                        {/* A tappable chip, not a checkbox in a row. Picking
+                            twelve skills out of a list of checkboxes is a
+                            chore; picking them out of a wall of chips is not. */}
+                        <label
+                          className={cn(
+                            "inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-[15px] leading-5 transition-colors",
+                            selected
+                              ? "border-foreground bg-foreground text-background"
+                              : "border-border bg-card hover:bg-muted",
+                            "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring",
+                          )}
+                        >
                           <Checkbox
                             checked={selected}
                             onChange={() => toggleSkill(skill.slug)}
-                            className="size-4 rounded border-border"
+                            className="sr-only"
                           />
                           {skill.name}
-                        </label>
-                        {selected ? (
-                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          {selected ? (
                             <Input
                               aria-label={`Years of experience with ${skill.name}`}
                               type="number"
@@ -392,12 +387,12 @@ export function FreelancerOnboardingForm({
                               step={1}
                               value={selectedSkills.get(skill.slug) ?? ""}
                               onChange={(e) => setSkillYears(skill.slug, e.target.value)}
+                              onClick={(e) => e.preventDefault()}
                               placeholder="yrs"
-                              className="h-7 w-16 px-2 text-xs"
+                              className="h-6 w-14 border-background/30 bg-transparent px-1.5 text-[13px] text-background placeholder:text-background/50"
                             />
-                            yrs
-                          </span>
-                        ) : null}
+                          ) : null}
+                        </label>
                       </li>
                     );
                   })}
@@ -407,32 +402,110 @@ export function FreelancerOnboardingForm({
           </div>
         </fieldset>
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between border-t border-border pt-4">
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={step === 0 || isPending}
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-          >
-            Back
-          </Button>
+        {/* 5 — Bio, rate, availability */}
+        <fieldset hidden={step !== 4} className="space-y-5">
+          <div className="space-y-1.5">
+            <Label htmlFor="bio" className="sr-only">
+              Bio
+            </Label>
+            <Textarea
+              id="bio"
+              name="bio"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              aria-invalid={Boolean(err.bio)}
+              rows={8}
+              placeholder="I build Shopify storefronts for brands doing $1M+ a year. Last year I rebuilt checkout for a skincare brand and their conversion went from 1.8% to 2.6%…"
+            />
+            <div className="flex items-baseline justify-between gap-3">
+              <FieldError message={err.bio} />
+              <p
+                className={cn(
+                  "t-data ml-auto text-[13px]",
+                  bioLength >= BIO_MIN ? "text-success" : "text-muted-foreground",
+                )}
+              >
+                {bioLength}/{BIO_MIN}
+              </p>
+            </div>
+          </div>
 
-          {step < STEPS.length - 1 ? (
-            <Button
-              type="button"
-              disabled={!canAdvance(step)}
-              onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))}
-            >
-              Continue
-            </Button>
-          ) : (
-            <Button type="submit" disabled={isPending || selectedSkills.size === 0}>
-              {isPending ? "Creating profile…" : "Create profile"}
-            </Button>
-          )}
-        </div>
+          <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="hourlyRateUsd">Hourly rate in USD (optional)</Label>
+              <Input
+                id="hourlyRateUsd"
+                name="hourlyRateUsd"
+                type="number"
+                inputMode="numeric"
+                value={hourlyRateUsd}
+                onChange={(e) => setHourlyRateUsd(e.target.value)}
+                aria-invalid={Boolean(err.hourlyRateUsd)}
+                placeholder="45"
+                className="w-32"
+              />
+              <FieldError message={err.hourlyRateUsd} />
+            </div>
+
+            <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[15px]">
+              <Checkbox
+                checked={isOpenToWork}
+                onChange={(e) => setIsOpenToWork(e.target.checked)}
+              />
+              I&apos;m open to work right now
+            </label>
+          </div>
+        </fieldset>
+
+        {/* 6 — Proof of work */}
+        <fieldset hidden={step !== 5} className="max-w-lg space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="githubUrl">GitHub</Label>
+            <Input
+              id="githubUrl"
+              name="githubUrl"
+              value={githubUrl}
+              onChange={(e) => setGithubUrl(e.target.value)}
+              aria-invalid={Boolean(err.githubUrl)}
+              placeholder="https://github.com/janecooper"
+            />
+            <FieldError message={err.githubUrl} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="portfolioUrl">Portfolio or website</Label>
+            <Input
+              id="portfolioUrl"
+              name="portfolioUrl"
+              value={portfolioUrl}
+              onChange={(e) => setPortfolioUrl(e.target.value)}
+              aria-invalid={Boolean(err.portfolioUrl)}
+              placeholder="https://janecooper.dev"
+            />
+            <FieldError message={err.portfolioUrl} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="linkedinUrl">LinkedIn</Label>
+            <Input
+              id="linkedinUrl"
+              name="linkedinUrl"
+              value={linkedinUrl}
+              onChange={(e) => setLinkedinUrl(e.target.value)}
+              aria-invalid={Boolean(err.linkedinUrl)}
+              placeholder="https://linkedin.com/in/janecooper"
+            />
+            <FieldError message={err.linkedinUrl} />
+          </div>
+        </fieldset>
+
+        <StepNav
+          canAdvance={GATES[step].ok}
+          hint={GATES[step].hint}
+          isLast={isLast}
+          isPending={isPending}
+          onNext={() => setStep((s) => Math.min(STEP_COUNT - 1, s + 1))}
+          submitLabel="Create my profile"
+        />
       </form>
-    </div>
+    </OnboardingShell>
   );
 }

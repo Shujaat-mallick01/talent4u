@@ -37,7 +37,6 @@ export async function signUpWithPassword(formData: FormData): Promise<void> {
   const parsed = signUpSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
-    role: formData.get("role"),
   });
   // Where they were headed before they were asked to sign up — a job post,
   // usually. Without carrying this the whole way, someone who arrives from a
@@ -55,7 +54,7 @@ export async function signUpWithPassword(formData: FormData): Promise<void> {
     backToSignUp("invalid_input");
     return;
   }
-  const { email, password, role } = parsed.data;
+  const { email, password } = parsed.data;
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signUp({
@@ -70,13 +69,9 @@ export async function signUpWithPassword(formData: FormData): Promise<void> {
     return;
   }
 
-  // Fix the role now, on the app-side row. A conflict means the email or id
-  // is already taken — say nothing specific (no account enumeration) and let
-  // the existing account keep its existing role.
-  if (data.user) {
-    await createUserWithRole(data.user.id, email, role);
-  }
-
+  // No app-side row yet, and deliberately so: the row cannot exist without a
+  // role, and the role is the next question rather than this one. /onboarding
+  // creates it — the same path an OAuth account has always taken.
   if (data.session && data.user) {
     // Email confirmation is disabled in this Supabase project — signed in.
     const state = await getUserAuthState(data.user.id);

@@ -29,7 +29,7 @@ export function PhotoForm({
   return (
     <form
       action={action}
-      className="mb-6 flex flex-wrap items-center gap-4 border border-border p-4"
+      className="surface-card mb-6 flex flex-wrap items-center gap-4 p-5"
     >
       <Avatar name={name} src={src} size="lg" shape={shape} />
       <div className="min-w-0 flex-1">
@@ -46,7 +46,7 @@ export function PhotoForm({
             type="file"
             accept={LOGO_ACCEPT}
             required
-            className="max-w-full text-[14px] file:mr-3 file:h-8 file:cursor-pointer file:rounded-[2px] file:border file:border-foreground file:bg-transparent file:px-3 file:text-[14px] file:font-semibold"
+            className="max-w-full text-[14px] file:mr-3 file:h-8 file:cursor-pointer file:rounded-md file:border file:border-foreground file:bg-transparent file:px-3 file:text-[14px] file:font-semibold"
           />
           <Button type="submit" size="sm" variant="secondary">
             Upload photo

@@ -44,6 +44,16 @@ const COPY: Record<BillingNoticeCode, BillingNoticeCopy> = {
     message:
       "You are already on that plan. Use Manage billing to change your card, switch plan, or cancel.",
   },
+  manage_in_portal: {
+    tone: "info",
+    message:
+      "You already have a subscription with us, so switching plan happens in the billing portal rather than at a new checkout — that way you are charged the difference instead of being billed for two plans at once.",
+  },
+  account_removed: {
+    tone: "error",
+    message:
+      "This company has been removed from Talent4u, so there is no plan to buy — a subscription would not let you post, message or be found. Contact us if you believe that is a mistake.",
+  },
   portal_failed: {
     tone: "error",
     message: "The billing portal could not be opened. Try again in a moment.",

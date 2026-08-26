@@ -33,7 +33,7 @@ export const metadata: Metadata = {
 };
 
 const LINK =
-  "rounded-[2px] underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "rounded-xs underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 /** One route: what you want, and where it actually goes. */
 const ROUTES: { term: string; body: React.ReactNode }[] = [
@@ -106,7 +106,7 @@ export default function ContactPage() {
   return (
     <main id="main" className="flex-1">
       <div className="mx-auto w-full max-w-3xl px-6 py-10">
-        <header className="border-b border-border pb-6">
+        <header className="pb-6">
           <p className="t-label text-muted-foreground">Support</p>
           <h1 className="t-display-2 mt-2">Contact us</h1>
           <p className="t-body measure mt-3 text-muted-foreground">
@@ -134,7 +134,7 @@ export default function ContactPage() {
           answering it.
         </p>
 
-        <section className="mt-8">
+        <section className="surface-card mt-8 p-6 sm:p-7">
           <h2 className="t-label text-muted-foreground">Where to send what</h2>
           {/* Rows sharing one hairline, never cards floating with gaps. */}
           <dl className="rowset mt-3">
@@ -147,7 +147,7 @@ export default function ContactPage() {
           </dl>
         </section>
 
-        <section className="mt-10 border-t border-border pt-8">
+        <section className="surface-card mt-5 p-6 sm:p-7">
           <h2 className="t-heading">Reporting a scam</h2>
           <p className="t-body measure mt-3">
             The report control lives on the job post and the company page, because that is where the
@@ -178,7 +178,7 @@ export default function ContactPage() {
           </div>
         </section>
 
-        <section className="mt-10 border-t border-border pt-8">
+        <section className="surface-card mt-5 p-6 sm:p-7">
           <h2 className="t-heading">What to include</h2>
           <ul className="t-body measure mt-3 space-y-2 pl-5">
             {INCLUDE.map((line) => (

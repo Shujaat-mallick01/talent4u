@@ -5,7 +5,8 @@ import { ProfileBadge } from "@/components/profile/profile-badge";
 import { StartThread } from "@/components/messages/start-thread";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { IconCheck } from "@/components/ui/icon";
+import { IconBriefcase, IconCheck, IconClock, IconGauge } from "@/components/ui/icon";
+import { MetricCard, MetricRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 import { requireRole } from "@/lib/auth/guards";
 import { listApplicationsForFreelancer } from "@/lib/db/application";
@@ -90,48 +91,94 @@ export default async function FreelancerDashboardPage() {
     : null;
   const filled = filledSegments(strength.percent);
 
+  const firstName = profile.displayName.trim().split(/\s+/)[0] || "there";
+  const shortlisted = applications.filter((a) => a.status === "SHORTLISTED").length;
+  const quotaLow = "limit" in quota && quota.limit !== null && (quota.remaining ?? 0) <= 3;
+
+  /**
+   * Exactly one red chip on this screen, or none — the volume-two rule that
+   * keeps Signal Red meaning something. Running out of applications outranks
+   * the good news, because it is the one a person can act on.
+   */
+  const signal: "quota" | "shortlisted" | null = quotaLow
+    ? "quota"
+    : shortlisted > 0
+      ? "shortlisted"
+      : null;
+
+  const standing =
+    shortlisted > 0
+      ? `${shortlisted} ${shortlisted === 1 ? "company has" : "companies have"} shortlisted you.`
+      : applications.length === 0
+        ? "Nothing sent yet — browsing is free and unlimited."
+        : "No decisions back yet. That is normal in the first week.";
+
   return (
     <main id="main" className="flex-1">
       <div className="w-full px-6 py-8 lg:px-8">
-        <header className="mb-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-4 border-b border-border pb-4">
-          <div>
-            <h1 className="t-heading">Your applications</h1>
-            <p className="mt-1 flex flex-wrap items-center gap-2 text-[15px] text-muted-foreground">
+        <header className="mb-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+          <div className="min-w-0">
+            <h1 className="t-display-2">Hi {firstName},</h1>
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-[15px] text-muted-foreground">
               <ProfileBadge spec={freelancerVerificationBadge(profile.verification)} />
-              <span>{applications.length === 0 ? "Nothing sent yet" : `${applications.length} sent in total`}</span>
+              <span>{standing}</span>
             </p>
           </div>
 
-          <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
-            {/* Profile strength. The same countable-segments language as the
-                quota slots below — the exact number is right beside it, so the
-                bar is for the eye and the digits carry the claim. */}
-            <div>
-              <h2 className="t-label text-muted-foreground">Profile strength</h2>
-              <p className="mt-1.5 flex items-center gap-3">
-                <span className="t-data text-[28px] leading-none">{strength.percent}%</span>
-                <span aria-hidden className="flex gap-1">
-                  {Array.from({ length: SEGMENTS }, (_, i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        "h-6 w-1.5 rounded-[1px]",
-                        i < filled ? "bg-primary" : "bg-border",
-                      )}
-                    />
-                  ))}
-                </span>
-              </p>
-            </div>
-
-            <Button render={<Link href="/jobs">Browse jobs</Link>} />
-          </div>
+          <Button render={<Link href="/jobs">Browse jobs</Link>} />
         </header>
+
+        {/* The four figures a freelancer opens this page to check. Volume one
+            had them as captioned spans in the header, which is to say it had
+            them nowhere: the numbers someone came for weighed exactly as much
+            as the words explaining them. */}
+        <MetricRow className="mb-6">
+          <MetricCard
+            icon={IconBriefcase}
+            label="Applications"
+            value={applications.length}
+            note={applications.length === 0 ? "Nothing sent yet" : "Sent in total"}
+          />
+          <MetricCard
+            icon={IconCheck}
+            label="Shortlisted"
+            value={shortlisted}
+            tone={signal === "shortlisted" ? "signal" : "neutral"}
+            note={shortlisted === 0 ? "No decisions yet" : "Companies moved you forward"}
+          />
+          {"limit" in quota ? (
+            <MetricCard
+              icon={IconClock}
+              label="Left this window"
+              tone={signal === "quota" ? "signal" : "neutral"}
+              value={
+                quota.limit === null ? "No limit" : `${quota.remaining ?? 0} of ${quota.limit}`
+              }
+              note={
+                quota.limit === null
+                  ? `${quota.used} sent · Pro`
+                  : quota.nextSlotFreesAt
+                    ? `One frees ${quota.nextSlotFreesAt.toLocaleDateString("en", {
+                        month: "short",
+                        day: "numeric",
+                      })}`
+                    : `Rolling ${APPLICATION_WINDOW_DAYS} days`
+              }
+            />
+          ) : null}
+          <MetricCard
+            icon={IconGauge}
+            label="Profile strength"
+            value={`${strength.percent}%`}
+            href={PROFILE_EDITOR}
+            note={strength.next ? `Next: ${strength.next.label}` : "Every item done"}
+          />
+        </MetricRow>
 
         {/* One next step, never a checklist. The full list lives on the editor,
             where every item is a field you can actually fill in. */}
         {strength.next && nextAction ? (
-          <section className="mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border border-border px-4 py-3">
+          <section className="surface-card mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-4">
             <div className="min-w-[18rem] flex-1">
               <h2 className="t-label text-muted-foreground">
                 Next · worth {strength.next.weight}%
@@ -141,14 +188,26 @@ export default async function FreelancerDashboardPage() {
                 {strength.next.why}
               </p>
             </div>
-            <Button
-              size="sm"
-              variant="secondary"
-              render={<Link href={nextAction.href}>{nextAction.cta}</Link>}
-            />
+            <div className="flex items-center gap-4">
+              {/* The meter stays, next to the action it belongs to. The digits
+                  are in the tile above, so this is purely for the eye. */}
+              <span aria-hidden className="hidden gap-1 sm:flex">
+                {Array.from({ length: SEGMENTS }, (_, i) => (
+                  <span
+                    key={i}
+                    className={cn("h-6 w-1.5 rounded-full", i < filled ? "bg-primary" : "bg-border")}
+                  />
+                ))}
+              </span>
+              <Button
+                size="sm"
+                variant="secondary"
+                render={<Link href={nextAction.href}>{nextAction.cta}</Link>}
+              />
+            </div>
           </section>
         ) : (
-          <section className="mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border border-border px-4 py-3">
+          <section className="surface-card mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-4">
             <p className="flex items-center gap-2 text-[15px]">
               <IconCheck className="size-5 text-success" label="Done" />
               Your profile is complete — all {strength.items.length} items done.
@@ -161,69 +220,59 @@ export default async function FreelancerDashboardPage() {
           </section>
         )}
 
-        {/* The quota, as countable slots rather than a percentage bar. Twelve
-            is a number you can see at a glance; 58% is not — and the thing a
-            freelancer actually wants to know is how many are left. */}
-        {"limit" in quota ? (
-          <section className="mb-8 border border-border">
-            <div className="flex flex-wrap items-start justify-between gap-4 p-4">
-              <div>
+        {/* The quota as countable slots. Twelve is a number you can see at a
+            glance; 58% is not. The figure is in the tile above, so what is
+            left here is the shape of it and what to do about it. */}
+        {"limit" in quota && quota.limit !== null ? (
+          <section className="surface-card mb-8 overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+              <div className="min-w-0">
                 <h2 className="t-label text-muted-foreground">
                   Applications · rolling {APPLICATION_WINDOW_DAYS} days
                 </h2>
-                <p className="mt-1.5 flex items-baseline gap-1.5">
-                  <span className="t-data text-[28px] leading-none">
-                    {quota.limit === null ? quota.used : (quota.remaining ?? 0)}
-                  </span>
-                  <span className="text-[15px] text-muted-foreground">
-                    {quota.limit === null
-                      ? "sent · Pro, no limit"
-                      : `left of ${quota.limit}`}
-                  </span>
+                <p className="measure mt-1 text-[13px] leading-[18px] text-muted-foreground">
+                  {quota.nextSlotFreesAt ? (
+                    <>
+                      One more frees up on{" "}
+                      <span className="tabular">
+                        {quota.nextSlotFreesAt.toLocaleDateString("en", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                      , {APPLICATION_WINDOW_DAYS} days after the application that used it.
+                    </>
+                  ) : (
+                    "A slot is only spent when you actually apply. Browsing costs nothing."
+                  )}
                 </p>
-                {quota.nextSlotFreesAt ? (
-                  <p className="mt-1 text-[13px] text-muted-foreground">
-                    One more frees up on{" "}
-                    <span className="tabular">
-                      {quota.nextSlotFreesAt.toLocaleDateString("en", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </span>
-                    , 30 days after the application that used it.
-                  </p>
-                ) : null}
               </div>
 
-              {quota.limit !== null ? (
-                <div className="flex flex-col items-end gap-1.5">
-                  <div
-                    className="flex gap-1"
-                    role="img"
-                    aria-label={`${quota.used} of ${quota.limit} applications used`}
-                  >
-                    {Array.from({ length: quota.limit }, (_, i) => (
-                      <span
-                        key={i}
-                        className={cn(
-                          "h-6 w-1.5 rounded-[1px]",
-                          i < quota.used ? "bg-primary" : "bg-border",
-                        )}
-                      />
-                    ))}
-                  </div>
-                  <span className="t-label text-muted-foreground">
-                    {quota.used} used
-                  </span>
+              <div className="flex flex-col items-end gap-1.5">
+                <div
+                  className="flex gap-1"
+                  role="img"
+                  aria-label={`${quota.used} of ${quota.limit} applications used`}
+                >
+                  {Array.from({ length: quota.limit }, (_, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        "h-6 w-1.5 rounded-full",
+                        i < quota.used ? "bg-primary" : "bg-border",
+                      )}
+                    />
+                  ))}
                 </div>
-              ) : null}
+                <span className="t-label text-muted-foreground">
+                  {quota.used} of {quota.limit} used
+                </span>
+              </div>
             </div>
 
-            {quota.limit !== null && (quota.remaining ?? 0) <= 3 ? (
-              <p className="border-t border-border bg-muted px-4 py-2.5 text-[15px]">
-                {(quota.remaining ?? 0) === 0
-                  ? "You are out for now. "
-                  : "Running low. "}
+            {(quota.remaining ?? 0) <= 3 ? (
+              <p className="border-t border-border bg-muted px-5 py-3 text-[15px]">
+                {(quota.remaining ?? 0) === 0 ? "You are out for now. " : "Running low. "}
                 {upsellLine("FREELANCER_PRO", band)} lifts the limit and shows new jobs{" "}
                 {EARLY_ACCESS_HOURS} hours early — billing launches soon.
               </p>

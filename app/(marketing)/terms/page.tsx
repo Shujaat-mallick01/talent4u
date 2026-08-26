@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 };
 
 const LINK =
-  "rounded-[2px] underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "rounded-xs underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 type Section = { id: string; title: string; body: React.ReactNode };
 
@@ -337,7 +337,7 @@ export default function TermsPage() {
   return (
     <main id="main" className="flex-1">
       <div className="mx-auto w-full max-w-3xl px-6 py-10">
-        <header className="border-b border-border pb-6">
+        <header className="pb-6">
           <p className="t-label text-muted-foreground">Legal</p>
           <h1 className="t-display-2 mt-2">Terms of use</h1>
           <p className="t-body measure mt-3 text-muted-foreground">
@@ -366,7 +366,7 @@ export default function TermsPage() {
                   href={`#${section.id}`}
                   className={cn(
                     "row-hover flex items-baseline gap-4 px-4 py-2.5 text-[15px] leading-[22px] hover:underline",
-                    "rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                    "rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                   )}
                 >
                   <span className="t-data shrink-0 text-muted-foreground">
@@ -383,7 +383,7 @@ export default function TermsPage() {
           <section
             key={section.id}
             id={section.id}
-            className="mt-10 scroll-mt-20 border-t border-border pt-8"
+            className="surface-card mt-5 scroll-mt-20 p-6 sm:p-7"
           >
             <p className="t-label text-muted-foreground">
               Section {String(i + 1).padStart(2, "0")}

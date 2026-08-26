@@ -24,7 +24,7 @@ export function EngagementsScreen({
   return (
     <main id="main" className="flex-1">
       <div className="w-full px-6 py-8 lg:px-8">
-        <header className="mb-6 border-b border-border pb-4">
+        <header className="mb-6 pb-4">
           <h1 className="t-heading">Engagements</h1>
           <p className="mt-2 measure text-[15px] leading-[22px] text-muted-foreground">
             We hold no payment data, so we do not pretend to know that work happened. Instead both

@@ -51,13 +51,13 @@ export default async function RecruiterDashboardPage({
         {/* Identity, navigation and sign-out live in the shell now. This
             header carries only what is specific to this screen: the company's
             standing, and what they can do about it. */}
-        <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-border pb-4">
+        <header className="mb-6 flex flex-wrap items-end justify-between gap-4 pb-4">
           <div>
             <h1 className="t-heading">Your jobs</h1>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] text-muted-foreground">
               <Link
                 href="/dashboard/recruiter/verification"
-                className="rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <ProfileBadge spec={recruiterTierBadge(current.profile.tier)} />
               </Link>
@@ -131,7 +131,7 @@ export default async function RecruiterDashboardPage({
 
                     <Link
                       href={`/dashboard/recruiter/jobs/${job.id}/applications`}
-                      className="group flex shrink-0 items-baseline gap-1.5 rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      className="group flex shrink-0 items-baseline gap-1.5 rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
                       <span className="t-data w-8 text-right group-hover:text-primary">
                         {applications}

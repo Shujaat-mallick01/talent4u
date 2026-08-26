@@ -1,4 +1,5 @@
 import { IconBriefcase, IconSearch } from "@/components/ui/icon";
+import { cn } from "@/lib/utils";
 
 /**
  * The role choice, as two real options rather than two bare radios.
@@ -32,17 +33,25 @@ const OPTIONS = [
 export function RoleChoice({ legend = "How will you use Talent4u?" }: { legend?: string }) {
   return (
     <fieldset>
-      <legend className="text-[15px] font-medium">{legend}</legend>
-      <p className="mt-1 text-[13px] leading-[18px] text-muted-foreground">
-        This one cannot be changed later — you would need a second account.
-      </p>
+      {legend ? (
+        <>
+          <legend className="text-[15px] font-medium">{legend}</legend>
+          <p className="mt-1 text-[13px] leading-[18px] text-muted-foreground">
+            This one cannot be changed later — you would need a second account.
+          </p>
+        </>
+      ) : (
+        // The page heading is already asking the question; a second copy of it
+        // above the options is noise. Screen readers still get one.
+        <legend className="sr-only">How will you use Talent4u?</legend>
+      )}
 
-      <div className="mt-3 grid gap-2">
+      <div className={cn("grid gap-3", legend && "mt-3")}>
         {OPTIONS.map((option) => (
           <label
             key={option.value}
             className={[
-              "group relative flex cursor-pointer gap-3 border border-border p-4",
+              "surface-card surface-card-interactive group relative flex cursor-pointer gap-3 p-5",
               "transition-colors duration-[120ms] ease-out",
               "hover:bg-muted",
               // The whole card reacts to the input's state, so the control and

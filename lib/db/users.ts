@@ -1,5 +1,6 @@
 import { cache } from "react";
 
+import { entitledPlanFrom } from "@/lib/billing/subscription-state";
 import type { PlanTier, UserRole } from "@/lib/generated/prisma/enums";
 import { Prisma } from "@/lib/generated/prisma/client";
 
@@ -7,16 +8,20 @@ import { prisma } from "./client";
 
 /**
  * The plan a user's entitlements derive from (any role — recruiter post caps,
- * freelancer Pro early access). Only a live subscription (ACTIVE or TRIALING)
- * counts — PAST_DUE and CANCELED fall back to FREE.
+ * freelancer Pro early access).
+ *
+ * The rule itself lives in entitledPlanFrom so that this and
+ * getEntitlementContext cannot drift apart: only a live subscription counts,
+ * PAST_DUE and CANCELED read FREE, and a live-looking row whose period ended
+ * well past the grace window reads FREE too — a paid plan must not outlive the
+ * webhooks that were keeping it alive.
  */
 export async function getUserPlan(userId: string): Promise<PlanTier> {
   const sub = await prisma.subscription.findUnique({
     where: { userId },
-    select: { plan: true, status: true },
+    select: { plan: true, status: true, currentPeriodEnd: true },
   });
-  if (!sub) return "FREE";
-  return sub.status === "ACTIVE" || sub.status === "TRIALING" ? sub.plan : "FREE";
+  return entitledPlanFrom(sub);
 }
 
 /**
@@ -34,7 +39,7 @@ export const getEntitlementContext = cache(async (userId: string) => {
     select: {
       role: true,
       billingCountry: true,
-      subscription: { select: { plan: true, status: true } },
+      subscription: { select: { plan: true, status: true, currentPeriodEnd: true } },
       // isBanned travels with the tier: every caller that acts on a recruiter's
       // standing must also refuse to act for a removed employer, and a shape
       // that omits it makes that easy to forget.
@@ -43,11 +48,11 @@ export const getEntitlementContext = cache(async (userId: string) => {
   });
   if (!user) return null;
 
-  const sub = user.subscription;
-  // Same rule as getUserPlan: only a live subscription counts. PAST_DUE and
-  // CANCELED fall back to FREE rather than keeping paid capabilities alive.
-  const plan: PlanTier =
-    sub && (sub.status === "ACTIVE" || sub.status === "TRIALING") ? sub.plan : "FREE";
+  // The same one function getUserPlan uses: PAST_DUE and CANCELED fall back to
+  // FREE rather than keeping paid capabilities alive, and so does a row whose
+  // period ended long enough ago that we have plainly stopped hearing from
+  // Stripe about it.
+  const plan: PlanTier = entitledPlanFrom(user.subscription);
 
   return {
     role: user.role,

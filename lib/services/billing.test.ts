@@ -7,11 +7,13 @@ const stripeMocks = vi.hoisted(() => ({
   subscriptionRetrieve: vi.fn(),
   configured: vi.fn(() => true),
   productId: vi.fn(() => null as string | null),
+  planForProduct: vi.fn(() => null as string | null),
 }));
 
 vi.mock("@/lib/billing/stripe", () => ({
   stripeConfigured: stripeMocks.configured,
   stripeProductId: stripeMocks.productId,
+  planForStripeProduct: stripeMocks.planForProduct,
   webhookSecret: () => "whsec_test",
   getStripe: () => ({
     checkout: { sessions: { create: stripeMocks.checkoutCreate } },
@@ -60,14 +62,29 @@ const account = (over: Partial<Awaited<ReturnType<typeof getBillingState>>> = {}
     role: "FREELANCER" as const,
     email: "a@example.com",
     billingCountry: "PK",
+    isBanned: false,
     subscription: null,
     ...over,
   }) as NonNullable<Awaited<ReturnType<typeof getBillingState>>>;
+
+type StoredSub = NonNullable<Awaited<ReturnType<typeof getBillingState>>>["subscription"];
+
+const sub = (over: Partial<NonNullable<StoredSub>> = {}): StoredSub => ({
+  plan: "FREELANCER_PRO",
+  status: "ACTIVE",
+  stripeCustomerId: "cus_1",
+  stripeSubscriptionId: "sub_1",
+  priceRegion: "LOW",
+  currentPeriodEnd: new Date("2026-09-01T00:00:00Z"),
+  cancelAtPeriodEnd: false,
+  ...over,
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
   stripeMocks.configured.mockReturnValue(true);
   stripeMocks.productId.mockReturnValue(null);
+  stripeMocks.planForProduct.mockReturnValue(null);
   stripeMocks.customerCreate.mockResolvedValue({ id: "cus_new" });
   stripeMocks.checkoutCreate.mockResolvedValue({ url: "https://checkout.stripe.com/x" });
   stripeMocks.portalCreate.mockResolvedValue({ url: "https://billing.stripe.com/x" });
@@ -92,19 +109,7 @@ describe("startCheckout", () => {
   });
 
   it("refuses a second subscription to the plan they already pay for", async () => {
-    mockState.mockResolvedValue(
-      account({
-        subscription: {
-          plan: "FREELANCER_PRO",
-          status: "ACTIVE",
-          stripeCustomerId: "cus_1",
-          stripeSubscriptionId: "sub_1",
-          priceRegion: "LOW",
-          currentPeriodEnd: new Date(),
-          cancelAtPeriodEnd: false,
-        },
-      }),
-    );
+    mockState.mockResolvedValue(account({ subscription: sub() }));
     // Checkout would create a SECOND subscription and bill them twice.
     expect(await startCheckout(USER, "FREELANCER_PRO")).toEqual({
       ok: false,
@@ -113,24 +118,110 @@ describe("startCheckout", () => {
     expect(stripeMocks.checkoutCreate).not.toHaveBeenCalled();
   });
 
-  it("allows re-subscribing when the current one has lapsed", async () => {
+  it("sends a lapsed subscriber to the portal, not to a second checkout", async () => {
+    mockState.mockResolvedValue(
+      account({ subscription: sub({ status: "PAST_DUE", currentPeriodEnd: null }) }),
+    );
+    // Stripe has NOT given up on this subscription — past_due means it is still
+    // retrying the card. A fresh checkout would leave the account holding two
+    // subscriptions and billing both the moment the card recovers. This test
+    // previously asserted the opposite, which is how the bug got in.
+    expect(await startCheckout(USER, "FREELANCER_PRO")).toEqual({
+      ok: false,
+      reason: "manage-in-portal",
+    });
+    expect(stripeMocks.checkoutCreate).not.toHaveBeenCalled();
+  });
+
+  it("sends an upgrade to the portal, where Stripe prorates it", async () => {
+    mockState.mockResolvedValue(
+      account({ role: "RECRUITER", subscription: sub({ plan: "RECRUITER_GROWTH" }) }),
+    );
+    expect(await startCheckout(USER, "RECRUITER_TEAM")).toEqual({
+      ok: false,
+      reason: "manage-in-portal",
+    });
+    expect(stripeMocks.checkoutCreate).not.toHaveBeenCalled();
+  });
+
+  it("allows checkout again once the subscription is genuinely cancelled", async () => {
+    mockState.mockResolvedValue(
+      account({ subscription: sub({ plan: "FREE", status: "CANCELED", currentPeriodEnd: null }) }),
+    );
+    expect(await startCheckout(USER, "FREELANCER_PRO")).toEqual({
+      ok: true,
+      url: "https://checkout.stripe.com/x",
+    });
+  });
+
+  it("allows the first checkout when only a customer id has been recorded", async () => {
+    // linkStripeCustomer writes exactly this row when checkout opens. It is a
+    // customer, not a subscription, and must not lock anyone out of buying.
     mockState.mockResolvedValue(
       account({
-        subscription: {
-          plan: "FREELANCER_PRO",
-          status: "PAST_DUE",
-          stripeCustomerId: "cus_1",
-          stripeSubscriptionId: "sub_1",
-          priceRegion: "LOW",
-          currentPeriodEnd: null,
-          cancelAtPeriodEnd: false,
-        },
+        subscription: sub({ plan: "FREE", stripeSubscriptionId: null, currentPeriodEnd: null }),
       }),
     );
     expect(await startCheckout(USER, "FREELANCER_PRO")).toEqual({
       ok: true,
       url: "https://checkout.stripe.com/x",
     });
+  });
+
+  it("refuses a removed employer rather than billing them monthly for nothing", async () => {
+    // Every publish, message and search this would buy is already refused by
+    // the moderation layer. Taking $249 a month for it is the worst possible
+    // combination of "the UI allowed it" and "the product does not work".
+    mockState.mockResolvedValue(account({ role: "RECRUITER", isBanned: true }));
+    expect(await startCheckout(USER, "RECRUITER_GROWTH")).toEqual({
+      ok: false,
+      reason: "account-removed",
+    });
+    expect(stripeMocks.checkoutCreate).not.toHaveBeenCalled();
+  });
+
+  it("lets someone whose first payment was declined try again", async () => {
+    // Stripe leaves a declined first payment as `incomplete`, which maps to
+    // CANCELED. Nothing was ever paid, so there is nothing to manage in a
+    // portal — refusing checkout here locked people out over a typo'd card.
+    mockState.mockResolvedValue(
+      account({ subscription: sub({ status: "CANCELED", currentPeriodEnd: null }) }),
+    );
+    expect(await startCheckout(USER, "FREELANCER_PRO")).toEqual({
+      ok: true,
+      url: "https://checkout.stripe.com/x",
+    });
+  });
+
+  it("lets a grace-expired account start paying again", async () => {
+    // The row still says ACTIVE, but its period ended long ago and Stripe has
+    // told us nothing since — so the entitlement is already gone. If checkout
+    // stayed shut, this account could never pay us again: the portal has
+    // nothing in it to switch, and no webhook is ever coming.
+    mockState.mockResolvedValue(
+      account({
+        subscription: sub({
+          status: "ACTIVE",
+          currentPeriodEnd: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+        }),
+      }),
+    );
+    expect(await startCheckout(USER, "FREELANCER_PRO")).toEqual({
+      ok: true,
+      url: "https://checkout.stripe.com/x",
+    });
+  });
+
+  it("expires the session in well under Stripe's 24-hour default", async () => {
+    // A session stays payable for a day by default, and the gate can only see
+    // what a webhook has written. That is how two sessions opened minutes
+    // apart both get paid and the customer ends up with two subscriptions.
+    mockState.mockResolvedValue(account());
+    await startCheckout(USER, "FREELANCER_PRO");
+    const args = stripeMocks.checkoutCreate.mock.calls[0][0];
+    const minutes = (args.expires_at - Math.floor(Date.now() / 1000)) / 60;
+    expect(minutes).toBeGreaterThan(25);
+    expect(minutes).toBeLessThanOrEqual(60);
   });
 
   it("charges the band for the billing country, not the list price", async () => {
@@ -325,6 +416,17 @@ describe("applyStripeEvent", () => {
     expect(result.handled).toBe(true);
   });
 
+  it("acknowledges a delete for a subscription an upgrade already replaced", async () => {
+    // Stripe cancels the old subscription AFTER the new one goes live, so this
+    // event arrives last and names a subscription the account no longer holds.
+    // Applying it would cancel the plan the customer just paid for; the db
+    // layer refuses and the webhook must still answer 200 so Stripe stops.
+    mockApply.mockResolvedValue("superseded");
+    const result = await applyStripeEvent(event("customer.subscription.deleted", stripeSub()));
+    expect(result.handled).toBe(true);
+    expect(result.detail).toContain("not the subscription this account tracks");
+  });
+
   it("fetches the subscription on a completed checkout, so order does not matter", async () => {
     stripeMocks.subscriptionRetrieve.mockResolvedValue(stripeSub());
     const result = await applyStripeEvent(
@@ -362,6 +464,27 @@ describe("applyStripeEvent", () => {
     );
     expect(result.handled).toBe(true);
     expect(mockApply).not.toHaveBeenCalled();
+  });
+
+  it("reads a portal plan switch off the product, not off stale metadata", async () => {
+    // Stripe swaps a subscription's items in place when someone changes plan
+    // in the customer portal and never touches metadata, so metadata names
+    // whatever they FIRST bought, forever. Since checkout now sends every plan
+    // change to that portal, trusting metadata would mean nobody can ever
+    // actually change plan — they would pay the new price on the old tier.
+    stripeMocks.planForProduct.mockReturnValue("RECRUITER_TEAM");
+    await applyStripeEvent(
+      event(
+        "customer.subscription.updated",
+        stripeSub({
+          metadata: { plan: "RECRUITER_GROWTH", band: "STANDARD", userId: USER },
+          items: { data: [{ current_period_end: 1800000000, price: { product: "prod_team" } }] },
+        }),
+      ),
+    );
+    expect(mockApply).toHaveBeenCalledWith(
+      expect.objectContaining({ plan: "RECRUITER_TEAM" }),
+    );
   });
 
   it("acknowledges event types it does not model", async () => {
@@ -428,5 +551,82 @@ describe("getBillingView", () => {
     const view = await getBillingView(USER);
     expect(view?.options[0].current).toBe(true);
     expect(view?.hasBillingAccount).toBe(true);
+  });
+
+  it("stops offering checkout once a subscription exists with Stripe", async () => {
+    mockState.mockResolvedValue(account({ role: "RECRUITER", subscription: sub({ plan: "RECRUITER_GROWTH" }) }));
+    const view = await getBillingView(USER);
+    // The Team card must not render a checkout button; the portal is the only
+    // way to change a subscription that already exists.
+    expect(view?.canCheckout).toBe(false);
+  });
+
+  it("offers checkout to an account with no subscription at all", async () => {
+    mockState.mockResolvedValue(account({ subscription: null }));
+    expect((await getBillingView(USER))?.canCheckout).toBe(true);
+  });
+
+  it("offers checkout again after a genuine cancellation", async () => {
+    mockState.mockResolvedValue(
+      account({ subscription: sub({ plan: "FREE", status: "CANCELED", currentPeriodEnd: null }) }),
+    );
+    expect((await getBillingView(USER))?.canCheckout).toBe(true);
+  });
+
+  it("marks a lapsed plan as on hold, so nobody buys it a second time", async () => {
+    mockState.mockResolvedValue(
+      account({ subscription: sub({ status: "PAST_DUE", currentPeriodEnd: null }) }),
+    );
+    const view = await getBillingView(USER);
+    const pro = view?.options.find((o) => o.plan === "FREELANCER_PRO");
+    expect(pro?.current).toBe(false);
+    expect(pro?.onHold).toBe(true);
+  });
+
+  it("does not mark a plan on hold when nothing was ever bought", async () => {
+    mockState.mockResolvedValue(account({ subscription: null }));
+    expect((await getBillingView(USER))?.options.every((o) => !o.onHold)).toBe(true);
+  });
+
+  it("reopens checkout for a grace-expired subscription, and says why", async () => {
+    mockState.mockResolvedValue(
+      account({
+        subscription: sub({
+          status: "ACTIVE",
+          currentPeriodEnd: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+        }),
+      }),
+    );
+    const view = await getBillingView(USER);
+    expect(view?.plan).toBe("FREE");
+    expect(view?.graceExpired).toBe(true);
+    expect(view?.canCheckout).toBe(true);
+    // A period end in the past is not a renewal date.
+    expect(view?.currentPeriodEnd).toBeNull();
+  });
+
+  it("offers a removed employer nothing to buy", async () => {
+    mockState.mockResolvedValue(account({ role: "RECRUITER", isBanned: true }));
+    expect((await getBillingView(USER))?.canCheckout).toBe(false);
+  });
+
+  it("does not call a live subscription grace-expired", async () => {
+    mockState.mockResolvedValue(account({ subscription: sub() }));
+    const view = await getBillingView(USER);
+    expect(view?.graceExpired).toBe(false);
+    expect(view?.currentPeriodEnd).not.toBeNull();
+  });
+
+  it("drops a plan whose period ended long ago and was never renewed", async () => {
+    mockState.mockResolvedValue(
+      account({
+        // ACTIVE, but Stripe stopped telling us anything two months ago. The
+        // likeliest cause is a webhook we never received, and a paid plan must
+        // not outlive the events that keep it alive.
+        subscription: sub({ status: "ACTIVE", currentPeriodEnd: new Date("2020-01-01T00:00:00Z") }),
+      }),
+    );
+    const view = await getBillingView(USER);
+    expect(view?.plan).toBe("FREE");
   });
 });

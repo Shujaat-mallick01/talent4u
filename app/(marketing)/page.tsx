@@ -3,7 +3,12 @@ import Link from "next/link";
 
 import { Orbit } from "@/components/brand/orbit";
 import { Button } from "@/components/ui/button";
-import { IconArrowRight } from "@/components/ui/icon";
+import {
+  IconArrowRight,
+  IconCheck,
+  IconHandshakeless,
+  IconShield,
+} from "@/components/ui/icon";
 import { getProof } from "@/lib/marketing/proof";
 import { EARLY_ACCESS_HOURS, applicationQuotaForPlan } from "@/lib/pricing/plans";
 import { SITE_URL } from "@/lib/site-url";
@@ -46,14 +51,17 @@ const LEDGER = [
 
 const PROMISES = [
   {
+    icon: IconHandshakeless,
     title: "We never touch the money",
     body: "There is no escrow, no wallet, no payout. You and the company agree terms and pay each other directly — which is precisely why we are not in a position to take a percentage of it.",
   },
   {
+    icon: IconShield,
     title: "Every employer is labelled honestly",
     body: "Unverified companies say Unverified on every post, in plain sight, and are capped at one live role. Posts matching known scam patterns are held for a human before they publish, never after.",
   },
   {
+    icon: IconCheck,
     title: "Reviews only after both sides confirm",
     body: "We hold no payment data, so we do not pretend to know that work happened. Both parties confirm the rate and duration first. One side alone can never publish a review of the other.",
   },
@@ -81,8 +89,12 @@ export default async function LandingPage() {
   return (
     <main id="main" className="flex-1">
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="border-b border-border">
-        <div className="mx-auto grid w-full max-w-[1240px] gap-12 px-6 py-20 lg:grid-cols-12 lg:gap-16 lg:py-32">
+      {/* Sections alternate Paper and the sunken page colour rather than being
+          divided by hairlines. Volume one used a 1px rule between every band,
+          which reads as a wireframe grid; a change of ground reads as a change
+          of subject. */}
+      <section className="bg-card">
+        <div className="mx-auto grid w-full max-w-[var(--container-marketing)] gap-12 px-6 py-20 lg:grid-cols-12 lg:gap-16 lg:py-32">
           <div className="lg:col-span-7">
             <div className="flex items-center gap-3">
               <Orbit className="size-7 text-primary" />
@@ -115,8 +127,8 @@ export default async function LandingPage() {
 
           {/* The signature: the arithmetic, done. */}
           <aside className="lg:col-span-5">
-            <div className="border border-border">
-              <p className="t-label border-b border-border px-5 py-3 text-muted-foreground">
+            <div className="surface-card overflow-hidden">
+              <p className="t-label border-b border-border px-5 py-3.5 text-muted-foreground">
                 On {usd.format(INVOICE)} of work
               </p>
               <dl>
@@ -169,8 +181,8 @@ export default async function LandingPage() {
       </section>
 
       {/* ── What we actually do ──────────────────────────────────────────── */}
-      <section className="border-b border-border">
-        <div className="mx-auto w-full max-w-[1240px] px-6 py-20 lg:py-32">
+      <section>
+        <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-20 lg:py-32">
           <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
             <div className="lg:col-span-4">
               <h2 className="t-display-2">What we do instead</h2>
@@ -180,14 +192,21 @@ export default async function LandingPage() {
               </p>
             </div>
 
-            {/* Rows sharing one hairline, not three cards floating with gaps. */}
-            <dl className="rowset lg:col-span-8">
+            {/* Three cards, each led by a neutral chip. These are the three
+                claims the whole product rests on, and a hairline-separated
+                list gave them the visual weight of a settings page. */}
+            <dl className="grid gap-4 lg:col-span-8">
               {PROMISES.map((promise) => (
-                <div key={promise.title} className="row-hover px-6 py-6">
-                  <dt className="t-subhead">{promise.title}</dt>
-                  <dd className="mt-2 measure text-[16px] leading-[26px] text-muted-foreground">
-                    {promise.body}
-                  </dd>
+                <div key={promise.title} className="surface-card flex gap-5 p-6">
+                  <span className="chip chip-lg">
+                    <promise.icon className="size-6" />
+                  </span>
+                  <div className="min-w-0">
+                    <dt className="t-subhead">{promise.title}</dt>
+                    <dd className="measure mt-2 text-[16px] leading-[26px] text-muted-foreground">
+                      {promise.body}
+                    </dd>
+                  </div>
                 </div>
               ))}
             </dl>
@@ -196,24 +215,21 @@ export default async function LandingPage() {
       </section>
 
       {/* ── How it works ─────────────────────────────────────────────────── */}
-      <section className="border-b border-border">
-        <div className="mx-auto w-full max-w-[1240px] px-6 py-20 lg:py-32">
+      <section className="bg-card">
+        <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-20 lg:py-32">
           <h2 className="t-display-2">How it works</h2>
 
           {/* Ordinals are earned here: this is a real sequence, and the order
-              carries information the reader needs. */}
-          <ol className="rowset mt-10">
+              carries information the reader needs. Three abreast so the whole
+              sequence is one glance rather than a scroll. */}
+          <ol className="mt-10 grid gap-4 md:grid-cols-3">
             {STEPS.map((step, i) => (
-              <li key={step.title} className="row-hover flex gap-6 px-6 py-6 sm:gap-10">
-                <span className="t-data shrink-0 text-[28px] leading-none text-muted-foreground">
+              <li key={step.title} className="surface-card p-6">
+                <span className="chip t-data text-[15px] text-foreground">
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <div className="min-w-0">
-                  <h3 className="t-subhead">{step.title}</h3>
-                  <p className="mt-2 measure text-[16px] leading-[26px] text-muted-foreground">
-                    {step.body}
-                  </p>
-                </div>
+                <h3 className="t-subhead mt-4">{step.title}</h3>
+                <p className="mt-2 text-[16px] leading-[26px] text-muted-foreground">{step.body}</p>
               </li>
             ))}
           </ol>
@@ -222,7 +238,7 @@ export default async function LandingPage() {
 
       {/* ── The numbers, and the way out ─────────────────────────────────── */}
       <section>
-        <div className="mx-auto w-full max-w-[1240px] px-6 py-20 lg:py-32">
+        <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-20 lg:py-32">
           <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
             <div className="lg:col-span-7">
               <h2 className="t-display-2">Start free. Stay free if you want to.</h2>
@@ -247,21 +263,23 @@ export default async function LandingPage() {
               </div>
             </div>
 
-            <dl className="lg:col-span-5">
+            <dl className="surface-card divide-y divide-border overflow-hidden lg:col-span-5">
               {proof.points.map((point) => (
                 <div
                   key={point.label}
-                  className="flex items-baseline justify-between gap-4 border-b border-border py-4 first:border-t"
+                  className="flex items-baseline justify-between gap-4 px-5 py-4"
                 >
                   <dt className="t-label text-muted-foreground">{point.label}</dt>
                   <dd className="t-data text-[18px]">{point.value}</dd>
                 </div>
               ))}
-              <p className="mt-4 text-[13px] leading-[18px] text-muted-foreground">
+            </dl>
+            <div className="lg:col-span-5 lg:col-start-8">
+              <p className="text-[13px] leading-[18px] text-muted-foreground">
                 Pro members see new posts {EARLY_ACCESS_HOURS} hours before everyone else. Everyone
                 sees every post eventually — the window delays, it never hides.
               </p>
-            </dl>
+            </div>
           </div>
         </div>
       </section>

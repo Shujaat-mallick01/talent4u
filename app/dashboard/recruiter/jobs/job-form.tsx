@@ -78,7 +78,7 @@ export function JobForm({
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-10">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="t-heading">
           {initial ? "Edit draft" : "Post a job"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -87,7 +87,7 @@ export function JobForm({
       </header>
 
       {state.formError ? (
-        <p role="alert" className="mb-4 rounded-[2px] border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {state.formError}
         </p>
       ) : null}

@@ -64,6 +64,27 @@ export function getStripe(): Stripe {
  * them and revenue-per-product reporting is meaningless. With one, every Pro
  * subscription rolls up under one product at whatever band it was sold at.
  */
+/**
+ * Which plan a Stripe product IS — the reverse of stripeProductId.
+ *
+ * This is what makes a plan change in the customer portal readable. Stripe
+ * swaps a subscription's items in place when someone switches plan there and
+ * leaves `metadata` exactly as it was, so metadata reports the plan they
+ * ORIGINALLY bought forever. The product on the item is the only field that
+ * follows the money.
+ *
+ * Returns null when the catalogue has not been configured, in which case the
+ * caller falls back to metadata — correct for every subscription created by
+ * our own checkout, which is all of them until someone switches in the portal.
+ * Configuring STRIPE_PRODUCT_* is therefore not decoration: it is what makes
+ * portal plan changes take effect.
+ */
+export function planForStripeProduct(productId: string | null | undefined): PlanTier | null {
+  if (!productId) return null;
+  const plans: PlanTier[] = ["FREELANCER_PRO", "RECRUITER_GROWTH", "RECRUITER_TEAM"];
+  return plans.find((plan) => stripeProductId(plan) === productId) ?? null;
+}
+
 export function stripeProductId(plan: PlanTier): string | null {
   const byPlan: Partial<Record<PlanTier, string | undefined>> = {
     FREELANCER_PRO: process.env.STRIPE_PRODUCT_FREELANCER_PRO,

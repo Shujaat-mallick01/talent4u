@@ -25,6 +25,8 @@ export const BILLING_NOTICE_CODES = [
   "checkout_unavailable",
   "not_purchasable",
   "already_on_plan",
+  "manage_in_portal",
+  "account_removed",
   "portal_failed",
   "portal_unavailable",
   "no_customer",

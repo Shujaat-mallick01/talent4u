@@ -2,12 +2,12 @@
 
 import { useActionState, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Notice } from "@/components/ui/notice";
-import { Steps } from "@/components/ui/steps";
+import { CompanyPreview } from "@/components/onboarding/company-preview";
+import { OnboardingShell, StepNav } from "@/components/onboarding/onboarding-shell";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Notice } from "@/components/ui/notice";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { COUNTRIES } from "@/lib/geo/countries";
 import { LOGO_ACCEPT } from "@/lib/validations/recruiter";
@@ -19,17 +19,26 @@ const initialRecruiterOnboardingState: RecruiterOnboardingState = {
   formError: null,
 };
 
-const STEPS = ["Company", "Verification"] as const;
+/**
+ * Five questions, matching the freelancer flow question for question.
+ *
+ * Two of them are genuinely optional and say so with a Skip, because pretending
+ * a registration number is required at signup would cost us companies who do
+ * not have one to hand — and it verifies nothing on its own anyway.
+ *
+ * One form, one submit, one Zod schema. Steps are `hidden` fieldsets.
+ */
+const STEP_COUNT = 5;
 
 const FIELD_STEP: Record<string, number> = {
   companyName: 0,
-  companyDomain: 0,
-  websiteUrl: 0,
-  country: 0,
-  description: 0,
-  registrationNo: 1,
-  linkedinUrl: 1,
-  logo: 1,
+  country: 1,
+  companyDomain: 2,
+  websiteUrl: 2,
+  description: 3,
+  logo: 3,
+  registrationNo: 4,
+  linkedinUrl: 4,
 };
 
 function FieldError({ message }: { message?: string }) {
@@ -63,6 +72,16 @@ export function RecruiterOnboardingForm({
   const [registrationNo, setRegistrationNo] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [logoName, setLogoName] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  /** Swaps the preview's blob URL, releasing the one it replaces. */
+  const pickLogo = (file: File | null) => {
+    setLogoUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return file ? URL.createObjectURL(file) : null;
+    });
+    setLogoName(file?.name ?? null);
+  };
 
   // On any server-error return, jump to the earliest step carrying an error
   // (adjust-on-render). React 19 resets the uncontrolled file input when the
@@ -72,123 +91,185 @@ export function RecruiterOnboardingForm({
   const [handledErrors, setHandledErrors] = useState(state.fieldErrors);
   if (state.fieldErrors !== handledErrors) {
     setHandledErrors(state.fieldErrors);
-    setLogoName(null);
+    pickLogo(null);
     const keys = Object.keys(state.fieldErrors);
     if (keys.length > 0) setStep(Math.min(...keys.map((k) => FIELD_STEP[k] ?? 0)));
   }
 
-  const canAdvance = (from: number): boolean =>
-    from !== 0 || (companyName.trim().length >= 2 && country !== "");
-
   const err = state.fieldErrors;
 
-  return (
-    <div className="mx-auto w-full max-w-2xl px-6 py-10">
-      <header className="mb-8">
-        <h1 className="t-heading">Set up your company</h1>
-        <p className="mt-2 measure text-[15px] leading-[22px] text-muted-foreground">
-          New companies start <span className="font-medium text-foreground">Unverified</span>,
-          which means one live post at a time and an “Unverified” label on it. Verifying lifts both
-          — and freelancers do check.
-        </p>
-        <p className="t-label mt-2 text-muted-foreground">{email}</p>
-        <Steps steps={STEPS} current={step} className="mt-6" />
-      </header>
+  const GATES: { ok: boolean; hint: string; optional?: boolean }[] = [
+    { ok: companyName.trim().length >= 2, hint: "At least two characters." },
+    { ok: country !== "", hint: "Pick a country." },
+    { ok: true, hint: "", optional: true },
+    { ok: true, hint: "", optional: true },
+    { ok: true, hint: "" },
+  ];
 
+  const QUESTIONS: { question: string; why: React.ReactNode }[] = [
+    {
+      question: "What is your company called?",
+      why: "The name that appears on every role you post. Freelancers will search for it, so use the one they would recognise.",
+    },
+    {
+      question: "Where is the company based?",
+      why: "Shown on your page, and it sets the price band if you ever subscribe. Nothing is charged today.",
+    },
+    {
+      question: "How can people find you?",
+      why: "A company domain and a website are the first two things we check when you ask to be verified. Optional now.",
+    },
+    {
+      question: "What does your company do?",
+      why: "This is your public page. A few honest sentences beat a paragraph of adjectives — and a logo makes a post look like it came from a real company.",
+    },
+    {
+      question: "Anything we can verify you with?",
+      why: "Optional, and nothing here verifies you on its own. Having it on file just means verification is a formality later instead of a fresh conversation.",
+    },
+  ];
+
+  const isLast = step === STEP_COUNT - 1;
+  const current = QUESTIONS[step];
+  const next = () => setStep((s) => Math.min(STEP_COUNT - 1, s + 1));
+
+  return (
+    <OnboardingShell
+      stepIndex={step}
+      stepCount={STEP_COUNT}
+      question={current.question}
+      why={current.why}
+      onBack={step === 0 ? undefined : () => setStep((s) => Math.max(0, s - 1))}
+      aside={
+        <CompanyPreview
+          companyName={companyName}
+          description={description}
+          country={country}
+          websiteUrl={websiteUrl}
+          logoUrl={logoUrl}
+        />
+      }
+    >
       {state.formError ? (
-        <Notice tone="error" className="mb-5">
+        <Notice tone="error" className="mb-6">
           {state.formError}
         </Notice>
       ) : null}
 
-      <form action={formAction} noValidate encType="multipart/form-data" className="space-y-6">
-        {/* Step 1 — Company */}
-        <fieldset hidden={step !== 0} className="space-y-4">
+      <form action={formAction} noValidate encType="multipart/form-data">
+        {/* 1 — Name */}
+        <fieldset hidden={step !== 0}>
+          <Label htmlFor="companyName" className="sr-only">
+            Company name
+          </Label>
+          <Input
+            id="companyName"
+            name="companyName"
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+            aria-invalid={Boolean(err.companyName)}
+            placeholder="Acme Commerce Ltd"
+            autoComplete="organization"
+            inputSize="lg"
+            className="max-w-md"
+          />
+          <FieldError message={err.companyName} />
+          <p className="t-label mt-4 text-muted-foreground">Signed in as {email}</p>
+        </fieldset>
+
+        {/* 2 — Country */}
+        <fieldset hidden={step !== 1}>
+          <Label htmlFor="country" className="sr-only">
+            Country
+          </Label>
+          <Select
+            id="country"
+            name="country"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            aria-invalid={Boolean(err.country)}
+            className="max-w-sm"
+          >
+            <option value="">Select…</option>
+            {COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+          <FieldError message={err.country} />
+        </fieldset>
+
+        {/* 3 — Domain and website */}
+        <fieldset hidden={step !== 2} className="grid max-w-lg gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="companyName">Company name</Label>
+            <Label htmlFor="companyDomain">Company domain</Label>
             <Input
-              id="companyName"
-              name="companyName"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              aria-invalid={Boolean(err.companyName)}
-              placeholder="Acme Commerce Ltd"
-              autoComplete="organization"
+              id="companyDomain"
+              name="companyDomain"
+              value={companyDomain}
+              onChange={(e) => setCompanyDomain(e.target.value)}
+              aria-invalid={Boolean(err.companyDomain)}
+              placeholder="acme.com"
+              inputMode="url"
             />
-            <FieldError message={err.companyName} />
+            <FieldError message={err.companyDomain} />
           </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="companyDomain">Company domain</Label>
-              <Input
-                id="companyDomain"
-                name="companyDomain"
-                value={companyDomain}
-                onChange={(e) => setCompanyDomain(e.target.value)}
-                aria-invalid={Boolean(err.companyDomain)}
-                placeholder="acme.com"
-                inputMode="url"
-              />
-              <FieldError message={err.companyDomain} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="websiteUrl">Website</Label>
-              <Input
-                id="websiteUrl"
-                name="websiteUrl"
-                value={websiteUrl}
-                onChange={(e) => setWebsiteUrl(e.target.value)}
-                aria-invalid={Boolean(err.websiteUrl)}
-                placeholder="https://acme.com"
-                inputMode="url"
-              />
-              <FieldError message={err.websiteUrl} />
-            </div>
-          </div>
-
           <div className="space-y-1.5">
-            <Label htmlFor="country">Country</Label>
-            <Select
-              id="country"
-              name="country"
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              aria-invalid={Boolean(err.country)}
-              className="sm:max-w-xs"
-            >
-              <option value="">Select…</option>
-              {COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-            <FieldError message={err.country} />
+            <Label htmlFor="websiteUrl">Website</Label>
+            <Input
+              id="websiteUrl"
+              name="websiteUrl"
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              aria-invalid={Boolean(err.websiteUrl)}
+              placeholder="https://acme.com"
+              inputMode="url"
+            />
+            <FieldError message={err.websiteUrl} />
           </div>
+        </fieldset>
 
+        {/* 4 — Description and logo */}
+        <fieldset hidden={step !== 3} className="space-y-5">
           <div className="space-y-1.5">
-            <Label htmlFor="description">About the company (optional)</Label>
+            <Label htmlFor="description" className="sr-only">
+              About the company
+            </Label>
             <Textarea
               id="description"
               name="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               aria-invalid={Boolean(err.description)}
-              rows={5}
-              placeholder="What you build, who you hire, and how you work with freelancers. Shown on your public company page."
+              rows={6}
+              placeholder="We build subscription commerce for skincare brands. We hire freelance developers and designers for six- to twelve-week projects, and we pay on completion of each milestone."
             />
             <FieldError message={err.description} />
           </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="logo">Company logo — PNG, JPEG or WebP, up to 2 MB</Label>
+            <input
+              id="logo"
+              name="logo"
+              type="file"
+              accept={LOGO_ACCEPT}
+              aria-invalid={Boolean(err.logo)}
+              onChange={(e) => pickLogo(e.target.files?.[0] ?? null)}
+              className="block w-full max-w-md text-[14px] file:mr-3 file:h-9 file:cursor-pointer file:rounded-md file:border file:border-foreground file:bg-transparent file:px-3 file:text-[14px] file:font-semibold"
+            />
+            {logoName ? (
+              <p className="text-[13px] leading-[18px] text-muted-foreground">
+                Attached: {logoName}
+              </p>
+            ) : null}
+            <FieldError message={err.logo} />
+          </div>
         </fieldset>
 
-        {/* Step 2 — Verification & logo */}
-        <fieldset hidden={step !== 1} className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Optional now — these speed up verification later. Nothing here verifies your company
-            yet.
-          </p>
-
+        {/* 5 — Verification evidence */}
+        <fieldset hidden={step !== 4} className="max-w-lg space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="registrationNo">Company registration number</Label>
             <Input
@@ -215,45 +296,18 @@ export function RecruiterOnboardingForm({
             />
             <FieldError message={err.linkedinUrl} />
           </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="logo">Company logo (PNG, JPEG, or WebP, up to 2 MB)</Label>
-            <input
-              id="logo"
-              name="logo"
-              type="file"
-              accept={LOGO_ACCEPT}
-              aria-invalid={Boolean(err.logo)}
-              onChange={(e) => setLogoName(e.target.files?.[0]?.name ?? null)}
-              className="block w-full text-sm file:mr-3 file:rounded-[2px] file:border file:border-border file:bg-input/30 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-input/50"
-            />
-            {logoName ? <p className="text-[13px] leading-[18px] text-muted-foreground">Selected: {logoName}</p> : null}
-            <FieldError message={err.logo} />
-          </div>
         </fieldset>
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between border-t border-border pt-4">
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={step === 0 || isPending}
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-          >
-            Back
-          </Button>
-
-          {step < STEPS.length - 1 ? (
-            <Button type="button" disabled={!canAdvance(step)} onClick={() => setStep((s) => s + 1)}>
-              Continue
-            </Button>
-          ) : (
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Creating profile…" : "Create company profile"}
-            </Button>
-          )}
-        </div>
+        <StepNav
+          canAdvance={GATES[step].ok}
+          hint={GATES[step].hint}
+          isLast={isLast}
+          isPending={isPending}
+          onNext={next}
+          onSkip={GATES[step].optional ? next : undefined}
+          submitLabel="Create company profile"
+        />
       </form>
-    </div>
+    </OnboardingShell>
   );
 }

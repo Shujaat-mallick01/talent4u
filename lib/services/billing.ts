@@ -1,10 +1,19 @@
 import type Stripe from "stripe";
 
-import { getStripe, stripeConfigured, stripeProductId } from "@/lib/billing/stripe";
+import {
+  getStripe,
+  planForStripeProduct,
+  stripeConfigured,
+  stripeProductId,
+} from "@/lib/billing/stripe";
 import {
   canPurchase,
   cancelledState,
+  entitledPlanFrom,
+  isGraceExpired,
+  isLiveStatus,
   purchasablePlans,
+  subscriptionBlocksCheckout,
   subscriptionStateFrom,
   type StripeSubscriptionShape,
 } from "@/lib/billing/subscription-state";
@@ -58,6 +67,12 @@ export type BillingPlanOption = {
   features: FeatureLine[];
   /** True when this is the plan they are already paying for. */
   current: boolean;
+  /**
+   * True when this is the plan they bought but are not currently entitled to,
+   * because payment lapsed. Without it a lapsed customer sees no card marked
+   * as theirs and reasonably concludes they should buy one again.
+   */
+  onHold: boolean;
 };
 
 export type BillingView = {
@@ -70,6 +85,19 @@ export type BillingView = {
   cancelAtPeriodEnd: boolean;
   /** True once they have a Stripe customer — i.e. the portal has something in it. */
   hasBillingAccount: boolean;
+  /**
+   * False while Stripe still holds a subscription for this account. Changing
+   * plan then belongs in the portal, where Stripe prorates it — a second
+   * checkout would create a second subscription and bill both.
+   */
+  canCheckout: boolean;
+  /**
+   * True when the row still says ACTIVE but its period ended so long ago that
+   * we have clearly stopped hearing from Stripe. The plan is gone and no
+   * payment ever failed, so the page must say something other than "your card
+   * was declined".
+   */
+  graceExpired: boolean;
   billingCountry: string | null;
   billingCountryName: string | null;
   band: PriceBand;
@@ -93,8 +121,11 @@ export async function getBillingView(userId: string): Promise<BillingView | null
   if (!account) return null;
 
   const sub = account.subscription;
-  const live = sub !== null && (sub.status === "ACTIVE" || sub.status === "TRIALING");
-  const entitledPlan: PlanTier = live && sub ? sub.plan : "FREE";
+  const entitledPlan = entitledPlanFrom(sub);
+  // One shared rule with startCheckout, so the button the page renders and the
+  // answer the server gives can never disagree.
+  const hasStripeSubscription = subscriptionBlocksCheckout(sub);
+  const graceExpired = sub !== null && isLiveStatus(sub.status) && isGraceExpired(sub);
 
   const band = bandForCountry(account.billingCountry);
   const country = account.billingCountry
@@ -113,6 +144,7 @@ export async function getBillingView(userId: string): Promise<BillingView | null
       isReduced: price.isReduced,
       features: featuresFor(copy.audience, plan),
       current: entitledPlan === plan,
+      onHold: entitledPlan !== plan && sub?.plan === plan && hasStripeSubscription,
     };
   });
 
@@ -121,9 +153,17 @@ export async function getBillingView(userId: string): Promise<BillingView | null
     plan: entitledPlan,
     planName: entitledPlan === "FREE" ? "Free" : PLAN_COPY[entitledPlan].name,
     status: sub?.status ?? "ACTIVE",
-    currentPeriodEnd: sub?.currentPeriodEnd ?? null,
+    // A period end in the past is not a renewal date. Reporting one as
+    // "Renews 3 March" while the plan has already gone is worse than saying
+    // nothing, so the view drops it and the page falls back to the truth.
+    currentPeriodEnd:
+      sub?.currentPeriodEnd && sub.currentPeriodEnd.getTime() > Date.now()
+        ? sub.currentPeriodEnd
+        : null,
     cancelAtPeriodEnd: sub?.cancelAtPeriodEnd ?? false,
     hasBillingAccount: Boolean(sub?.stripeCustomerId),
+    canCheckout: !hasStripeSubscription && !account.isBanned,
+    graceExpired,
     billingCountry: account.billingCountry,
     billingCountryName: country,
     band,
@@ -143,6 +183,8 @@ export type CheckoutResult =
         | "no-account"
         | "not-purchasable"
         | "already-on-plan"
+        | "manage-in-portal"
+        | "account-removed"
         | "stripe-error";
     };
 
@@ -163,17 +205,22 @@ export async function startCheckout(userId: string, plan: PlanTier): Promise<Che
   const account = await getBillingState(userId);
   if (!account) return { ok: false, reason: "no-account" };
   if (!canPurchase(account.role, plan)) return { ok: false, reason: "not-purchasable" };
+  // A removed employer cannot publish, message or be found, so a subscription
+  // would buy them nothing at all. Charging someone monthly for a product the
+  // moderation layer refuses on every call is not a thing to leave to the UI.
+  if (account.isBanned) return { ok: false, reason: "account-removed" };
 
+  // Checkout is for accounts Stripe holds no subscription for. Once one
+  // exists, ANY change to it — a different plan, a recovered card — belongs in
+  // the portal, because a second checkout creates a SECOND subscription and
+  // bills both of them for overlapping months.
   const current = account.subscription;
-  if (
-    current &&
-    current.plan === plan &&
-    (current.status === "ACTIVE" || current.status === "TRIALING")
-  ) {
-    // Already paying for this. Sending them through checkout again would
-    // create a SECOND subscription and bill them twice; the portal is where
-    // an existing subscription is changed.
-    return { ok: false, reason: "already-on-plan" };
+  if (subscriptionBlocksCheckout(current)) {
+    // "Already on plan" only if they are ENTITLED to it. A lapsed Growth row
+    // is not "already on Growth" — it is a subscription to repair, and the
+    // portal is where the card gets fixed.
+    const samePlanAndLive = entitledPlanFrom(current) === plan;
+    return { ok: false, reason: samePlanAndLive ? "already-on-plan" : "manage-in-portal" };
   }
 
   const band = bandForCountry(account.billingCountry);
@@ -217,6 +264,12 @@ export async function startCheckout(userId: string, plan: PlanTier): Promise<Che
       // purchasing-power band, and it is written back to the account.
       billing_address_collection: "required",
       allow_promotion_codes: true,
+      // Sessions stay payable for 24 hours by default, and the gate above can
+      // only see what a webhook has already written. That combination is how
+      // two sessions opened minutes apart both get paid and the customer ends
+      // up with two live subscriptions. Thirty minutes is Stripe's floor and
+      // is far longer than filling in a card takes.
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
       success_url: `${SITE_URL}${SUCCESS_PATH}`,
       cancel_url: `${SITE_URL}${CANCEL_PATH}`,
     });
@@ -362,7 +415,15 @@ async function applySubscription(
   eventType: string,
 ): Promise<WebhookOutcome> {
   const ended = eventType === "customer.subscription.deleted";
-  const state = ended ? cancelledState(subscription.id) : subscriptionStateFrom(subscription);
+  // The product on the subscription's item, which is the only thing that
+  // follows a plan switch made in the customer portal — Stripe swaps the items
+  // and leaves metadata naming whatever they first bought.
+  const planFromProduct = planForStripeProduct(
+    idOf(subscription.items?.data?.[0]?.price?.product),
+  );
+  const state = ended
+    ? cancelledState(subscription.id)
+    : subscriptionStateFrom(subscription, planFromProduct);
 
   if (!state) {
     // We set metadata.plan on every subscription we create, so its absence
@@ -388,6 +449,23 @@ async function applySubscription(
       `[billing] subscription ${state.stripeSubscriptionId} is already held by another account; refusing to move it`,
     );
     return { handled: false, detail: "subscription belongs to a different account" };
+  }
+  if (result === "superseded") {
+    // The classic case: an upgrade replaced this subscription, and Stripe is
+    // now telling us the OLD one ended. Applying it would cancel the plan the
+    // customer is currently paying for.
+    //
+    // Logged rather than passed over in silence: an account whose old
+    // subscription is ending is the normal case, but the SAME line appears
+    // when two subscriptions are live at once and being billed twice, and
+    // that is not something to discover from a customer's email.
+    console.warn(
+      `[billing] ${state.stripeSubscriptionId} reported ${eventType} for user ${userId}, which tracks a different subscription; skipped`,
+    );
+    return {
+      handled: true,
+      detail: `${state.stripeSubscriptionId} is not the subscription this account tracks; skipped`,
+    };
   }
   if (result === "stale") {
     return { handled: true, detail: "older than the last event applied; skipped" };

@@ -227,7 +227,7 @@ export default async function JobApplicationsPage({
           </Link>
         </nav>
 
-        <header className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-border pb-4">
+        <header className="mb-5 flex flex-wrap items-end justify-between gap-4 pb-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="t-heading">{job.title}</h1>
@@ -284,12 +284,12 @@ export default async function JobApplicationsPage({
               </h2>
               {/* gap-px over a Line-coloured ground: exact hairlines between
                   cells at any wrap point, no doubled borders. */}
-              <ul className="grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-5">
+              <ul className="surface-card grid grid-cols-2 gap-px overflow-hidden bg-border sm:grid-cols-5">
                 {FILTERS.map((filter) => {
                   const count = countFor(filter.statuses);
                   const isActive = filter.key === activeFilter.key;
                   return (
-                    <li key={filter.key} className="bg-background">
+                    <li key={filter.key} className="bg-card">
                       <Link
                         href={viewHref({ status: filter.key })}
                         aria-current={isActive ? "true" : undefined}

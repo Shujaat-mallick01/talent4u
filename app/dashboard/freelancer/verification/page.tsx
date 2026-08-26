@@ -132,14 +132,14 @@ export default async function FreelancerVerificationPage({
         <nav className="mb-4">
           <Link
             href="/dashboard/freelancer"
-            className="t-label inline-flex items-center gap-1.5 rounded-[2px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="t-label inline-flex items-center gap-1.5 rounded-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <IconArrowLeft className="size-3.5" />
             Your applications
           </Link>
         </nav>
 
-        <header className="mb-6 border-b border-border pb-4">
+        <header className="mb-6 pb-4">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="t-heading">Verification</h1>
             <ProfileBadge spec={badge} />
@@ -165,7 +165,7 @@ export default async function FreelancerVerificationPage({
         ) : null}
 
         {/* Where you stand. One block, one sentence of what happens next. */}
-        <section className="mb-8 border border-border p-4">
+        <section className="surface-card mb-8 p-5">
           <h2 className="t-label text-muted-foreground">Status</h2>
           <p className="t-subhead mt-1.5">{copy.title}</p>
           <p className="measure mt-1 text-[15px] leading-[22px] text-muted-foreground">
@@ -188,7 +188,7 @@ export default async function FreelancerVerificationPage({
                   <li key={link.key} className="row-hover flex items-start gap-3 px-4 py-3.5">
                     <span
                       aria-hidden
-                      className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-[2px] border ${
+                      className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-[5px] border ${
                         link.met
                           ? "border-success/40 bg-success/10 text-success"
                           : "border-border bg-muted text-muted-foreground"
@@ -206,7 +206,7 @@ export default async function FreelancerVerificationPage({
                           href={link.url}
                           target="_blank"
                           rel="noopener noreferrer nofollow"
-                          className="mt-0.5 inline-flex max-w-full items-center gap-1.5 rounded-[2px] text-[15px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                          className="mt-0.5 inline-flex max-w-full items-center gap-1.5 rounded-xs text-[15px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                         >
                           <span className="truncate">{link.url}</span>
                           <IconExternal className="size-3.5 shrink-0" />
@@ -227,7 +227,7 @@ export default async function FreelancerVerificationPage({
                     Your profile is deactivated, and a review needs a live page to point at.{" "}
                     <Link
                       href="/dashboard/settings"
-                      className="rounded-[2px] font-medium underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      className="rounded-xs font-medium underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
                       Reactivate it in settings
                     </Link>{" "}

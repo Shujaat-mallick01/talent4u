@@ -24,7 +24,7 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <div className={cn("border border-dashed border-border px-6 py-16", className)}>
+    <div className={cn("rounded-lg border border-dashed border-border bg-card px-6 py-16", className)}>
       <div className="measure">
         <h3 className="t-heading">{title}</h3>
         <p className="mt-2 text-[15px] leading-[22px] text-muted-foreground">{guidance}</p>

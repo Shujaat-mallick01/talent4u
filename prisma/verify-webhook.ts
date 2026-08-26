@@ -164,6 +164,112 @@ async function main() {
   );
   check("the plan is gone", await planOf(user.id), "FREE");
 
+  // ── An upgrade, and the cancellation of what it replaced ────────────────
+  //
+  // Changing plan through a new checkout does not mutate a Stripe
+  // subscription: it creates a second one and ends the first, and the ending
+  // arrives LAST. Applied on timestamp alone it would cancel the plan the
+  // customer had just paid for. This is that sequence, over real HTTP.
+  const SUB_B = `${SUB}_upgrade`;
+  const teamMeta = { plan: "RECRUITER_TEAM", band: "STANDARD", userId: user.id };
+
+  check(
+    "back on Growth",
+    await post(event("customer.subscription.created", subscription(), now + 100)),
+    200,
+  );
+  check("Growth is live", await planOf(user.id), "RECRUITER_GROWTH");
+
+  check(
+    "an upgrade's new subscription takes the account over",
+    await post(
+      event("customer.subscription.created", subscription({ id: SUB_B, metadata: teamMeta }), now + 110),
+    ),
+    200,
+  );
+  check("the account is on Team", await planOf(user.id), "RECRUITER_TEAM");
+
+  check(
+    "a LATER delete for the subscription the upgrade replaced is acknowledged",
+    await post(event("customer.subscription.deleted", subscription(), now + 120)),
+    200,
+  );
+  check("and the plan the customer pays for survived it", await planOf(user.id), "RECRUITER_TEAM");
+
+  check(
+    "a delete for the subscription actually held does cancel",
+    await post(
+      event("customer.subscription.deleted", subscription({ id: SUB_B, metadata: teamMeta }), now + 130),
+    ),
+    200,
+  );
+  check("and now the plan is gone", await planOf(user.id), "FREE");
+
+  // ── The upgrade delivered in the WRONG order, over HTTP ─────────────────
+  //
+  // Stripe cancels the replaced subscription AFTER the replacement exists, so
+  // the delete legitimately carries the LATER timestamp — and delivery order
+  // is not promised. If the delete lands first, a naive per-account watermark
+  // refuses every event belonging to the subscription now being charged for,
+  // silently, with a 200, until the next renewal a month later.
+  check(
+    "a first subscription goes live",
+    await post(event("customer.subscription.created", subscription(), now + 200)),
+    200,
+  );
+  check("Growth is live", await planOf(user.id), "RECRUITER_GROWTH");
+
+  check(
+    "the replaced subscription's delete arrives FIRST, stamped later",
+    await post(event("customer.subscription.deleted", subscription(), now + 230)),
+    200,
+  );
+  check("the plan drops for a moment", await planOf(user.id), "FREE");
+
+  check(
+    "the replacement's create still applies, despite the older stamp",
+    await post(
+      event(
+        "customer.subscription.created",
+        subscription({ id: SUB_B, metadata: teamMeta }),
+        now + 220,
+      ),
+    ),
+    200,
+  );
+  check("the customer has the plan they are paying for", await planOf(user.id), "RECRUITER_TEAM");
+
+  // ── A plan switch made in the Stripe portal ─────────────────────────────
+  //
+  // The portal swaps the subscription's item and leaves metadata naming
+  // whatever was first bought. Since checkout now sends every plan change
+  // there, reading the plan from metadata alone would mean a portal switch
+  // charges the new price and grants the old tier, permanently.
+  check(
+    "a portal downgrade is read off the PRODUCT, not stale metadata",
+    await post(
+      event(
+        "customer.subscription.updated",
+        subscription({
+          id: SUB_B,
+          // Metadata still says Team, because Stripe never rewrites it.
+          metadata: teamMeta,
+          items: {
+            data: [
+              {
+                current_period_end: now + 2_592_000,
+                price: { product: process.env.STRIPE_PRODUCT_RECRUITER_GROWTH },
+              },
+            ],
+          },
+        }),
+        now + 240,
+      ),
+    ),
+    200,
+  );
+  check("the account is on the plan it is billed for", await planOf(user.id), "RECRUITER_GROWTH");
+
   // ── Cleanup ─────────────────────────────────────────────────────────────
   await prisma.subscription.deleteMany({ where: { userId: user.id } });
   check("cleaned up", await planOf(user.id), null);

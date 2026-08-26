@@ -13,7 +13,7 @@ export function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       aria-hidden
-      className={cn("animate-[t4u-pulse_900ms_ease-in-out_infinite] rounded-[2px] bg-muted", className)}
+      className={cn("animate-[t4u-pulse_900ms_ease-in-out_infinite] rounded-md bg-muted", className)}
       {...props}
     />
   );

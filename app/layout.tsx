@@ -51,7 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             /jobs, the entire filter form before reaching a result. */}
         <a
           href="#main"
-          className="sr-only rounded-[2px] focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:bg-foreground focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-background focus:outline-2 focus:outline-offset-2 focus:outline-ring"
+          className="sr-only rounded-lg focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:bg-foreground focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-background focus:outline-2 focus:outline-offset-2 focus:outline-ring"
         >
           Skip to content
         </a>

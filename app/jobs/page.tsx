@@ -149,7 +149,7 @@ const COL_POSTED = "md:w-32";
 const NUM_CELL = "flex items-baseline gap-2 md:block md:text-right";
 
 const LINK_FOCUS =
-  "rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 /**
  * The filter form's id. The search input and its submit button sit at the top
@@ -314,8 +314,8 @@ export default async function JobsBrowsePage({
 
   return (
     <main id="main" className="flex-1">
-      <div className="mx-auto w-full max-w-5xl px-6 py-10">
-        <header className="border-b border-border pb-6">
+      <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-10">
+        <header className="pb-6">
           <h1 className="t-display-2">Browse jobs</h1>
           <p className="t-body measure mt-3 text-muted-foreground">
             Every job here is commission-free. You agree a rate directly with the employer and keep
@@ -345,7 +345,7 @@ export default async function JobsBrowsePage({
           )}
         </Notice>
 
-        <div className="mt-8 grid gap-x-8 gap-y-10 lg:grid-cols-[13rem_1fr]">
+        <div className="mt-8 grid gap-x-10 gap-y-10 lg:grid-cols-[17rem_1fr]">
           {/* Results first in the DOM; grid places them second on the left-rail
               layout. See the layout note at the top of this file. */}
           <section aria-labelledby="results-heading" className="min-w-0 lg:col-start-2 lg:row-start-1">
@@ -385,7 +385,7 @@ export default async function JobsBrowsePage({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-border pb-3">
+            <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 pb-3">
               <div className="min-w-0">
                 <h2 id="results-heading" className="t-subhead">
                   Open jobs
@@ -577,7 +577,7 @@ export default async function JobsBrowsePage({
                                       <li
                                         key={s.skill.slug}
                                         className={cn(
-                                          "rounded-[2px] bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium tracking-[0.12em] uppercase",
+                                          "rounded-full bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium tracking-[0.12em] uppercase",
                                           known ? "text-foreground" : "text-muted-foreground",
                                         )}
                                       >
@@ -592,7 +592,7 @@ export default async function JobsBrowsePage({
                                     );
                                   })}
                                   {hiddenChips > 0 ? (
-                                    <li className="rounded-[2px] bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium tracking-[0.12em] text-muted-foreground uppercase">
+                                    <li className="rounded-full bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium tracking-[0.12em] text-muted-foreground uppercase">
                                       +{hiddenChips}
                                       <span className="sr-only"> more skills</span>
                                     </li>
@@ -689,11 +689,13 @@ export default async function JobsBrowsePage({
               not just the scroll position. */}
           <aside id="filters" tabIndex={-1} className="lg:col-start-1 lg:row-start-1">
             <h2 className="t-label pb-3 text-muted-foreground">Filters</h2>
+            {/* A surface, not nine controls floating on the page. This is the
+                second-most-used thing on the site after the list itself. */}
             <form
               id={FILTER_FORM_ID}
               method="get"
               action="/jobs"
-              className="space-y-5 border-t border-border pt-5"
+              className="surface-card space-y-5 p-5"
             >
               <Field label="Category" htmlFor="category">
                 <Select id="category" name="category" defaultValue={filters.categorySlug ?? ""}>

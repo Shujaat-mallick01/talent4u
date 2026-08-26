@@ -55,7 +55,7 @@ export function StartThread({
       <p className="t-label text-muted-foreground">
         <Link
           href="/dashboard/recruiter/verification"
-          className="rounded-[2px] underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="rounded-xs underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           Verify to message first
         </Link>
@@ -65,7 +65,7 @@ export function StartThread({
 
   return (
     <details className="w-full">
-      <summary className="t-label inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-[2px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+      <summary className="t-label inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
         <IconMessage className="size-4" />
         Message {counterpartyName}
       </summary>

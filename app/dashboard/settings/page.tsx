@@ -48,7 +48,7 @@ export default async function SettingsPage({
   return (
     <main id="main" className="flex-1">
       <div className="w-full max-w-3xl px-6 py-8 lg:px-8">
-        <header className="mb-6 border-b border-border pb-4">
+        <header className="mb-6 pb-4">
           <h1 className="t-heading">Settings</h1>
           <p className="measure mt-2 text-[15px] leading-[22px] text-muted-foreground">
             Your sign-in details, the country your price is set from, and whether your public page
@@ -169,7 +169,7 @@ export default async function SettingsPage({
             {view.paidPlanIsReduced ? ` instead of ${view.paidPlanListMonthly}` : ""}.{" "}
             <Link
               href="/pricing"
-              className="rounded-[2px] font-medium underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="rounded-xs font-medium underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               See every plan
             </Link>
@@ -193,7 +193,7 @@ export default async function SettingsPage({
                 Your {publicNoun} is live at{" "}
                 <Link
                   href={view.profile.publicPath}
-                  className="rounded-[2px] font-medium underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className="rounded-xs font-medium underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   {view.profile.publicPath}
                 </Link>
@@ -232,7 +232,7 @@ export default async function SettingsPage({
               People who already applied keep their application history either way.{" "}
               <Link
                 href="/dashboard/recruiter"
-                className="rounded-[2px] font-medium underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="rounded-xs font-medium underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 Close them on your jobs list
               </Link>
@@ -246,7 +246,7 @@ export default async function SettingsPage({
               here.{" "}
               <Link
                 href="/removed-employers"
-                className="rounded-[2px] font-medium underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="rounded-xs font-medium underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 Read the removed employers policy
               </Link>

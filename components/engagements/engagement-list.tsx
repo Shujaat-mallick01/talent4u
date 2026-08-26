@@ -40,7 +40,7 @@ const dateFmt = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 export const RECORD_ANCHOR = "record-engagement";
 
 const focusRing =
-  "rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 // ── Terms ──────────────────────────────────────────────────────────────────
 

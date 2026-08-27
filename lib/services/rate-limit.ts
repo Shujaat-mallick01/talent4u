@@ -19,6 +19,23 @@ import { clearRateLimit, hitRateLimit, rateLimitKey } from "@/lib/db/rate-limit"
  *    services against real state. This only stops somebody hammering the
  *    endpoint — it does not know or care what the business rule is.
  */
+/**
+ * DELIBERATELY NOT RATE LIMITED, and why. BUILD_PLAN 7.3 asks for "all
+ * mutations"; these three are the exceptions, and they are exceptions on
+ * purpose rather than by omission.
+ *
+ *   app/admin/actions.ts
+ *     Moderation. Throttling the people who remove scam posts is a way to
+ *     make an incident worse — the abuse case is a compromised staff account,
+ *     and a rate limit is not what stops that. Admin is a role granted by
+ *     hand in the database, and that is the control.
+ *
+ *   app/(auth)/onboarding/{freelancer,recruiter}/actions.ts
+ *     Bounded by the schema already: a profile has a unique userId, so the
+ *     second successful call is refused by Postgres, and reaching these at all
+ *     requires an account, which sign-up already limits. Adding a counter here
+ *     would guard a door that only opens once.
+ */
 export const RATE_LIMITS = {
   /** Per IP + email. Credential stuffing is the thing this exists for. */
   "sign-in": { max: 10, windowSeconds: 15 * 60 },

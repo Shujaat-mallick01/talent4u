@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/guards";
+import { checkRateLimit } from "@/lib/services/rate-limit";
 import { submitFreelancerVerification } from "@/lib/services/freelancer-verification";
 
 /**
@@ -15,6 +16,10 @@ const PAGE = "/dashboard/freelancer/verification";
 
 export async function sendWorkLinksForReview(): Promise<void> {
   const { user } = await requireRole("FREELANCER");
+  // Each submission puts an item in front of a human moderator.
+  const rateLimit = await checkRateLimit("profile-write", user.id);
+  if (!rateLimit.allowed) redirect(`${PAGE}?notice=too_fast`);
+
   const result = await submitFreelancerVerification(user.id);
 
   if (result.ok) redirect(`${PAGE}?notice=submitted`);

@@ -91,6 +91,7 @@ export const settingsNoticeSchema = z.enum([
   "already_active",
   "reactivate_blocked",
   "no_profile",
+  "too_fast",
   "digest_on",
   "digest_off",
   "failed",

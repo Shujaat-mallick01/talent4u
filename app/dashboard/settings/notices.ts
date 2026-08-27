@@ -69,6 +69,11 @@ const COPY: Record<SettingsNotice, SettingsNoticeCopy> = {
     tone: "error",
     message: "Finish setting up your profile before changing these settings.",
   },
+  too_fast: {
+    tone: "warning",
+    message:
+      "That is a lot of changes in a short time. Wait a few minutes and try again — nothing you already saved has been lost.",
+  },
   digest_on: {
     tone: "success",
     message:

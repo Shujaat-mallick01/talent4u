@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/guards";
+import { checkRateLimit } from "@/lib/services/rate-limit";
 import {
   submitVerificationForUser,
   updateVerificationDetailsForUser,
@@ -18,6 +19,10 @@ const str = (formData: FormData, key: string): string => {
 
 export async function saveVerificationDetails(formData: FormData): Promise<void> {
   const { user } = await requireRole("RECRUITER");
+  // Each submission puts an item in front of a human moderator.
+  const rateLimit = await checkRateLimit("profile-write", user.id);
+  if (!rateLimit.allowed) redirect(`${PAGE}?notice=too_fast`);
+
 
   const parsed = recruiterVerificationDetailsSchema.safeParse({
     companyDomain: str(formData, "companyDomain"),
@@ -38,6 +43,10 @@ export async function saveVerificationDetails(formData: FormData): Promise<void>
 
 export async function submitVerification(): Promise<void> {
   const { user } = await requireRole("RECRUITER");
+  // Each submission puts an item in front of a human moderator.
+  const rateLimit = await checkRateLimit("profile-write", user.id);
+  if (!rateLimit.allowed) redirect(`${PAGE}?notice=too_fast`);
+
   const result = await submitVerificationForUser(user.id);
 
   if (result.ok) redirect(`${PAGE}?notice=submitted`);

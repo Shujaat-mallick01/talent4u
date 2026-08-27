@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/guards";
+import { checkRateLimit } from "@/lib/services/rate-limit";
 import {
   setFreelancerAvatarForUser,
   updateFreelancerProfileForUser,
@@ -37,6 +38,11 @@ export async function saveFreelancerProfile(
   formData: FormData,
 ): Promise<ProfileEditState> {
   const { user } = await requireRole("FREELANCER");
+  // Self-scoped and cheap per call, but still an unbounded write loop
+  // behind one button. The ceiling sits far above real editing.
+  const rateLimit = await checkRateLimit("profile-write", user.id);
+  if (!rateLimit.allowed) redirect(`${PAGE}?notice=too_fast`);
+
 
   // Blank rate → null ("rate on request"); anything else is handed to Zod as a
   // number so a non-numeric entry fails as a field error, not a crash.
@@ -108,6 +114,11 @@ export async function saveFreelancerProfile(
  */
 export async function updateAvatar(formData: FormData): Promise<void> {
   const { user } = await requireRole("FREELANCER");
+  // Self-scoped and cheap per call, but still an unbounded write loop
+  // behind one button. The ceiling sits far above real editing.
+  const rateLimit = await checkRateLimit("profile-write", user.id);
+  if (!rateLimit.allowed) redirect(`${PAGE}?notice=too_fast`);
+
   const result = await setFreelancerAvatarForUser(user.id, formData.get("avatar"));
   redirect(`${PAGE}?notice=${result.ok ? "photo_saved" : "photo_failed"}`);
 }

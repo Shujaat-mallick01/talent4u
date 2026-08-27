@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/guards";
+import { checkRateLimit } from "@/lib/services/rate-limit";
 import { createSupabaseServerClient } from "@/lib/auth/supabase";
 import {
   changePassword,
@@ -68,6 +69,12 @@ export async function changeAccountPassword(formData: FormData): Promise<void> {
 /** Stores the billing country regional pricing is resolved from. */
 export async function saveBillingCountry(formData: FormData): Promise<void> {
   const { user } = await requireUser();
+  // Self-scoped and individually cheap, but still an unbounded write loop
+  // behind one button. The ceiling is far above anything a person editing
+  // their own page will reach.
+  const rateLimit = await checkRateLimit("profile-write", user.id);
+  if (!rateLimit.allowed) redirect(`${PAGE}?notice=too_fast`);
+
 
   const result = await setBillingCountryForUser(user.id, { country: str(formData, "country") });
 
@@ -84,6 +91,12 @@ export async function saveBillingCountry(formData: FormData): Promise<void> {
  */
 export async function saveProfileVisibility(formData: FormData): Promise<void> {
   const { user } = await requireUser();
+  // Self-scoped and individually cheap, but still an unbounded write loop
+  // behind one button. The ceiling is far above anything a person editing
+  // their own page will reach.
+  const rateLimit = await checkRateLimit("profile-write", user.id);
+  if (!rateLimit.allowed) redirect(`${PAGE}?notice=too_fast`);
+
 
   const result = await setProfileVisibilityForUser(user.id, { action: str(formData, "action") });
 

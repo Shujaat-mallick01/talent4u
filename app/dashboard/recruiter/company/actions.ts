@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/guards";
+import { checkRateLimit } from "@/lib/services/rate-limit";
 import {
   setCompanyLogoForUser,
   updateCompanyProfileForUser,
@@ -40,6 +41,10 @@ export async function saveCompanyProfile(
   formData: FormData,
 ): Promise<CompanyEditState> {
   const { user } = await requireRole("RECRUITER");
+  // Same reasoning as the freelancer profile editor.
+  const rateLimit = await checkRateLimit("profile-write", user.id);
+  if (!rateLimit.allowed) redirect(`${PAGE}?notice=too_fast`);
+
 
   const parsed = companyProfileEditSchema.safeParse({
     companyName: str(formData, "companyName"),
@@ -70,6 +75,10 @@ export async function saveCompanyProfile(
 /** Sets the company logo — the change onboarding never allowed afterwards. */
 export async function updateLogo(formData: FormData): Promise<void> {
   const { user } = await requireRole("RECRUITER");
+  // Same reasoning as the freelancer profile editor.
+  const rateLimit = await checkRateLimit("profile-write", user.id);
+  if (!rateLimit.allowed) redirect(`${PAGE}?notice=too_fast`);
+
   const result = await setCompanyLogoForUser(user.id, formData.get("logo"));
   redirect(`${PAGE}?notice=${result.ok ? "photo_saved" : "photo_failed"}`);
 }

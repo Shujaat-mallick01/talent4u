@@ -9,6 +9,12 @@ export type CompanyEditNotice = { tone: NoticeTone; message: string };
 
 export function resolveCompanyEditNotice(code: string | undefined): CompanyEditNotice | null {
   switch (code) {
+    case "too_fast":
+      return {
+        tone: "warning",
+        message:
+          "That is a lot of changes in a short time. Wait a few minutes and try again — nothing you already saved has been lost.",
+      };
     case "photo_saved":
       return { tone: "success", message: "Photo updated. It shows everywhere your name does." };
     case "photo_failed":

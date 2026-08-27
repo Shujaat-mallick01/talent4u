@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox, ChoiceRow } from "@/components/ui/choice";
 import { Field, fieldControlProps } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/notice";
@@ -10,7 +11,12 @@ import { requireUser } from "@/lib/auth/guards";
 import { COUNTRIES } from "@/lib/geo/countries";
 import { getSettingsViewForUser } from "@/lib/services/settings";
 
-import { changeAccountPassword, saveBillingCountry, saveProfileVisibility } from "./actions";
+import {
+  changeAccountPassword,
+  saveBillingCountry,
+  saveJobDigest,
+  saveProfileVisibility,
+} from "./actions";
 import { resolveSettingsNotice } from "./notices";
 
 export const metadata = { title: "Settings" };
@@ -176,6 +182,38 @@ export default async function SettingsPage({
             .
           </p>
         </section>
+
+        {/* ── Email ───────────────────────────────────────────────────── */}
+        {/* Freelancers only: it is a digest of jobs. Everything else the
+            product mails is transactional and has no switch, because it is
+            always about something the recipient did or that happened to them
+            — see lib/email/notifications.ts. */}
+        {view.role === "FREELANCER" ? (
+          <section aria-labelledby="email-heading" className="mt-10 border-t border-border pt-8">
+            <h2 id="email-heading" className="t-subhead">
+              Email
+            </h2>
+            <p className="mt-2 text-[15px] leading-[22px] text-muted-foreground">
+              One email a week listing new jobs that match the skills on your profile. It is the
+              only mail we send that you did not set off yourself.
+            </p>
+
+            <form action={saveJobDigest} className="surface-card mt-5 max-w-2xl p-5">
+              <ChoiceRow>
+                <Checkbox name="optIn" value="on" defaultChecked={view.jobDigestOptIn} />
+                Send me the weekly job digest
+              </ChoiceRow>
+              <p className="mt-2 text-[13px] leading-[18px] text-muted-foreground">
+                Turning this off changes nothing else. You still hear about your own applications,
+                messages and account — those are about something you did, and they have no
+                unsubscribe link because they need none.
+              </p>
+              <Button type="submit" size="sm" variant="secondary" className="mt-4">
+                Save email preference
+              </Button>
+            </form>
+          </section>
+        ) : null}
 
         {/* ── Public profile visibility ───────────────────────────────── */}
         <section aria-labelledby="visibility-heading" className="mt-10 border-t border-border pt-8">

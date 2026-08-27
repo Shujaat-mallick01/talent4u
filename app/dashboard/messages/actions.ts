@@ -3,8 +3,16 @@
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/guards";
-import { sendMessageForUser, startConversationForUser } from "@/lib/services/message";
-import { sendMessageSchema, startConversationSchema } from "@/lib/validations/message";
+import {
+  sendMessageForUser,
+  startConversationForUser,
+  startOutreachForUser,
+} from "@/lib/services/message";
+import {
+  sendMessageSchema,
+  startConversationSchema,
+  startOutreachSchema,
+} from "@/lib/validations/message";
 
 /**
  * Messaging Server Actions.
@@ -30,6 +38,8 @@ const NOTICE_BY_REASON: Record<string, string> = {
   banned: "recruiter_banned",
   "not-allowed": "not_allowed",
   "no-account": "not_allowed",
+  "plan-required": "plan_required",
+  "job-closed": "job_closed",
 };
 
 const noticeFor = (reason: string): string => NOTICE_BY_REASON[reason] ?? "failed";
@@ -76,4 +86,37 @@ export async function sendMessage(formData: FormData): Promise<void> {
   const result = await sendMessageForUser(user.id, parsed.data);
   if (!result.ok) redirect(`${PAGE}?notice=${noticeFor(result.reason)}`);
   redirect(`${PAGE}/${conversationId}?notice=${result.flagged ? "sent_flagged" : "sent"}`);
+}
+
+/**
+ * Writes to a freelancer who has not applied, from candidate search.
+ *
+ * The form carries a freelancer id, one of the recruiter's own job ids, and
+ * the message. It cannot name a recipient user, a conversation, or a
+ * participant list — those are all derived server-side from the two ids, and
+ * the job is looked up by owner, so a POST naming somebody else's job resolves
+ * to nothing.
+ */
+export async function startOutreach(formData: FormData): Promise<void> {
+  const { user } = await requireUser();
+  const back = str(formData, "returnTo") || "/dashboard/recruiter/candidates";
+
+  const parsed = startOutreachSchema.safeParse({
+    freelancerId: str(formData, "freelancerId"),
+    jobId: str(formData, "jobId"),
+    body: str(formData, "body"),
+  });
+  if (!parsed.success) redirect(`${back}?notice=message_empty`);
+
+  const result = await startOutreachForUser(user.id, parsed.data);
+
+  if (result.ok) {
+    redirect(`${PAGE}/${result.conversationId}?notice=${result.flagged ? "sent_flagged" : "sent"}`);
+  }
+  // Already written to this person about this role — open that thread rather
+  // than reporting an error for something that is not one.
+  if (result.reason === "already-exists" && result.conversationId) {
+    redirect(`${PAGE}/${result.conversationId}`);
+  }
+  redirect(`${back}?notice=${noticeFor(result.reason)}`);
 }

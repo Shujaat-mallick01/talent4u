@@ -128,6 +128,10 @@ export async function searchCandidates(filters: CandidateSearchFilters) {
     where: { id: { in: page.map((r) => r.id) } },
     select: {
       id: true,
+      // Server-side only, for matching against existing outreach threads. It
+      // is never rendered — a freelancer's auth id is not the recruiter's
+      // business, and the page links by slug.
+      userId: true,
       slug: true,
       displayName: true,
       headline: true,

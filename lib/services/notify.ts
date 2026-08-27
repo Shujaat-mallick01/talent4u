@@ -1,6 +1,7 @@
 import { after } from "next/server";
 
 import {
+  notifyWelcome,
   notifyApplicationDecision,
   notifyEngagementConfirmed,
   notifyEngagementProposed,
@@ -205,5 +206,23 @@ export function onWorkLinksReviewed(
       approved,
       note,
     });
+  });
+}
+
+/**
+ * The first mail a new account gets: it exists, and here is what to do.
+ *
+ * Fired when ONBOARDING completes rather than at signup, because until a
+ * profile exists there is nothing to welcome anybody to and no name to use.
+ * Transactional — they finished creating it seconds ago — so it carries no
+ * unsubscribe link and needs none.
+ */
+export function onProfileCreated(
+  to: string,
+  displayName: string,
+  role: "FREELANCER" | "RECRUITER",
+): void {
+  fireAndForget("welcome", async () => {
+    await notifyWelcome({ to, displayName, role });
   });
 }

@@ -1,16 +1,30 @@
 import { sendEmail, type SendResult } from "./client";
-import { button, emailLayout, escapeHtml, facts, paragraph, quote, textEmail, url } from "./layout";
+import {
+  button,
+  emailLayout,
+  escapeHtml,
+  facts,
+  jobList,
+  paragraph,
+  quote,
+  textEmail,
+  url,
+} from "./layout";
 
 /**
  * Every email the product sends, and why.
  *
- * All of these are strictly TRANSACTIONAL: each one is about something that
- * just happened to the recipient's own account, triggered by another person's
- * action, and each says so in its footer. None is marketing, none is a digest,
- * and nothing here mails anyone who has not taken part in the thing being
- * reported. That distinction is why there is no unsubscribe link yet — and
- * also why the moment a digest or a "jobs you might like" email is added, it
- * needs a preference column and a settings page first.
+ * Almost all of these are strictly TRANSACTIONAL: each is about something
+ * that just happened to the recipient's own account, triggered by another
+ * person's action, and each says so in its footer. Nothing transactional mails
+ * anyone who has not taken part in the thing being reported, which is why none
+ * of it carries an unsubscribe link and why none of it needs one.
+ *
+ * The weekly job digest is the exception, and it is the reason
+ * User.jobDigestOptIn, User.unsubscribeToken and the settings toggle exist —
+ * this file used to say they would be required before any such mail was added,
+ * and they were. It is the ONLY function here that takes an unsubscribeUrl. If
+ * a second one ever does, it is marketing, and it needs the same three things.
  *
  * Sending is best-effort by construction: notify() never throws, so a mail
  * outage can slow a request but can never fail an application, a message, or
@@ -29,13 +43,27 @@ async function deliver(args: {
   bodyHtml: string;
   textLines: string[];
   action?: { label: string; href: string };
+  /** Non-transactional mail only — the digest. See the note at the top. */
+  unsubscribeUrl?: string;
 }): Promise<NotifyOutcome> {
-  const { event, to, subject, heading, preheader, reason, bodyHtml, textLines, action } = args;
+  const {
+    event,
+    to,
+    subject,
+    heading,
+    preheader,
+    reason,
+    bodyHtml,
+    textLines,
+    action,
+    unsubscribeUrl,
+  } = args;
 
   const html = emailLayout({
     heading,
     preheader,
     reason,
+    unsubscribeUrl,
     body: bodyHtml + (action ? button(action.label, action.href) : ""),
   });
 
@@ -43,7 +71,7 @@ async function deliver(args: {
     to,
     subject,
     html,
-    text: textEmail({ heading, lines: textLines, action, reason }),
+    text: textEmail({ heading, lines: textLines, action, reason, unsubscribeUrl }),
   });
 
   if (!result.ok) {
@@ -354,5 +382,108 @@ export function notifyWorkLinksReviewed(args: {
     action: args.approved
       ? { label: "See your verification status", href: url("/dashboard/freelancer/verification") }
       : { label: "Fix and resubmit", href: url("/dashboard/freelancer/verification") },
+  });
+}
+
+// ── Onboarding ─────────────────────────────────────────────────────────────
+
+/**
+ * The first thing we ever send: an account exists.
+ *
+ * Transactional — they created it seconds ago — so no unsubscribe link. It
+ * earns its place by answering the two questions a new account actually has,
+ * which are "what does this cost me" and "what do I do now", rather than by
+ * welcoming anyone.
+ */
+export function notifyWelcome(args: {
+  to: string;
+  displayName: string;
+  role: "FREELANCER" | "RECRUITER";
+}): Promise<NotifyOutcome> {
+  const { to, displayName, role } = args;
+  const isFreelancer = role === "FREELANCER";
+
+  const next = isFreelancer
+    ? {
+        label: "Browse open jobs",
+        href: url("/jobs"),
+        line: "Browsing is free and unlimited, and you keep 100% of whatever you agree with a company. We are never in the middle of the payment, which is why we are never in a position to take a cut of it.",
+        second:
+          "Twelve applications every 30 days on the free plan. A profile with real links to your work is what gets replies, so it is worth ten minutes.",
+      }
+    : {
+        label: "Post your first role",
+        href: url("/dashboard/recruiter/jobs/new"),
+        line: "Posting a role and receiving applications is free, on every plan, forever. We charge a flat subscription for the tools around hiring and take 0% of what anyone earns.",
+        second:
+          "New companies start Unverified, which shows on every post and caps you at one live role. Verifying takes a business email, a registration number and a LinkedIn page.",
+      };
+
+  return deliver({
+    event: "welcome",
+    to,
+    subject: isFreelancer ? "Your Talent4u account is ready" : "Your company is on Talent4u",
+    heading: `Welcome, ${displayName}`,
+    preheader: "0% commission. Here is what to do first.",
+    reason: "You are receiving this because you just created a Talent4u account.",
+    bodyHtml: paragraph(escapeHtml(next.line)) + paragraph(escapeHtml(next.second)),
+    textLines: [next.line, "", next.second],
+    action: { label: next.label, href: next.href },
+  });
+}
+
+// ── The weekly digest ──────────────────────────────────────────────────────
+
+/**
+ * Jobs matching this freelancer's skills, once a week.
+ *
+ * The ONLY non-transactional mail the product sends, and the only one that
+ * takes an unsubscribeUrl. Nobody asked for it at the moment it arrives, so it
+ * has to be refusable in one click from the mail itself, without signing in —
+ * see lib/db/digest.ts and User.unsubscribeToken.
+ *
+ * Never sent empty: a weekly email that says "no jobs matched you" teaches
+ * people to filter the sender, and the caller checks for that before calling.
+ */
+export function notifyJobDigest(args: {
+  to: string;
+  displayName: string;
+  unsubscribeUrl: string;
+  jobs: { title: string; companyName: string; budget: string | null; slug: string }[];
+}): Promise<NotifyOutcome> {
+  const { to, displayName, unsubscribeUrl, jobs } = args;
+
+  const count = jobs.length;
+  const lead =
+    count === 1
+      ? "One new role this week matches the skills on your profile."
+      : `${count} new roles this week match the skills on your profile.`;
+
+  return deliver({
+    event: "job-digest",
+    to,
+    subject: count === 1 ? "1 new job matches your skills" : `${count} new jobs match your skills`,
+    heading: `Jobs for you, ${displayName}`,
+    preheader: lead,
+    reason:
+      "You are receiving this because your Talent4u profile lists skills these roles ask for.",
+    unsubscribeUrl,
+    bodyHtml:
+      paragraph(escapeHtml(lead)) +
+      jobList(jobs.map((j) => ({ ...j, href: url(`/jobs/${j.slug}`) }))) +
+      paragraph(
+        escapeHtml(
+          "Applying is free up to your monthly limit, and you keep everything you earn.",
+        ),
+      ),
+    textLines: [
+      lead,
+      "",
+      ...jobs.map(
+        (j) =>
+          `${j.title} — ${j.companyName}${j.budget ? ` (${j.budget})` : ""}\n${url(`/jobs/${j.slug}`)}`,
+      ),
+    ],
+    action: { label: "See every open job", href: url("/jobs") },
   });
 }

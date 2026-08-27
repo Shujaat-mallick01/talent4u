@@ -27,6 +27,7 @@ export async function getAccountSettingsRow(userId: string) {
       emailVerified: true,
       role: true,
       billingCountry: true,
+      jobDigestOptIn: true,
       freelancer: {
         select: { id: true, slug: true, displayName: true, deactivatedAt: true },
       },

@@ -9,7 +9,21 @@ vi.mock("@/lib/db/users", () => ({
   getEntitlementContext: vi.fn(),
 }));
 
+// These two are pulled in for the outreach affordances on each row. Without
+// mocking them the "unit" tests reach a real Postgres — tests/setup.ts loads
+// .env, so DATABASE_URL is set and the query simply succeeds, which is how a
+// test that claims the database is never touched can pass while touching it.
+vi.mock("@/lib/db/job", () => ({
+  listOpenJobsForRecruiterUser: vi.fn(),
+}));
+
+vi.mock("@/lib/db/message", () => ({
+  mapOutreachThreads: vi.fn(),
+}));
+
 import { candidateCountries, searchCandidates } from "@/lib/db/candidate-search";
+import { listOpenJobsForRecruiterUser } from "@/lib/db/job";
+import { mapOutreachThreads } from "@/lib/db/message";
 import { getEntitlementContext } from "@/lib/db/users";
 import type { PlanTier, RecruiterTier, UserRole } from "@/lib/generated/prisma/enums";
 
@@ -28,6 +42,8 @@ import { canSearchCandidates, searchCandidatesForUser } from "./candidate-search
 const mockContext = vi.mocked(getEntitlementContext);
 const mockSearch = vi.mocked(searchCandidates);
 const mockCountries = vi.mocked(candidateCountries);
+const mockJobs = vi.mocked(listOpenJobsForRecruiterUser);
+const mockThreads = vi.mocked(mapOutreachThreads);
 
 const USER = "00000000-0000-4000-8000-000000000001";
 
@@ -49,6 +65,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockSearch.mockResolvedValue({ candidates: [], hasMore: false, nextCursor: null });
   mockCountries.mockResolvedValue(["GB", "PK"]);
+  mockJobs.mockResolvedValue([]);
+  mockThreads.mockResolvedValue(new Map());
 });
 
 describe("the paid wall", () => {
@@ -58,9 +76,11 @@ describe("the paid wall", () => {
     const result = await searchCandidatesForUser(USER, {});
 
     expect(result).toEqual({ ok: false, reason: "plan-required" });
-    // The point of the test.
+    // The point of the test: not one query runs, of any kind.
     expect(mockSearch).not.toHaveBeenCalled();
     expect(mockCountries).not.toHaveBeenCalled();
+    expect(mockJobs).not.toHaveBeenCalled();
+    expect(mockThreads).not.toHaveBeenCalled();
   });
 
   it("refuses a free recruiter however verified they are", async () => {

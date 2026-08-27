@@ -282,3 +282,175 @@ export async function mapApplicationConversations(
     rows.flatMap((r) => (r.applicationId ? [[r.applicationId, r.id] as const] : [])),
   );
 }
+
+// ── Recruiter outreach ───────────────────────────────────────────────────────
+
+/** "<jobId>:<freelancerUserId>" — see the outreachKey migration. */
+export const outreachKeyFor = (jobId: string, freelancerUserId: string): string =>
+  `${jobId}:${freelancerUserId}`;
+
+export type OutreachParties = {
+  freelancerUserId: string;
+  freelancerName: string;
+  recruiterUserId: string;
+  recruiterIsBanned: boolean;
+  jobTitle: string;
+  jobIsOpen: boolean;
+};
+
+/**
+ * Everyone and everything an outreach message needs, in one query.
+ *
+ * The job is looked up BY OWNER: `recruiter.userId` is part of the predicate,
+ * so a recruiter naming somebody else's job id gets null rather than a thread
+ * with a stranger's candidate. Same discipline as the rest of this file —
+ * authorization as a query predicate, not an if-statement afterwards.
+ */
+export async function getOutreachParties(
+  jobId: string,
+  freelancerId: string,
+  recruiterUserId: string,
+): Promise<OutreachParties | null> {
+  if (!isPlausibleId(jobId) || !isPlausibleId(freelancerId)) return null;
+
+  const [job, freelancer] = await Promise.all([
+    prisma.job.findFirst({
+      where: { id: jobId, recruiter: { userId: recruiterUserId } },
+      select: {
+        title: true,
+        status: true,
+        recruiter: { select: { userId: true, isBanned: true } },
+      },
+    }),
+    prisma.freelancerProfile.findFirst({
+      // A profile its owner has taken down is not reachable by any route,
+      // including one a recruiter had open when they took it down.
+      where: { id: freelancerId, deactivatedAt: null },
+      select: { userId: true, displayName: true },
+    }),
+  ]);
+
+  if (!job || !freelancer) return null;
+
+  return {
+    freelancerUserId: freelancer.userId,
+    freelancerName: freelancer.displayName,
+    recruiterUserId: job.recruiter.userId,
+    recruiterIsBanned: job.recruiter.isBanned,
+    jobTitle: job.title,
+    // Reaching out about a role nobody can apply to wastes the freelancer's
+    // time and is the shape unsolicited bulk messaging takes.
+    jobIsOpen: job.status === "ACTIVE",
+  };
+}
+
+/** An outreach thread that already exists for this pairing, if any. */
+export async function findOutreachConversationId(
+  jobId: string,
+  freelancerUserId: string,
+  viewerUserId: string,
+): Promise<string | null> {
+  const row = await prisma.conversation.findFirst({
+    where: {
+      outreachKey: outreachKeyFor(jobId, freelancerUserId),
+      participants: { some: { userId: viewerUserId } },
+    },
+    select: { id: true },
+  });
+  return row?.id ?? null;
+}
+
+/**
+ * Opens a recruiter-initiated thread about a job and posts the first message.
+ *
+ * The same shape as startConversationTx, and duplicate-safe the same way: the
+ * uniqueness lives on Conversation_outreachKey_key rather than in a
+ * read-then-write, so two simultaneous sends produce one thread and one
+ * constraint violation instead of two threads and a split conversation.
+ */
+export async function startOutreachTx(args: {
+  jobId: string;
+  senderUserId: string;
+  recipientUserId: string;
+  body: string;
+}): Promise<StartResult> {
+  const { jobId, senderUserId, recipientUserId, body } = args;
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const now = new Date();
+      const conversation = await tx.conversation.create({
+        data: {
+          jobId,
+          outreachKey: outreachKeyFor(jobId, recipientUserId),
+          lastMessageAt: now,
+          participants: {
+            create: [
+              { userId: senderUserId, lastMessageAt: now, lastReadAt: now },
+              { userId: recipientUserId, lastMessageAt: now },
+            ],
+          },
+        },
+        select: { id: true },
+      });
+
+      const message = await tx.message.create({
+        data: { conversationId: conversation.id, senderId: senderUserId, body },
+        select: { id: true },
+      });
+
+      return {
+        ok: true as const,
+        conversationId: conversation.id,
+        messageId: message.id,
+        created: true,
+      };
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { ok: false, reason: "already-exists" };
+    }
+    throw error;
+  }
+}
+
+/**
+ * Which of these freelancers this recruiter has already written to, and where
+ * that thread is — so a page of candidates can offer "Open thread" instead of
+ * a second compose box, without one query per row.
+ *
+ * Keyed by freelancer user id. Any of the recruiter's jobs counts: the useful
+ * question on a search result is "have I spoken to this person", not "have I
+ * spoken to them about this exact role".
+ */
+export async function mapOutreachThreads(
+  recruiterUserId: string,
+  freelancerUserIds: string[],
+): Promise<Map<string, string>> {
+  if (freelancerUserIds.length === 0) return new Map();
+
+  const rows = await prisma.conversation.findMany({
+    where: {
+      participants: { some: { userId: recruiterUserId } },
+      AND: [{ participants: { some: { userId: { in: freelancerUserIds } } } }],
+    },
+    select: {
+      id: true,
+      lastMessageAt: true,
+      participants: { select: { userId: true } },
+    },
+    orderBy: { lastMessageAt: "desc" },
+  });
+
+  const byFreelancer = new Map<string, string>();
+  const wanted = new Set(freelancerUserIds);
+  for (const row of rows) {
+    for (const p of row.participants) {
+      // Newest first, so the first thread seen for a person is the live one.
+      if (wanted.has(p.userId) && !byFreelancer.has(p.userId)) {
+        byFreelancer.set(p.userId, row.id);
+      }
+    }
+  }
+  return byFreelancer;
+}

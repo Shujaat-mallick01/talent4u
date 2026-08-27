@@ -258,3 +258,24 @@ export async function withdrawHeldJobForRecruiter(
   });
   return updated.count > 0;
 }
+
+/**
+ * The recruiter's currently-open roles, by their USER id.
+ *
+ * Candidate search never resolves a recruiter profile — it works from the
+ * entitlement context, which carries a user id — so this joins through rather
+ * than making the caller fetch a profile it does not otherwise need.
+ *
+ * Only ACTIVE: outreach names the role it is about, and inviting somebody to a
+ * draft or a closed post wastes their time.
+ */
+export async function listOpenJobsForRecruiterUser(
+  userId: string,
+): Promise<{ id: string; title: string }[]> {
+  return prisma.job.findMany({
+    where: { status: "ACTIVE", recruiter: { userId } },
+    orderBy: { publishedAt: "desc" },
+    select: { id: true, title: true },
+    take: 25,
+  });
+}

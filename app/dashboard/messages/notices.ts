@@ -19,6 +19,18 @@ export function resolveMessageNotice(code: string | undefined): JobNotice | null
         message:
           "Companies we have not verified cannot start conversations. Get verified and you can write first; until then you can reply to anyone who writes to you.",
       };
+    case "plan_required":
+      return {
+        tone: "error",
+        message:
+          "Writing to someone who has not applied is part of candidate search, which is on the Growth plan. Replying to people who apply to you stays free.",
+      };
+    case "job_closed":
+      return {
+        tone: "error",
+        message:
+          "That role is not open, so there is nothing to invite anyone to. Publish it first, or pick another one.",
+      };
     case "recruiter_banned":
       return {
         tone: "error",

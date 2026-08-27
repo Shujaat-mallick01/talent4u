@@ -35,3 +35,19 @@ export const startConversationSchema = z.object({
 
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export type StartConversationInput = z.infer<typeof startConversationSchema>;
+
+/**
+ * Recruiter outreach from candidate search.
+ *
+ * A freelancer and one of the recruiter's own jobs — the job is what tells the
+ * person on the other end why a stranger is writing to them, and it is what
+ * bounds outreach to work that actually exists. Both ids are resolved and
+ * ownership-checked server-side; naming them here grants nothing.
+ */
+export const startOutreachSchema = z.object({
+  freelancerId: z.string().min(1),
+  jobId: z.string().min(1),
+  body: messageBodySchema,
+});
+
+export type StartOutreachInput = z.infer<typeof startOutreachSchema>;

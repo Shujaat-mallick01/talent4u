@@ -2,6 +2,8 @@
 
 import { redirect } from "next/navigation";
 
+import { onProfileCreated } from "@/lib/services/notify";
+
 import { requireRole } from "@/lib/auth/guards";
 import { onboardRecruiter } from "@/lib/services/recruiter";
 import { recruiterOnboardingSchema, validateLogo } from "@/lib/validations/recruiter";
@@ -57,6 +59,7 @@ export async function submitRecruiterOnboarding(
 
   const result = await onboardRecruiter(user.id, parsed.data, logo.file);
   if (result.ok) {
+    onProfileCreated(user.email, parsed.data.companyName, "RECRUITER");
     redirect(`/dashboard/recruiter`);
   }
 

@@ -37,6 +37,14 @@ model User {
   role           UserRole
   emailVerified  DateTime?
   billingCountry String? // drives regional pricing
+
+  /// Everything else the product sends is transactional and carries no
+  /// unsubscribe link because it needs none. The weekly job digest is not, so
+  /// it gets a preference, a one-click token that works without a session, and
+  /// a timestamp that makes the send idempotent. See the migration.
+  jobDigestOptIn   Boolean   @default(true)
+  unsubscribeToken String?   @unique
+  lastJobDigestAt  DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -52,6 +60,8 @@ model User {
   // level, and what makes role immutable while a profile exists (the profile's
   // FK is onUpdate: Restrict, so changing User.role errors).
   @@unique([id, role])
+  // The digest job's query: opted in, and due.
+  @@index([jobDigestOptIn, lastJobDigestAt])
 }
 
 // ─────────────────────────────────────────────
@@ -592,6 +602,12 @@ model Conversation {
   // path needs.
   applicationId String?      @unique
   application   Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  /// "<jobId>:<freelancerUserId>" on recruiter outreach threads, NULL on every
+  /// application thread. Gives outreach the same one-thread-per-pairing
+  /// guarantee applicationId gives applications, by the same NULL-distinctness
+  /// trick — see the migration for why it cannot be a generated column.
+  outreachKey String? @unique
 
   participants  ConversationParticipant[]
   messages      Message[]

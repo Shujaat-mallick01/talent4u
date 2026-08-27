@@ -7,6 +7,7 @@ import { createSupabaseServerClient } from "@/lib/auth/supabase";
 import {
   changePassword,
   setBillingCountryForUser,
+  setJobDigestForUser,
   setProfileVisibilityForUser,
 } from "@/lib/services/settings";
 import type { SettingsNotice } from "@/lib/validations/settings";
@@ -98,4 +99,21 @@ export async function saveProfileVisibility(formData: FormData): Promise<void> {
         ? "no_profile"
         : "failed",
   );
+}
+
+/**
+ * The weekly job digest switch.
+ *
+ * A checkbox that posts nothing when unchecked, so the absent value IS the
+ * off signal — the service reads it that way rather than requiring a hidden
+ * companion field that could drift out of sync with the box.
+ */
+export async function saveJobDigest(formData: FormData): Promise<void> {
+  const { user } = await requireUser();
+  const result = await setJobDigestForUser(user.id, { optIn: formData.get("optIn") });
+  if (!result.ok) {
+    back("failed");
+    return;
+  }
+  back(result.optIn ? "digest_on" : "digest_off");
 }

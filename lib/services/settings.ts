@@ -11,8 +11,10 @@ import { formatMonthly, listPriceFor, priceForCountry } from "@/lib/pricing/pric
 import {
   billingCountrySchema,
   changePasswordSchema,
+  jobDigestSchema,
   profileVisibilitySchema,
 } from "@/lib/validations/settings";
+import { setJobDigestOptIn } from "@/lib/db/digest";
 
 /**
  * Account settings business logic.
@@ -63,6 +65,11 @@ export type SettingsView = {
   isBanned: boolean;
   /** Recruiters only: posts that stay open when the company page comes down. */
   activeJobCount: number;
+  /**
+   * Freelancers only. The one piece of mail the product sends that nobody
+   * asked for at the moment it arrives, and therefore the one with a switch.
+   */
+  jobDigestOptIn: boolean;
 };
 
 export type SettingsViewResult =
@@ -119,6 +126,7 @@ export async function getSettingsViewForUser(userId: string): Promise<SettingsVi
       profile,
       isBanned: row.recruiter?.isBanned ?? false,
       activeJobCount: row.recruiter?._count.jobs ?? 0,
+      jobDigestOptIn: row.jobDigestOptIn,
     },
   };
 }
@@ -231,4 +239,35 @@ export async function setProfileVisibilityForUser(
 
   // ADMIN: no profile concept, so no public page to hide.
   return { ok: false, reason: "no-profile" };
+}
+
+export type JobDigestResult =
+  | { ok: true; optIn: boolean }
+  | { ok: false; reason: "no-account" | "not-a-freelancer" };
+
+/**
+ * Turns the weekly job digest on or off.
+ *
+ * Freelancers only — it is a digest of jobs, and a recruiter has no use for
+ * one. Refused for anyone else rather than silently written, so a stray POST
+ * cannot leave a flag set on an account that will never act on it.
+ *
+ * Idempotent: setting the state you are already in is a success. People land
+ * here from the unsubscribe page as often as from the settings screen.
+ */
+export async function setJobDigestForUser(
+  userId: string,
+  raw: { optIn: unknown },
+): Promise<JobDigestResult> {
+  const parsed = jobDigestSchema.safeParse(raw);
+  // A checkbox posts nothing when unchecked, so a parse failure here means a
+  // malformed value, not an absent one.
+  const optIn = parsed.success ? parsed.data.optIn === "on" : false;
+
+  const row = await getAccountSettingsRow(userId);
+  if (!row) return { ok: false, reason: "no-account" };
+  if (row.role !== "FREELANCER") return { ok: false, reason: "not-a-freelancer" };
+
+  await setJobDigestOptIn(userId, optIn);
+  return { ok: true, optIn };
 }

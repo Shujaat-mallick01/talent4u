@@ -1,16 +1,23 @@
 import {
   findConversationIdForApplication,
+  findOutreachConversationId,
   getConversationForUser,
+  getOutreachParties,
   listConversationsForUser,
   markConversationRead,
   sendMessageTx,
   startConversationTx,
+  startOutreachTx,
   type ConversationThread,
 } from "@/lib/db/message";
 import { getEntitlementContext } from "@/lib/db/users";
 import { getApplicationParties } from "@/lib/db/engagement";
 import { getEntitlements } from "@/lib/pricing/entitlements";
-import type { SendMessageInput, StartConversationInput } from "@/lib/validations/message";
+import type {
+  SendMessageInput,
+  StartConversationInput,
+  StartOutreachInput,
+} from "@/lib/validations/message";
 
 import { scanMessageOnWrite } from "./message-safety";
 import { onMessageSent } from "./notify";
@@ -44,6 +51,17 @@ export type MessagingViewer = {
   role: "FREELANCER" | "RECRUITER";
   /** Recruiters only. Null for freelancers. */
   canInitiate: boolean;
+  /**
+   * Whether this account may write to somebody who has NOT applied to them.
+   *
+   * A separate question from canInitiate, and gated on a separate thing.
+   * CLAUDE.md gives the free tier "basic messaging" but puts outbound
+   * messaging behind the paid wall alongside candidate search — so cold
+   * outreach needs the PLAN, while opening a thread on an application someone
+   * already sent you needs the verification TIER. Both are required to reach
+   * a stranger; only the tier is required to answer an applicant.
+   */
+  canOutreach: boolean;
 };
 
 export type ViewerFailure = { ok: false; reason: "no-account" | "banned" | "not-allowed" };
@@ -77,6 +95,10 @@ async function resolveViewer(
       // A freelancer may always open a thread with a company they applied to.
       // A recruiter needs the verification tier that CLAUDE.md attaches this to.
       canInitiate: context.role === "FREELANCER" || entitlements.recruiter.initiateMessages,
+      // Outreach rides on the candidate-search entitlement: it is the other
+      // half of the same paid feature, and a free recruiter who could message
+      // anyone would have the valuable part of search without paying for it.
+      canOutreach: entitlements.recruiter.candidateSearch,
     },
   };
 }
@@ -182,6 +204,92 @@ export async function startConversationForUser(
 
   // Scanned AFTER the write, deliberately: a message is delivered and then
   // flagged for a human, never silently withheld. See message-safety.ts.
+  const scan = await scanMessageOnWrite(result.messageId, input.body);
+  onMessageSent(result.conversationId, userId, input.body);
+  return { ok: true, conversationId: result.conversationId, flagged: scan.flagged };
+}
+
+export type StartOutreachResult =
+  | { ok: true; conversationId: string; flagged: boolean }
+  | {
+      ok: false;
+      reason:
+        | "no-account"
+        | "banned"
+        | "not-allowed"
+        | "not-found"
+        | "job-closed"
+        | "plan-required"
+        | "cannot-initiate"
+        | "already-exists";
+      /** Set on already-exists so the caller can route to the live thread. */
+      conversationId?: string;
+    };
+
+/**
+ * Writes to a freelancer who has not applied — the other half of candidate
+ * search, and the only path in the product that puts a message in front of
+ * somebody who never asked for one.
+ *
+ * Four gates, in this order, and each refuses something different:
+ *
+ *   1. Not a recruiter        — freelancers do not cold-message anyone.
+ *   2. plan-required          — CLAUDE.md puts outbound messaging behind the
+ *                               paid wall with search. A free recruiter with
+ *                               a hand-written POST hits this.
+ *   3. cannot-initiate        — the verification tier. An UNVERIFIED company
+ *                               may reply to threads but may never start one,
+ *                               and paying does not change that.
+ *   4. Ownership and standing — the job must be theirs and still open, and
+ *                               the freelancer must still have a live profile.
+ *
+ * The job is not decoration. It is what the recipient sees to understand why a
+ * stranger is writing, and it bounds outreach to roles that actually exist —
+ * which is the difference between recruiting and spam.
+ */
+export async function startOutreachForUser(
+  userId: string,
+  input: StartOutreachInput,
+): Promise<StartOutreachResult> {
+  const resolved = await resolveViewer(userId);
+  if (!resolved.ok) return resolved;
+  const { viewer } = resolved;
+
+  if (viewer.role !== "RECRUITER") return { ok: false, reason: "not-allowed" };
+  if (!viewer.canOutreach) return { ok: false, reason: "plan-required" };
+  if (!viewer.canInitiate) return { ok: false, reason: "cannot-initiate" };
+
+  // Ownership is inside the query: a recruiter naming a job that is not theirs
+  // gets null, not somebody else's candidate.
+  const parties = await getOutreachParties(input.jobId, input.freelancerId, userId);
+  if (!parties) return { ok: false, reason: "not-found" };
+  if (parties.recruiterIsBanned) return { ok: false, reason: "banned" };
+  if (!parties.jobIsOpen) return { ok: false, reason: "job-closed" };
+
+  const result = await startOutreachTx({
+    jobId: input.jobId,
+    senderUserId: userId,
+    recipientUserId: parties.freelancerUserId,
+    body: input.body,
+  });
+
+  if (!result.ok) {
+    // They have written to this person about this job before, or double-clicked
+    // just now. Either way the thread they wanted exists — send them into it.
+    const existing = await findOutreachConversationId(
+      input.jobId,
+      parties.freelancerUserId,
+      userId,
+    );
+    return {
+      ok: false,
+      reason: "already-exists",
+      ...(existing ? { conversationId: existing } : {}),
+    };
+  }
+
+  // Scanned AFTER the write, exactly as an application thread is: delivered
+  // and then flagged for a human, never silently withheld.
   const scan = await scanMessageOnWrite(result.messageId, input.body);
   onMessageSent(result.conversationId, userId, input.body);
   return { ok: true, conversationId: result.conversationId, flagged: scan.flagged };

@@ -36,6 +36,7 @@ const freelancerRow = (over: Partial<AccountSettingsRow> = {}): AccountSettingsR
   emailVerified: new Date("2026-01-01T00:00:00Z"),
   role: "FREELANCER",
   billingCountry: "PK",
+  jobDigestOptIn: true,
   freelancer: {
     id: "fp_1",
     slug: "jane-cooper",
@@ -55,6 +56,7 @@ const recruiterRow = (
   emailVerified: new Date("2026-01-01T00:00:00Z"),
   role: "RECRUITER",
   billingCountry: "GB",
+  jobDigestOptIn: true,
   freelancer: null,
   recruiter: {
     id: "rp_1",

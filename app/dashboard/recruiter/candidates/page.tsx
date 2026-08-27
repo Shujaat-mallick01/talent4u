@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { StartOutreach } from "@/components/messages/start-outreach";
 import { ProfileBadge } from "@/components/profile/profile-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { IconArrowRight, IconSearch } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/notice";
 import { Select } from "@/components/ui/select";
+import { resolveMessageNotice } from "@/app/dashboard/messages/notices";
 import { requireRole } from "@/lib/auth/guards";
 import { listSkillsGroupedByCategory } from "@/lib/db/freelancer";
 import { COUNTRIES } from "@/lib/geo/countries";
@@ -67,7 +69,11 @@ export default async function CandidatesPage({
 }) {
   // Guarded here, not only in the rail — the caller is curl.
   const { user } = await requireRole("RECRUITER");
-  const filters = parseCandidateSearchParams(await searchParams);
+  const params = await searchParams;
+  const filters = parseCandidateSearchParams(params);
+  const notice = resolveMessageNotice(
+    typeof params.notice === "string" ? params.notice : undefined,
+  );
   const result = await searchCandidatesForUser(user.id, filters);
 
   if (!result.ok && result.reason === "not-recruiter") redirect("/dashboard");
@@ -176,7 +182,9 @@ export default async function CandidatesPage({
     );
   }
 
-  const { candidates, hasMore, nextCursor, countries } = result.view;
+  const { candidates, hasMore, nextCursor, countries, openJobs, threads, canInitiate } =
+    result.view;
+  const RETURN_TO = "/dashboard/recruiter/candidates";
   const skillGroups = await listSkillsGroupedByCategory();
   const selectedSkills = new Set(filters.skillSlugs ?? []);
   const countrySet = new Set(countries);
@@ -203,6 +211,12 @@ export default async function CandidatesPage({
             for, and it is the only thing that moves the order besides how well they match.
           </p>
         </header>
+
+        {notice ? (
+          <Notice tone={notice.tone} className="mb-6 max-w-3xl">
+            {notice.message}
+          </Notice>
+        ) : null}
 
         <div className="grid gap-x-10 gap-y-8 lg:grid-cols-[17rem_1fr]">
           {/* Results first in the DOM, rail second: a keyboard user reaches the
@@ -351,6 +365,19 @@ export default async function CandidatesPage({
                           <span className="t-label text-muted-foreground">
                             {COUNTRIES.find((x) => x.code === c.country)?.name ?? c.country}
                           </span>
+                        </div>
+
+                        {/* The other half of the paid feature: writing to
+                            somebody who has not applied. */}
+                        <div className="w-full">
+                          <StartOutreach
+                            freelancerId={c.id}
+                            freelancerName={c.displayName}
+                            openJobs={openJobs}
+                            canInitiate={canInitiate}
+                            conversationId={threads.get(c.userId)}
+                            returnTo={RETURN_TO}
+                          />
                         </div>
                       </div>
                     </li>

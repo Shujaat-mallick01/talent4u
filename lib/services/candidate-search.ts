@@ -1,4 +1,6 @@
 import { candidateCountries, searchCandidates, type CandidateRow } from "@/lib/db/candidate-search";
+import { listOpenJobsForRecruiterUser } from "@/lib/db/job";
+import { mapOutreachThreads } from "@/lib/db/message";
 import { getEntitlementContext } from "@/lib/db/users";
 import { getEntitlements } from "@/lib/pricing/entitlements";
 import type { CandidateSearchCursor, CandidateSearchFilters } from "@/lib/validations/candidate-search";
@@ -30,6 +32,16 @@ export type CandidateSearchView = {
   nextCursor: CandidateSearchCursor | null;
   /** Countries with at least one live profile, for the filter dropdown. */
   countries: string[];
+  /** The recruiter's open roles — outreach names the one it is about. */
+  openJobs: { id: string; title: string }[];
+  /** freelancer user id -> an existing thread with them, if there is one. */
+  threads: Map<string, string>;
+  /**
+   * Whether this company may write first. The VERIFICATION rule, not the plan
+   * one — an UNVERIFIED company on Team can search and cannot message, which
+   * is the asymmetry CLAUDE.md's tier table describes.
+   */
+  canInitiate: boolean;
 };
 
 export type CandidateSearchResult =
@@ -56,14 +68,29 @@ export async function searchCandidatesForUser(
   // The wall. Nothing below this line runs for a free recruiter.
   if (!entitlements.recruiter.candidateSearch) return { ok: false, reason: "plan-required" };
 
-  const [{ candidates, hasMore, nextCursor }, countries] = await Promise.all([
+  const [{ candidates, hasMore, nextCursor }, countries, openJobs] = await Promise.all([
     searchCandidates(filters),
     candidateCountries(),
+    listOpenJobsForRecruiterUser(userId),
   ]);
+
+  // One query for the whole page rather than one per row.
+  const threads = await mapOutreachThreads(
+    userId,
+    candidates.map((c) => c.userId),
+  );
 
   return {
     ok: true,
-    view: { candidates, hasMore, nextCursor: hasMore ? nextCursor : null, countries },
+    view: {
+      candidates,
+      hasMore,
+      nextCursor: hasMore ? nextCursor : null,
+      countries,
+      openJobs,
+      threads,
+      canInitiate: entitlements.recruiter.initiateMessages,
+    },
   };
 }
 

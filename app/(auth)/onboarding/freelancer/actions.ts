@@ -2,6 +2,8 @@
 
 import { redirect } from "next/navigation";
 
+import { onProfileCreated } from "@/lib/services/notify";
+
 import { requireRole } from "@/lib/auth/guards";
 import { onboardFreelancer } from "@/lib/services/freelancer";
 import { freelancerOnboardingSchema } from "@/lib/validations/freelancer";
@@ -69,6 +71,9 @@ export async function submitFreelancerOnboarding(
 
   const result = await onboardFreelancer(user.id, parsed.data);
   if (result.ok) {
+    // Fire-and-forget, after the response. A mail outage must never be able to
+    // fail an onboarding the database has already committed.
+    onProfileCreated(user.email, parsed.data.displayName, "FREELANCER");
     redirect(`/dashboard/freelancer`);
   }
 

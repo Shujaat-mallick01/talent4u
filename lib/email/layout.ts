@@ -70,6 +70,33 @@ export function paragraph(text: string): string {
 }
 
 /**
+ * A list of jobs, for the weekly digest.
+ *
+ * Each row is a link on the title, because the title is what a person decides
+ * from and what their thumb lands on. Budget sits in the mono stack so a
+ * column of numbers lines up, the way it does everywhere else in the product.
+ */
+export function jobList(
+  jobs: { title: string; companyName: string; budget: string | null; href: string }[],
+): string {
+  if (jobs.length === 0) return "";
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:20px 0;border-top:1px solid ${LINE};">
+${jobs
+  .map(
+    (j) => `  <tr><td style="padding:14px 0;border-bottom:1px solid ${LINE};">
+    <a href="${escapeHtml(j.href)}" style="font-family:${SANS};font-size:16px;line-height:22px;font-weight:600;color:${INK};text-decoration:none;">${escapeHtml(j.title)}</a>
+    <div style="margin-top:4px;font-family:${SANS};font-size:14px;line-height:20px;color:${SLATE};">${escapeHtml(j.companyName)}${
+      j.budget
+        ? ` &middot; <span style="font-family:${MONO};">${escapeHtml(j.budget)}</span>`
+        : ""
+    }</div>
+  </td></tr>`,
+  )
+  .join("\n")}
+</table>`;
+}
+
+/**
  * Wraps a body in the shell.
  *
  * `reason` is not boilerplate: it says why this specific person is receiving
@@ -82,8 +109,15 @@ export function emailLayout(args: {
   body: string;
   reason: string;
   preheader: string;
+  /**
+   * Only for mail that is not transactional. Everything triggered by another
+   * person's action on your own account carries no unsubscribe link and needs
+   * none; the weekly digest is the one thing that does, and it must be
+   * refusable in one click without signing in.
+   */
+  unsubscribeUrl?: string;
 }): string {
-  const { heading, body, reason, preheader } = args;
+  const { heading, body, reason, preheader, unsubscribeUrl } = args;
 
   return `<!doctype html>
 <html lang="en">
@@ -108,7 +142,14 @@ export function emailLayout(args: {
         <p style="margin:0 0 8px;font-family:${SANS};font-size:13px;line-height:18px;color:${SLATE};">${escapeHtml(reason)}</p>
         <p style="margin:0;font-family:${SANS};font-size:13px;line-height:18px;color:${SLATE};">
           Talent4u takes 0% commission. We never hold or transfer your money, and we never ask you to pay to apply.
-        </p>
+        </p>${
+          unsubscribeUrl
+            ? `
+        <p style="margin:8px 0 0;font-family:${SANS};font-size:13px;line-height:18px;color:${SLATE};">
+          <a href="${escapeHtml(unsubscribeUrl)}" style="color:${SLATE};">Stop sending me this digest</a> — one click, no sign-in, and it does not affect mail about your own applications.
+        </p>`
+            : ""
+        }
       </td></tr>
     </table>
   </td></tr>
@@ -123,10 +164,14 @@ export function textEmail(args: {
   lines: string[];
   action?: { label: string; href: string };
   reason: string;
+  unsubscribeUrl?: string;
 }): string {
   const parts = [args.heading, "", ...args.lines];
   if (args.action) parts.push("", `${args.action.label}: ${args.action.href}`);
   parts.push("", "—", args.reason, "Talent4u takes 0% commission and never asks you to pay to apply.");
+  if (args.unsubscribeUrl) {
+    parts.push("", `Stop sending me this digest: ${args.unsubscribeUrl}`);
+  }
   return parts.join("\n");
 }
 

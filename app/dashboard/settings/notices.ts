@@ -69,7 +69,16 @@ const COPY: Record<SettingsNotice, SettingsNoticeCopy> = {
     tone: "error",
     message: "Finish setting up your profile before changing these settings.",
   },
-  failed: {
+  digest_on: {
+    tone: "success",
+    message:
+      "The weekly job digest is on. One email a week, listing new roles that match the skills on your profile.",
+  },
+  digest_off: {
+    tone: "success",
+    message:
+      "The weekly job digest is off. Mail about your own applications, messages and account is unaffected.",
+  },  failed: {
     tone: "error",
     message: "That change did not go through. Reload and try again.",
   },

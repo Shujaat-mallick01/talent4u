@@ -59,6 +59,19 @@ export const profileVisibilitySchema = z.object({
 export type ProfileVisibilityInput = z.infer<typeof profileVisibilitySchema>;
 
 /**
+ * The weekly job digest toggle.
+ *
+ * A checkbox posts its value only when checked, so absence means off. Parsing
+ * it as "on" | undefined rather than a boolean keeps that browser behaviour
+ * explicit instead of relying on a coercion that reads as a bug later.
+ */
+export const jobDigestSchema = z.object({
+  optIn: z.literal("on").optional(),
+});
+
+export type JobDigestInput = z.infer<typeof jobDigestSchema>;
+
+/**
  * Every outcome the settings screen can report, as a stable code. The page
  * renders only these — never free text from the query string — so a crafted
  * link cannot inject copy into a page that talks about passwords. The
@@ -78,6 +91,8 @@ export const settingsNoticeSchema = z.enum([
   "already_active",
   "reactivate_blocked",
   "no_profile",
+  "digest_on",
+  "digest_off",
   "failed",
 ]);
 

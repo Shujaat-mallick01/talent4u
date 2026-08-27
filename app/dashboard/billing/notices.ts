@@ -54,6 +54,11 @@ const COPY: Record<BillingNoticeCode, BillingNoticeCopy> = {
     message:
       "This company has been removed from Talent4u, so there is no plan to buy — a subscription would not let you post, message or be found. Contact us if you believe that is a mistake.",
   },
+  checkout_too_fast: {
+    tone: "warning",
+    message:
+      "That is a lot of checkout attempts in a short time. Wait a few minutes — nothing has been charged.",
+  },
   portal_failed: {
     tone: "error",
     message: "The billing portal could not be opened. Try again in a moment.",

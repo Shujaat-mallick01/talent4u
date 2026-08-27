@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/guards";
+import { checkRateLimit } from "@/lib/services/rate-limit";
 import { openBillingPortal, startCheckout } from "@/lib/services/billing";
 import { checkoutSchema, type BillingNoticeCode } from "@/lib/validations/billing";
 
@@ -26,6 +27,12 @@ function back(notice: BillingNoticeCode): never {
 
 export async function startCheckoutAction(formData: FormData): Promise<void> {
   const { user } = await requireUser();
+
+  // Every one of these creates a Stripe Checkout Session, which costs an API
+  // call and leaves a payable URL behind for thirty minutes. A loop here is
+  // both a bill and a way to end up holding several live sessions at once.
+  const limit = await checkRateLimit("checkout", user.id);
+  if (!limit.allowed) back("checkout_too_fast");
 
   const parsed = checkoutSchema.safeParse({ plan: formData.get("plan") });
   if (!parsed.success) back("not_purchasable");

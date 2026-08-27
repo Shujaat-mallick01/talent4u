@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 
+import { pruneRateLimits } from "@/lib/db/rate-limit";
 import { runJobDigest } from "@/lib/services/digest";
 
 /**
@@ -49,7 +50,15 @@ async function handle(request: Request): Promise<NextResponse> {
     console.log(
       `[digest] considered=${summary.considered} sent=${summary.sent} noMatches=${summary.noMatches} failed=${summary.failed}`,
     );
-    return NextResponse.json(summary);
+
+    // Piggybacked rather than given a schedule of its own. The rate-limit
+    // table is written constantly and read never; expired rows cost storage
+    // and nothing else, so a job that runs hourly to reclaim kilobytes would
+    // be more operational surface than the problem deserves.
+    const pruned = await pruneRateLimits();
+    if (pruned > 0) console.log(`[digest] pruned ${pruned} expired rate-limit rows`);
+
+    return NextResponse.json({ ...summary, prunedRateLimits: pruned });
   } catch (error) {
     console.error("[digest] run failed:", error instanceof Error ? error.message : error);
     // 500 so the scheduler records a failure. Safe to retry: accounts already

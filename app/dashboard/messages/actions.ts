@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/guards";
+import { checkRateLimit } from "@/lib/services/rate-limit";
 import {
   sendMessageForUser,
   startConversationForUser,
@@ -48,6 +49,12 @@ const noticeFor = (reason: string): string => NOTICE_BY_REASON[reason] ?? "faile
 export async function startConversation(formData: FormData): Promise<void> {
   const { user } = await requireUser();
 
+  // One bucket across replies and new threads: from the receiving end it is
+  // all just messages arriving, and splitting the budget would let somebody
+  // send twice as many by alternating between the two.
+  const limit = await checkRateLimit("message", user.id);
+  if (!limit.allowed) redirect(`${PAGE}?notice=too_fast`);
+
   const parsed = startConversationSchema.safeParse({
     applicationId: str(formData, "applicationId"),
     body: str(formData, "body"),
@@ -75,6 +82,9 @@ export async function sendMessage(formData: FormData): Promise<void> {
   const { user } = await requireUser();
   const conversationId = str(formData, "conversationId");
 
+  const limit = await checkRateLimit("message", user.id);
+  if (!limit.allowed) redirect(`${PAGE}/${conversationId}?notice=too_fast`);
+
   const parsed = sendMessageSchema.safeParse({
     conversationId,
     body: str(formData, "body"),
@@ -100,6 +110,12 @@ export async function sendMessage(formData: FormData): Promise<void> {
 export async function startOutreach(formData: FormData): Promise<void> {
   const { user } = await requireUser();
   const back = str(formData, "returnTo") || "/dashboard/recruiter/candidates";
+
+  // Its own budget, and a daily one. This is the only path in the product that
+  // puts a message in front of somebody who never asked for it, so the ceiling
+  // is set where a real recruiter will never reach it and a bulk send will.
+  const limit = await checkRateLimit("outreach", user.id);
+  if (!limit.allowed) redirect(`${back}?notice=too_fast`);
 
   const parsed = startOutreachSchema.safeParse({
     freelancerId: str(formData, "freelancerId"),

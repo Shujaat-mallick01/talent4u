@@ -27,6 +27,7 @@ export const BILLING_NOTICE_CODES = [
   "already_on_plan",
   "manage_in_portal",
   "account_removed",
+  "checkout_too_fast",
   "portal_failed",
   "portal_unavailable",
   "no_customer",

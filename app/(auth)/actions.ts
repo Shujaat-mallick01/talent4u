@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/lib/auth/supabase";
 import { getSession } from "@/lib/auth/session";
 import { homeFor } from "@/lib/auth/route-guard";
 import { createUserWithRole, getUserAuthState, getUserAuthStateFresh } from "@/lib/db/users";
+import { callerIp, checkRateLimit, forgetRateLimit } from "@/lib/services/rate-limit";
 import {
   forgotPasswordSchema,
   resetPasswordSchema,
@@ -56,6 +57,14 @@ export async function signUpWithPassword(formData: FormData): Promise<void> {
   }
   const { email, password } = parsed.data;
 
+  // Per IP, not per email: bulk account creation uses a different address
+  // every time, which is exactly what an email-keyed limit would miss.
+  const signUpLimit = await checkRateLimit("sign-up", await callerIp());
+  if (!signUpLimit.allowed) {
+    backToSignUp("too_many");
+    return;
+  }
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -98,6 +107,16 @@ export async function signInWithPassword(formData: FormData): Promise<void> {
     return;
   }
 
+  // Keyed on the address AND the caller, so one attacker cannot lock a
+  // stranger out of their own account by failing sign-ins from afar, and one
+  // address cannot be sprayed from a single machine.
+  const subject = `${await callerIp()}|${parsed.data.email.toLowerCase()}`;
+  const signInLimit = await checkRateLimit("sign-in", subject);
+  if (!signInLimit.allowed) {
+    backTo("/signin", { error: "too_many" });
+    return;
+  }
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
 
@@ -105,6 +124,10 @@ export async function signInWithPassword(formData: FormData): Promise<void> {
     backTo("/signin", { error: "invalid_credentials" });
     return;
   }
+
+  // Getting your own password right clears the count, or somebody who mistyped
+  // it four times stays one typo from a lockout they already recovered from.
+  await forgetRateLimit("sign-in", subject);
 
   const nextPath = sanitizeNextPath(
     typeof formData.get("next") === "string" ? (formData.get("next") as string) : null,
@@ -186,12 +209,21 @@ export async function signOut(): Promise<void> {
  * Always reports the same thing whether or not the address has an account:
  * a reset form that says "no such user" is an account-enumeration oracle, and
  * on a marketplace that tells an attacker which companies and freelancers are
- * real. Supabase's own rate limiting is the throttle.
+ * real. Throttled here as well as by Supabase — see below.
  */
 export async function requestPasswordReset(formData: FormData): Promise<void> {
   const parsed = forgotPasswordSchema.safeParse({ email: formData.get("email") });
   if (!parsed.success) {
     backTo("/forgot-password", { error: "invalid_input" });
+    return;
+  }
+
+  // Supabase throttles this too, but its limits are generous and this is the
+  // one unauthenticated endpoint that sends mail to an address a stranger
+  // chose. Ours is the tighter of the two.
+  const resetLimit = await checkRateLimit("password-reset", await callerIp());
+  if (!resetLimit.allowed) {
+    backTo("/forgot-password", { error: "too_many" });
     return;
   }
 

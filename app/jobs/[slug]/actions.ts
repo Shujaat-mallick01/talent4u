@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/guards";
+import { checkRateLimit } from "@/lib/services/rate-limit";
 import { applyToJob } from "@/lib/services/application";
 import { isPlausibleSlug } from "@/lib/services/slug";
 import { applyToJobSchema } from "@/lib/validations/application";
@@ -30,6 +31,17 @@ export async function submitApplication(
   formData: FormData,
 ): Promise<ApplyFormState> {
   const { user } = await requireRole("FREELANCER");
+
+  // The 12-per-30-days quota is the real rule and lives in the service; this
+  // only stops somebody hammering the endpoint, which the quota would
+  // otherwise absorb one expensive transaction at a time.
+  const limit = await checkRateLimit("apply", user.id);
+  if (!limit.allowed) {
+    return {
+      fieldErrors: {},
+      formError: `Too many applications too quickly. Try again in ${Math.ceil(limit.retryAfterSeconds / 60)} minutes — none of your monthly allowance has been used.`,
+    };
+  }
 
   const slug = str(formData, "jobSlug");
   if (!isPlausibleSlug(slug)) {

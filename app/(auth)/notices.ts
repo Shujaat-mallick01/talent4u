@@ -28,6 +28,8 @@ const NOTICE_COPY: Record<AuthNotice, string> = {
   password_updated: "Password changed. You are signed in.",
   password_mismatch: "Both passwords must match.",
   password_too_short: "Use at least 8 characters.",
+  too_many:
+    "Too many attempts from here. Wait a few minutes and try again — this is a limit on the number of tries, not on your account.",
 };
 
 export const resolveNotice = (value: string | null | undefined): string | null => {

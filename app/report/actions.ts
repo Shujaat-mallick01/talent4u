@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/guards";
+import { checkRateLimit } from "@/lib/services/rate-limit";
 import { createReportForUser } from "@/lib/services/report";
 import { isPlausibleSlug } from "@/lib/services/slug";
 import { reportSchema } from "@/lib/validations/report";
@@ -46,6 +47,13 @@ export async function submitReport(formData: FormData): Promise<void> {
 
   const targetType = str(formData, "targetType");
   const page = pageFor(targetType, str(formData, "slug"));
+
+  // A moderation queue is only useful if a human can still read it. Flooding
+  // it is a denial of service against the safety team, not against a server.
+  // Checked after `page` so the refusal can be SAID — an action that silently
+  // does nothing teaches people to click it again.
+  const limit = await checkRateLimit("report", user.id);
+  if (!limit.allowed) redirect(`${page}?notice=report_too_fast`);
 
   const parsed = reportSchema.safeParse({
     targetType,

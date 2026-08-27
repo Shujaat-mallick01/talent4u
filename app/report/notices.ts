@@ -33,6 +33,12 @@ export function resolveReportNotice(code: string | undefined): ReportNotice | nu
         message:
           "You already reported this and it is still open. A second report does not move it up the queue — it is with a moderator.",
       };
+    case "report_too_fast":
+      return {
+        tone: "warning",
+        message:
+          "That is a lot of reports in a short time. Wait a few minutes and send the rest — nothing you already submitted has been lost.",
+      };
     case "report_limit":
       return {
         tone: "warning",

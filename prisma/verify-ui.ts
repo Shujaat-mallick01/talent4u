@@ -320,6 +320,45 @@ async function main() {
   }
 
   console.log("");
+  console.log("── Admin ─────────────────────────────────");
+  const admin = await prisma.user.findFirstOrThrow({
+    where: { role: "ADMIN" },
+    select: { email: true },
+  });
+  const asAdmin = await cookieFor(admin.email);
+  for (const [label, path] of [
+    ["moderation queue", "/admin"],
+    ["metrics", "/admin/metrics"],
+  ] as const) {
+    await audit(label, path, asAdmin);
+  }
+
+  // The dashboard exists to be honest, so the honesty is checked.
+  const metrics = await (
+    await fetch(`${SITE}/admin/metrics`, { headers: { cookie: asAdmin }, redirect: "manual" })
+  ).text();
+  check("metrics asks the three questions", [
+    "Do posted jobs attract applicants?",
+    "Do companies come back?",
+    "Do applicants hear anything back?",
+  ].every((q) => metrics.includes(q)));
+  check("every number shows what it is out of", metrics.includes("Out of"));
+  check("and what it does not say", metrics.includes("What it does not say"));
+  // BUILD_PLAN: "do not build a signups counter".
+  check("there is no signups counter", !/signups?\s*<|New signups|Total users/i.test(metrics));
+
+  // A recruiter must not reach it.
+  const recruiterPeek = await fetch(`${SITE}/admin/metrics`, {
+    headers: { cookie: asRecruiter },
+    redirect: "manual",
+  });
+  check(
+    "a recruiter cannot open the metrics",
+    recruiterPeek.status !== 200,
+    `status ${recruiterPeek.status}`,
+  );
+
+  console.log("");
   console.log("── The paid wall ────────────────────────────");
   // CLAUDE.md: "Free recruiters must never reach search." Checked over HTTP,
   // against the real page, by flipping the plan on a seeded recruiter.

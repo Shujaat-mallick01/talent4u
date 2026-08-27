@@ -417,6 +417,18 @@ model Subscription {
   updatedAt DateTime @updatedAt
 }
 
+/// Fixed-window rate limiting. One row per (action, subject); the window
+/// resets in the same statement that increments it, so a burst cannot slip
+/// through between a read and a write. Keys are hashed — they hold emails and
+/// IP addresses. Pruned by the weekly cron.
+model RateLimit {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime @default(now())
+
+  @@index([windowStart])
+}
+
 // ─────────────────────────────────────────────
 // Trust: engagements, reviews, moderation
 // ─────────────────────────────────────────────

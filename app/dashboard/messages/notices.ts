@@ -11,6 +11,12 @@ export function resolveMessageNotice(code: string | undefined): JobNotice | null
         message:
           "Sent — and flagged for review, because it matches a pattern we watch for. It was delivered; a moderator will look at it. If that seems wrong, it usually is: the wording just resembles a scam we see often.",
       };
+    case "too_fast":
+      return {
+        tone: "warning",
+        message:
+          "That is a lot of messages in a short time. Wait a few minutes — everything you have already sent went through.",
+      };
     case "message_empty":
       return { tone: "error", message: "Write something first — an empty message is not sent." };
     case "cannot_initiate":

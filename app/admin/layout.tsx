@@ -1,6 +1,6 @@
 import { AppShell } from "@/components/shell/app-shell";
 import type { NavGroup } from "@/components/shell/nav-items";
-import { IconBuilding, IconFlag } from "@/components/ui/icon";
+import { IconBuilding, IconFlag, IconGauge } from "@/components/ui/icon";
 import { requireRole } from "@/lib/auth/guards";
 import { getModerationCounts } from "@/lib/db/moderation";
 
@@ -26,6 +26,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             counts.openReports +
             counts.pendingVerifications +
             counts.pendingFreelancerVerifications,
+        },
+        {
+          href: "/admin/metrics",
+          label: "Metrics",
+          icon: <IconGauge />,
         },
       ],
     },

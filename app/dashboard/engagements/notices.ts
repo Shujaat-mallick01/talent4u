@@ -6,6 +6,12 @@ import type { JobNotice } from "../recruiter/notices";
  */
 export function resolveEngagementNotice(code: string | undefined): JobNotice | null {
   switch (code) {
+    case "too_fast":
+      return {
+        tone: "warning",
+        message:
+          "That is a lot of proposals in a short time. Wait a few minutes — every one you already sent went through.",
+      };
     case "proposed":
       return {
         tone: "success",

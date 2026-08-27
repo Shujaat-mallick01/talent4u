@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 
 import { Orbit } from "@/components/brand/orbit";
 import { Button } from "@/components/ui/button";
+import { reportError } from "@/lib/observability/report-error";
 
 /**
  * The route error boundary for everything below the root layout.
@@ -24,6 +26,13 @@ export default function ErrorPage({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Reported once per error, not once per render: `reset` re-renders this
+  // boundary, and without the dependency list a retry loop would report the
+  // same failure over and over.
+  useEffect(() => {
+    reportError(error, { scope: "route-boundary", digest: error.digest });
+  }, [error]);
+
   return (
     <main id="main" className="flex-1">
       <div className="mx-auto w-full max-w-3xl px-6 py-16 sm:py-24">

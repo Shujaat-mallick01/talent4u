@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/guards";
+import { checkRateLimit } from "@/lib/services/rate-limit";
 import {
   setApplicationNoteForUser,
   setApplicationStatusForUser,
@@ -63,6 +64,16 @@ const failureRedirect = (failure: JobActionFailure): never => {
 
 export async function submitJob(_prev: JobFormState, formData: FormData): Promise<JobFormState> {
   const { user } = await requireRole("RECRUITER");
+
+  // The active-post cap already binds what can be LIVE at once; this stops
+  // somebody filling the table with drafts, which the cap does not count.
+  const writeLimit = await checkRateLimit("job-write", user.id);
+  if (!writeLimit.allowed) {
+    return {
+      fieldErrors: {},
+      formError: "Too many job edits in a short time. Try again in a few minutes.",
+    };
+  }
 
   const parsed = jobPostSchema.safeParse({
     title: str(formData, "title"),
@@ -128,6 +139,8 @@ export async function submitJob(_prev: JobFormState, formData: FormData): Promis
 
 export async function publishExistingJob(formData: FormData): Promise<void> {
   const { user } = await requireRole("RECRUITER");
+  const publishLimit = await checkRateLimit("job-write", user.id);
+  if (!publishLimit.allowed) redirect("/dashboard/recruiter?notice=too_fast");
   const jobId = str(formData, "jobId");
   if (!jobId) redirect(`${DASHBOARD}?notice=not_found`);
 

@@ -58,6 +58,12 @@ export function resolveJobNotice(params: {
         message:
           "Post withdrawn back to drafts and its slot freed. Edit it and publish again whenever you're ready — it will be re-checked on publish.",
       };
+    case "too_fast":
+      return {
+        tone: "warning",
+        message:
+          "That is a lot of changes in a short time. Wait a few minutes and try again — nothing you already saved has been lost.",
+      };
     case "publish_failed":
       return { tone: "error", message: "We couldn't publish that job. Try again." };
     case "not_found":

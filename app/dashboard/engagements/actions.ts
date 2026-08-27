@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/guards";
+import { checkRateLimit } from "@/lib/services/rate-limit";
 import {
   amendEngagementTermsForUser,
   confirmEngagementForUser,
@@ -60,6 +61,11 @@ const noticeFor = (reason: string): string => NOTICE_BY_REASON[reason] ?? "faile
 export async function proposeEngagement(formData: FormData): Promise<void> {
   const { user } = await requireUser();
   const page = pageFor(user.role);
+
+  // Each proposal mails the other party, so this is a send button with
+  // somebody else's inbox on the end of it.
+  const limit = await checkRateLimit("message", user.id);
+  if (!limit.allowed) redirect(`${page}?notice=too_fast`);
 
   const parsed = proposeEngagementSchema.safeParse({
     applicationId: str(formData, "applicationId"),

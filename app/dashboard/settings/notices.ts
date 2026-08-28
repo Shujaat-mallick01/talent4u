@@ -69,6 +69,20 @@ const COPY: Record<SettingsNotice, SettingsNoticeCopy> = {
     tone: "error",
     message: "Finish setting up your profile before changing these settings.",
   },
+  delete_mismatch: {
+    tone: "error",
+    message:
+      "That is not the email address on this account, so nothing was deleted. Type it exactly as it appears above.",
+  },
+  delete_billing: {
+    tone: "error",
+    message:
+      "Your subscription could not be cancelled just now, so the account was left alone — deleting it while a subscription is live would keep charging you with no way left to stop it. Try again in a few minutes.",
+  },
+  delete_failed: {
+    tone: "error",
+    message: "The account could not be deleted. Nothing has changed. Try again shortly.",
+  },
   too_fast: {
     tone: "warning",
     message:

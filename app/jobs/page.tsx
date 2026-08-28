@@ -23,6 +23,7 @@ import { savedJobIdSet } from "@/lib/db/saved-job";
 import { getFreelancerProfileByUserId } from "@/lib/db/users";
 import { SaveToggle } from "@/components/jobs/save-toggle";
 import { getViewerSkillSlugs, scoreJobMatch } from "@/lib/services/job-match";
+import { itemListJsonLd, jsonLdScript } from "@/lib/profile/jsonld";
 import { SITE_URL } from "@/lib/site-url";
 import { cn } from "@/lib/utils";
 import {
@@ -314,6 +315,21 @@ export default async function JobsBrowsePage({
 
   return (
     <main id="main" className="flex-1">
+      {/* What this page contains, for a crawler. The rows below link to the
+          detail pages that describe each job in full. */}
+      {jobs.length > 0 ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: jsonLdScript(
+              itemListJsonLd({
+                name: filters.q ? `Jobs matching ${filters.q}` : "Open jobs on Talent4u",
+                urls: jobs.map((j) => `${SITE_URL}/jobs/${j.slug}`),
+              }),
+            ),
+          }}
+        />
+      ) : null}
       <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-10">
         <header className="pb-6">
           <h1 className="t-display-2">Browse jobs</h1>

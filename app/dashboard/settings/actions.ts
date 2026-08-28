@@ -5,13 +5,17 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/guards";
 import { checkRateLimit } from "@/lib/services/rate-limit";
 import { createSupabaseServerClient } from "@/lib/auth/supabase";
+import { deleteAccountForUser } from "@/lib/services/account-deletion";
 import {
   changePassword,
   setBillingCountryForUser,
   setJobDigestForUser,
   setProfileVisibilityForUser,
 } from "@/lib/services/settings";
-import type { SettingsNotice } from "@/lib/validations/settings";
+import {
+  deleteAccountSchema,
+  type SettingsNotice,
+} from "@/lib/validations/settings";
 
 /**
  * Account settings Server Actions.
@@ -129,4 +133,39 @@ export async function saveJobDigest(formData: FormData): Promise<void> {
     return;
   }
   back(result.optIn ? "digest_on" : "digest_off");
+}
+
+/**
+ * Deletes the account, then ends the session.
+ *
+ * Signing out afterwards is not decoration: the Auth user is gone, so the
+ * cookie in the browser now points at nothing. Clearing it is what stops the
+ * next page load looking like a broken session rather than a completed action.
+ */
+export async function deleteAccount(formData: FormData): Promise<void> {
+  const { user } = await requireUser();
+
+  const parsed = deleteAccountSchema.safeParse({
+    confirmEmail: formData.get("confirmEmail"),
+  });
+  if (!parsed.success) {
+    back("delete_mismatch");
+    return;
+  }
+
+  const result = await deleteAccountForUser(user.id, parsed.data.confirmEmail);
+  if (!result.ok) {
+    back(
+      result.reason === "confirmation-mismatch"
+        ? "delete_mismatch"
+        : result.reason === "billing-unreachable"
+          ? "delete_billing"
+          : "delete_failed",
+    );
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  await supabase.auth.signOut();
+  redirect("/signin?message=account_deleted");
 }

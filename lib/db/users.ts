@@ -87,11 +87,17 @@ export async function getUserAuthStateFresh(id: string): Promise<UserAuthState |
       id: true,
       email: true,
       role: true,
+      // A deleted account is not an account. Its Auth user is removed too, so
+      // a session should already be dead — but a token issued moments before
+      // can still validate on signature alone, and this is the boundary every
+      // guard goes through. Checked here so there is exactly one place it can
+      // be forgotten.
+      deletedAt: true,
       freelancer: { select: { id: true } },
       recruiter: { select: { id: true } },
     },
   });
-  if (!user) return null;
+  if (!user || user.deletedAt !== null) return null;
 
   return {
     id: user.id,

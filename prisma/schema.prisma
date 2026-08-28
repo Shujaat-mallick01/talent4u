@@ -45,6 +45,12 @@ model User {
   jobDigestOptIn   Boolean   @default(true)
   unsubscribeToken String?   @unique
   lastJobDigestAt  DateTime?
+
+  /// Set when the person deletes their account. Not a row delete: their
+  /// applications, engagements and the reviews others wrote about them are
+  /// shared history. The person is anonymised and the record is kept — see
+  /// the migration. Excluded from every authenticated lookup.
+  deletedAt DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -62,6 +68,7 @@ model User {
   @@unique([id, role])
   // The digest job's query: opted in, and due.
   @@index([jobDigestOptIn, lastJobDigestAt])
+  @@index([deletedAt])
 }
 
 // ─────────────────────────────────────────────
@@ -345,6 +352,11 @@ model Application {
   proposedRateUsd Int?
   status          ApplicationStatus @default(SUBMITTED)
   viewedAt        DateTime?
+  /// When a recruiter actually shortlisted or rejected this. Write-once, and
+  /// distinct from updatedAt, which moves whenever anything on the row does —
+  /// including a private note added months later. The health metric needs the
+  /// decision, not the last edit. Null on rows decided before this existed.
+  decidedAt       DateTime?
   recruiterNote   String?           @db.Text // Growth tier and above
 
   // At most one, enforced by Conversation.applicationId being unique.
@@ -607,11 +619,11 @@ model Conversation {
   // the service having to lock anything.
   //
   // Nullable because a thread does not structurally require an application:
-  // recruiter-initiated outbound messaging from candidate search (a paid
-  // feature, not yet built) will create threads with no application behind
-  // them, and those must not all collide on a single NULL — Postgres treats
-  // NULLs as distinct in a unique index, which is exactly the behaviour that
-  // path needs.
+  // recruiter-initiated outbound messaging from candidate search creates
+  // threads with no application behind them, and those must not all collide on
+  // a single NULL — Postgres treats NULLs as distinct in a unique index, which
+  // is exactly the behaviour that path needs. Uniqueness for THOSE threads
+  // lives on outreachKey below.
   applicationId String?      @unique
   application   Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
 

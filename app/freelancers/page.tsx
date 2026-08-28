@@ -16,6 +16,7 @@ import { countryName } from "@/lib/geo/countries";
 import { upsellLine } from "@/lib/pricing/catalogue";
 import { freelancerVerificationBadge } from "@/lib/profile/badges";
 import { getViewerBand } from "@/lib/services/entitlements";
+import { itemListJsonLd, jsonLdScript } from "@/lib/profile/jsonld";
 import { SITE_URL } from "@/lib/site-url";
 import { cn } from "@/lib/utils";
 
@@ -89,6 +90,19 @@ export default async function FreelancersIndexPage({
 
   return (
     <main id="main" className="flex-1">
+      {profiles.length > 0 ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: jsonLdScript(
+              itemListJsonLd({
+                name: "Freelancers on Talent4u",
+                urls: profiles.map((p) => `${SITE_URL}/freelancers/${p.slug}`),
+              }),
+            ),
+          }}
+        />
+      ) : null}
       <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-10">
         <header className="pb-6">
           <h1 className="t-display-2">Freelancers</h1>

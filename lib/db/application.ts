@@ -195,6 +195,13 @@ export async function updateApplicationStatusForRecruiter(args: {
         status: to,
         // Deciding on an application implies having seen it.
         viewedAt: current.viewedAt ?? new Date(),
+        // The moment of the decision, which updatedAt cannot be trusted to
+        // hold: a private note written later moves that, and the health
+        // metric would then report the applicant as having heard back weeks
+        // after they did. Set on every decision — a shortlist that later
+        // becomes a rejection is a new decision, and the second one is the
+        // one that matters.
+        decidedAt: new Date(),
       },
     });
     return true;

@@ -85,3 +85,34 @@ export function jsonLdScript(data: Record<string, unknown>): string {
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");
 }
+
+/**
+ * An ItemList for a listing page.
+ *
+ * The detail pages already describe themselves — a JobPosting, a Person, an
+ * Organization — but the LIST pages, which are the ones that rank for
+ * "commission-free React jobs", said nothing about what they contained.
+ * ItemList is what tells a crawler that this page is a set of N things and
+ * where each of them lives, so the individual results can be surfaced from it.
+ *
+ * Deliberately URLs only, not embedded copies of each item. A summary here
+ * that disagreed with the detail page it points at is a structured-data error
+ * on both, and the crawler is going to fetch the real page anyway.
+ */
+export function itemListJsonLd(args: {
+  name: string;
+  urls: string[];
+}): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: args.name,
+    numberOfItems: args.urls.length,
+    itemListElement: args.urls.map((url, i) => ({
+      "@type": "ListItem",
+      // 1-based: schema.org positions are ordinal, not indices.
+      position: i + 1,
+      url,
+    })),
+  };
+}

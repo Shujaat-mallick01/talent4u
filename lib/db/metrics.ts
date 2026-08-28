@@ -107,14 +107,14 @@ export async function recruitersWhoPostedAgain(): Promise<Ratio> {
  * marketplace where people are ignored is a different failure from one where
  * they are turned down.
  *
- * KNOWN APPROXIMATION: the decision's timestamp is Application.updatedAt,
- * which is "the row last changed" and not "the decision was made" — a private
- * note written months later moves it. There is no decidedAt column to use
- * instead. The bias is one-directional and it is the safe direction: a late
- * edit pushes the decision OUTSIDE the 30-day window, so this measure
- * understates how often people hear back. Never the reverse. If it ever
- * matters enough to be exact, the fix is a decidedAt column written by
- * setApplicationStatusForUser, not a cleverer query.
+ * The decision's timestamp is Application.decidedAt, written once at the
+ * moment a recruiter shortlists or rejects. It falls back to updatedAt for
+ * rows decided before that column existed — those keep the old approximation,
+ * which ran late (a private note added months afterwards moved updatedAt) and
+ * so understated how often people heard back. Everything decided from here is
+ * exact. The old rows were not backfilled on purpose: updatedAt is precisely
+ * the guess decidedAt replaces, and copying it across would launder a guess
+ * into something that reads as a fact.
  */
 export async function freelancersWhoHeardBack(): Promise<Ratio> {
   const rows = await prisma.$queryRaw<RatioRow[]>`
@@ -134,7 +134,7 @@ export async function freelancersWhoHeardBack(): Promise<Ratio> {
           FROM "Application" a2
           WHERE a2."freelancerId" = f.freelancer_id
             AND a2."status" IN ('SHORTLISTED', 'REJECTED')
-            AND a2."updatedAt" <= f.first_at + interval '30 days'
+            AND COALESCE(a2."decidedAt", a2."updatedAt") <= f.first_at + interval '30 days'
         )
         OR EXISTS (
           SELECT 1

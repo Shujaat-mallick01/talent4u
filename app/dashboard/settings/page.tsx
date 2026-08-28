@@ -14,6 +14,7 @@ import { getSettingsViewForUser } from "@/lib/services/settings";
 import {
   changeAccountPassword,
   saveBillingCountry,
+  deleteAccount,
   saveJobDigest,
   saveProfileVisibility,
 } from "./actions";
@@ -325,6 +326,56 @@ export default async function SettingsPage({
             goes and what stays before anything is removed. If you only want to disappear from the
             public site, deactivating above does that immediately and is reversible.
           </p>
+        </section>
+
+        {/* ── Deleting the account ────────────────────────────────────── */}
+        {/* Last on the page, and the only destructive thing on it. Separated
+            from deactivation above because they are genuinely different: one
+            takes your page down and is reversible in a click, the other
+            removes you and is not reversible at all. */}
+        <section aria-labelledby="delete-heading" className="mt-14 border-t border-border pt-8">
+          <h2 id="delete-heading" className="t-subhead text-destructive">
+            Delete your account
+          </h2>
+          <p className="measure mt-2 text-[15px] leading-[22px] text-muted-foreground">
+            This cannot be undone. Your name, contact details, links and{" "}
+            {view.role === "FREELANCER" ? "skills" : "company details"} are removed, you are signed
+            out, and you will not be able to sign in again.
+          </p>
+          <p className="measure mt-3 text-[15px] leading-[22px] text-muted-foreground">
+            What stays: the applications you sent, any engagements both sides confirmed, and
+            reviews written about you — with your name replaced. Those belong to the person on the
+            other side of them as much as to you, and deleting them would rewrite their record.
+            {view.role === "RECRUITER" ? " Your open roles are closed." : ""}
+          </p>
+          <p className="measure mt-3 text-[15px] leading-[22px] text-muted-foreground">
+            If you only want to disappear from search and public pages, use{" "}
+            <span className="font-medium text-foreground">
+              Deactivate public {publicNoun}
+            </span>{" "}
+            above instead — that keeps your account and is reversible whenever you like.
+          </p>
+
+          <form action={deleteAccount} className="surface-card mt-6 max-w-xl p-5">
+            <Field
+              label={`Type ${view.email} to confirm`}
+              htmlFor="confirmEmail"
+              hint="Deleting is permanent. We ask for your address so it cannot happen by accident."
+            >
+              <Input
+                id="confirmEmail"
+                name="confirmEmail"
+                type="email"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={view.email}
+                required
+              />
+            </Field>
+            <Button type="submit" variant="destructive" className="mt-4">
+              Delete my account permanently
+            </Button>
+          </form>
         </section>
       </div>
     </main>

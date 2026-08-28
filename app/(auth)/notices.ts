@@ -28,6 +28,8 @@ const NOTICE_COPY: Record<AuthNotice, string> = {
   password_updated: "Password changed. You are signed in.",
   password_mismatch: "Both passwords must match.",
   password_too_short: "Use at least 8 characters.",
+  account_deleted:
+    "Your account is deleted. Your applications and any engagements you confirmed stay on the record for the people on the other side of them, with your name and details removed.",
   too_many:
     "Too many attempts from here. Wait a few minutes and try again — this is a limit on the number of tries, not on your account.",
 };

@@ -74,6 +74,7 @@ export const authNoticeSchema = z.enum([
   "password_mismatch",
   "password_too_short",
   "too_many",
+  "account_deleted",
 ]);
 
 export type AuthNotice = z.infer<typeof authNoticeSchema>;

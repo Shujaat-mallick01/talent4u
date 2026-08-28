@@ -72,6 +72,20 @@ export const jobDigestSchema = z.object({
 export type JobDigestInput = z.infer<typeof jobDigestSchema>;
 
 /**
+ * Deleting an account.
+ *
+ * The confirmation is the account's own email address, typed out. Not a
+ * checkbox: this is irreversible by design, and the cost of a mis-click is
+ * somebody's entire history on the platform. Matched server-side against the
+ * session's email — what the form sends proves intent and nothing else.
+ */
+export const deleteAccountSchema = z.object({
+  confirmEmail: z.string().trim().min(1, "Type your email address to confirm."),
+});
+
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
+
+/**
  * Every outcome the settings screen can report, as a stable code. The page
  * renders only these — never free text from the query string — so a crafted
  * link cannot inject copy into a page that talks about passwords. The
@@ -92,6 +106,9 @@ export const settingsNoticeSchema = z.enum([
   "reactivate_blocked",
   "no_profile",
   "too_fast",
+  "delete_mismatch",
+  "delete_billing",
+  "delete_failed",
   "digest_on",
   "digest_off",
   "failed",

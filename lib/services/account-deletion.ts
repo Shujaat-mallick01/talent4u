@@ -1,6 +1,7 @@
 import { anonymiseAccount } from "@/lib/db/account-deletion";
 import { getBillingState } from "@/lib/db/subscription";
 import { getUserAuthState } from "@/lib/db/users";
+import { deletePortfolioImages } from "@/lib/storage/portfolio-images";
 import { getSupabaseAdmin } from "@/lib/storage/supabase-admin";
 import { getStripe, stripeConfigured } from "@/lib/billing/stripe";
 import { reportError } from "@/lib/observability/report-error";
@@ -86,7 +87,16 @@ export async function deleteAccountForUser(
     return { ok: false, reason: "failed" };
   }
 
-  // ── 3. Close the door ───────────────────────────────────────────────────
+  // ── 3. Take the pictures down ───────────────────────────────────────────
+  // After the transaction, never inside it: storage is not transactional, and
+  // a rollback that had already deleted the objects would leave rows pointing
+  // at nothing. Best effort — the rows are gone either way, and a storage
+  // hiccup must not tell somebody their deletion failed when it did not.
+  if (summary.portfolioImageUrls.length > 0) {
+    await deletePortfolioImages(summary.portfolioImageUrls);
+  }
+
+  // ── 4. Close the door ───────────────────────────────────────────────────
   try {
     const { error } = await getSupabaseAdmin().auth.admin.deleteUser(userId);
     if (error) throw new Error(error.message);

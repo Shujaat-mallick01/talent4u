@@ -13,6 +13,7 @@ vi.mock("@/lib/db/account-deletion", () => ({ anonymiseAccount: vi.fn() }));
 vi.mock("@/lib/db/subscription", () => ({ getBillingState: vi.fn() }));
 vi.mock("@/lib/db/users", () => ({ getUserAuthState: vi.fn() }));
 vi.mock("@/lib/storage/supabase-admin", () => ({ getSupabaseAdmin: vi.fn() }));
+vi.mock("@/lib/storage/portfolio-images", () => ({ deletePortfolioImages: vi.fn() }));
 vi.mock("@/lib/observability/report-error", () => ({ reportError: vi.fn() }));
 
 import { anonymiseAccount } from "@/lib/db/account-deletion";
@@ -40,7 +41,7 @@ beforeEach(() => {
   mockAdmin.mockReturnValue({ auth: { admin: { deleteUser } } } as never);
   mockAuth.mockResolvedValue({ id: USER, email: EMAIL, role: "FREELANCER", hasProfile: true } as never);
   mockBilling.mockResolvedValue({ subscription: null } as never);
-  mockAnonymise.mockResolvedValue({ wasNamed: "Jane Cooper", hadSubscription: null });
+  mockAnonymise.mockResolvedValue({ wasNamed: "Jane Cooper", hadSubscription: null, portfolioImageUrls: [] });
 });
 
 describe("proving intent", () => {
@@ -78,7 +79,7 @@ describe("stopping the money first", () => {
     });
     mockAnonymise.mockImplementation(async () => {
       order.push("anonymise");
-      return { wasNamed: "Jane", hadSubscription: "sub_1" };
+      return { wasNamed: "Jane", hadSubscription: "sub_1", portfolioImageUrls: [] };
     });
     deleteUser.mockImplementation(async () => {
       order.push("delete-auth");

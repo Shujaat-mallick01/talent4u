@@ -51,8 +51,8 @@ model User {
   /// shared history. The person is anonymised and the record is kept — see
   /// the migration. Excluded from every authenticated lookup.
   deletedAt DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   freelancer    FreelancerProfile?
   recruiter     RecruiterProfile?
@@ -88,10 +88,10 @@ model FreelancerProfile {
   userRole UserRole @default(FREELANCER)
   user     User     @relation(fields: [userId, userRole], references: [id, role], onDelete: Cascade, onUpdate: Restrict)
 
-  slug          String @unique // public SEO URL
+  slug          String  @unique // public SEO URL
   displayName   String
   headline      String // "Senior Shopify Developer"
-  bio           String @db.Text
+  bio           String  @db.Text
   hourlyRateUsd Int?
   country       String
   timezone      String
@@ -171,19 +171,19 @@ model RecruiterProfile {
   description    String? @db.Text
   country        String
 
-  tier         RecruiterTier @default(UNVERIFIED)
-  verifiedAt   DateTime?
+  tier                    RecruiterTier @default(UNVERIFIED)
+  verifiedAt              DateTime?
   // Set when the recruiter submits for verification review; cleared on an
   // admin decision. UNVERIFIED + non-null = pending in the admin queue.
   verificationSubmittedAt DateTime?
   // The admin's reason when a submission is rejected, shown back to the
   // recruiter so they know what to fix.
-  verificationNote        String?   @db.Text
+  verificationNote        String?       @db.Text
   // Banning also transitions every job to REMOVED in the same transaction,
   // which is what actually removes them from browse.
-  isBanned     Boolean       @default(false)
-  bannedReason String?
-  bannedAt     DateTime?
+  isBanned                Boolean       @default(false)
+  bannedReason            String?
+  bannedAt                DateTime?
 
   // Self-service removal, distinct from a ban. A company that stops hiring can
   // take their page down without their history — engagements, reviews written
@@ -198,12 +198,12 @@ model RecruiterProfile {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@unique([userId, userRole])
   // The public /removed-employers page (isBanned = true ORDER BY bannedAt DESC)
   // is served by a partial index Prisma cannot model — see the raw SQL section
   // of the init migration ("RecruiterProfile_banned_bannedAt_idx"). Browse never
   // reads tier from this table; it uses the denormalized Job.recruiterTier.
+
+  @@unique([userId, userRole])
 }
 
 // ─────────────────────────────────────────────
@@ -244,7 +244,7 @@ model Job {
   isRemote       Boolean        @default(true)
   location       String?
 
-  status JobStatus @default(DRAFT)
+  status      JobStatus @default(DRAFT)
   // Write-once. Re-publishing would reset the Pro early-access window and
   // re-bump the job to the top of browse. Enforced in lib/services/jobs.ts.
   // ACTIVE implies NOT NULL; see constraints.sql.
@@ -290,8 +290,8 @@ model Category {
 }
 
 model Skill {
-  id         String   @id @default(cuid())
-  slug       String   @unique
+  id         String    @id @default(cuid())
+  slug       String    @unique
   name       String
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -506,7 +506,7 @@ model Engagement {
   // the @@unique([recruiterId, freelancerId, jobId]) below: a declined row
   // stays put, so the same claim cannot be re-filed at the same person.
   // A CHECK (see the 4.4 migration) keeps declined and confirmed disjoint.
-  declinedAt          DateTime?
+  declinedAt DateTime?
 
   reviews   Review[]
   createdAt DateTime @default(now())
@@ -531,7 +531,7 @@ model Engagement {
 }
 
 model Review {
-  engagementId String
+  engagementId          String
   // Always true, enforced by CHECK. Together with Engagement's
   // @@unique([id, isConfirmed]), this composite FK makes a review against an
   // unconfirmed engagement have no FK target — the insert fails at the
@@ -683,12 +683,12 @@ model ConversationParticipant {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  lastReadAt DateTime?
-  isArchived Boolean   @default(false)
+  lastReadAt    DateTime?
+  isArchived    Boolean   @default(false)
   // Mirrored from Conversation.lastMessageAt, updated in the same transaction
   // that inserts a message. This is what makes "my conversations, newest
   // first, paginated" a single index scan with no sort.
-  lastMessageAt DateTime @default(now())
+  lastMessageAt DateTime  @default(now())
 
   joinedAt DateTime @default(now())
 

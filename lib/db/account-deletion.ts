@@ -25,9 +25,18 @@ export type DeletionSummary = {
   /** What their public page said, for the confirmation screen. */
   wasNamed: string;
   hadSubscription: string | null;
+  /**
+   * Public URLs of portfolio images that belonged to this account.
+   *
+   * Returned rather than deleted here because storage is not transactional:
+   * the caller removes the objects AFTER the anonymisation commits, so a
+   * failed transaction cannot leave the pictures gone and the rows intact.
+   */
+  portfolioImageUrls: string[];
 };
 
 export async function anonymiseAccount(userId: string): Promise<DeletionSummary> {
+  let portfolioImageUrls: string[] = [];
   return prisma.$transaction(async (tx) => {
     const user = await tx.user.findUniqueOrThrow({
       where: { id: userId },
@@ -80,6 +89,19 @@ export async function anonymiseAccount(userId: string): Promise<DeletionSummary>
       });
       // Skills describe a person who is gone, and they are what search matches.
       await tx.skillOnFreelancer.deleteMany({ where: { freelancerId: user.freelancer.id } });
+
+      // Portfolio items are this person's own work, shared with nobody: unlike
+      // an application or a review they are not half of someone else's record,
+      // so they are deleted outright rather than anonymised. The image URLs go
+      // back to the caller, which removes the objects from the bucket — text
+      // scrubbed while the pictures stay publicly served is not erasure.
+      portfolioImageUrls = (
+        await tx.portfolioItem.findMany({
+          where: { freelancerId: user.freelancer.id },
+          select: { imageUrl: true },
+        })
+      ).map((r) => r.imageUrl);
+      await tx.portfolioItem.deleteMany({ where: { freelancerId: user.freelancer.id } });
     }
 
     if (user.recruiter) {
@@ -109,6 +131,7 @@ export async function anonymiseAccount(userId: string): Promise<DeletionSummary>
     return {
       wasNamed,
       hadSubscription: user.subscription?.stripeSubscriptionId ?? null,
+      portfolioImageUrls,
     };
   });
 }

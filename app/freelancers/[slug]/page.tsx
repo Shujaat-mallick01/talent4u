@@ -192,6 +192,17 @@ export default async function FreelancerProfilePage({
             value={rating === null ? "Not rated" : `${rating.toFixed(1)} / 5`}
             muted={rating === null}
           />
+          <Fact
+            label="Confirmed work"
+            value={
+              profile.confirmedEngagements === 0
+                ? "None yet"
+                : profile.confirmedEngagements === 1
+                  ? "1 engagement"
+                  : `${profile.confirmedEngagements} engagements`
+            }
+            muted={profile.confirmedEngagements === 0}
+          />
           <Fact label="Reviews" value={String(reviewCount)} muted={reviewCount === 0} />
           <Fact label="Country" value={country} />
           <Fact label="Timezone" value={profile.timezone.replace(/_/g, " ")} />
@@ -215,6 +226,57 @@ export default async function FreelancerProfilePage({
               </li>
             ))}
           </ul>
+        ) : null}
+
+        {profile.portfolio.length > 0 ? (
+          <section className="mt-8 border-t border-border pt-8">
+            <h2 className="t-label text-muted-foreground">Selected work</h2>
+            {/* Two columns, not a dense grid: these are cases to read, not
+                thumbnails to scan past. Above About on purpose — the work is
+                what somebody came to look at, and burying it under a paragraph
+                of prose is how a directory reads. */}
+            <ul className="mt-4 grid gap-5 sm:grid-cols-2">
+              {profile.portfolio.map((item) => (
+                <li key={item.id} className="surface-card overflow-hidden">
+                  {/* Fixed aspect so a column keeps one rhythm whatever people
+                      upload. Lazy because most are below the fold and this is
+                      an indexed page where LCP is the budget. */}
+                  <div className="aspect-[16/10] w-full overflow-hidden bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element --
+                        Supabase Storage serves these from a bucket host that
+                        next.config.ts does not whitelist for next/image. */}
+                    <img
+                      src={item.imageUrl}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="size-full object-cover"
+                    />
+                  </div>
+                  <div className="px-4 py-3.5">
+                    <h3 className="font-semibold">{item.title}</h3>
+                    {item.description ? (
+                      <p className="t-body-dense mt-1 whitespace-pre-wrap text-muted-foreground">
+                        {item.description}
+                      </p>
+                    ) : null}
+                    {item.linkUrl ? (
+                      <a
+                        href={item.linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer nofollow"
+                        className="mt-2 inline-flex items-center gap-1.5 text-[15px] font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      >
+                        See it live
+                        <IconExternal className="size-4 text-muted-foreground" />
+                        <span className="sr-only">(opens in a new tab)</span>
+                      </a>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
 
         <section className="mt-8 border-t border-border pt-8">

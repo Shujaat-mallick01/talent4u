@@ -4,6 +4,7 @@ import { isPlausibleSlug } from "@/lib/services/slug";
 import type { FreelancerOnboardingInput } from "@/lib/validations/freelancer";
 
 import { prisma } from "./client";
+import { countConfirmedEngagements } from "./portfolio";
 
 /**
  * Prisma access for freelancer profiles. No business logic lives here — the
@@ -51,6 +52,10 @@ export const getPublicFreelancerBySlug = cache(async (slug: string) => {
         },
         orderBy: { skill: { name: "asc" } },
       },
+      portfolio: {
+        select: { id: true, title: true, description: true, imageUrl: true, linkUrl: true },
+        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+      },
       reviewsReceived: {
         select: {
           id: true,
@@ -70,15 +75,22 @@ export const getPublicFreelancerBySlug = cache(async (slug: string) => {
   });
   if (!profile) return null;
 
-  const stats = await prisma.review.aggregate({
-    where: { subjectFreelancerId: profile.id },
-    _avg: { rating: true },
-    _count: { _all: true },
-  });
+  // Both proof numbers in one round trip alongside the profile.
+  const [stats, confirmedEngagements] = await Promise.all([
+    prisma.review.aggregate({
+      where: { subjectFreelancerId: profile.id },
+      _avg: { rating: true },
+      _count: { _all: true },
+    }),
+    countConfirmedEngagements(profile.id),
+  ]);
 
   return {
     ...profile,
     reviewStats: { average: stats._avg.rating, count: stats._count._all },
+    /** Engagements both parties confirmed — see lib/db/portfolio.ts for why
+     * this, and not an earnings figure, is the number on the page. */
+    confirmedEngagements,
   };
 });
 

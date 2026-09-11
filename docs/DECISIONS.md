@@ -6,6 +6,18 @@ Newest first.
 
 ---
 
+## 2026-09-12 — RLS is deny-all, with zero policies
+
+**Decision:** enable RLS on every table and write **no policies at all**, rather than authoring per-table read policies for `anon`.
+
+**Why:** nothing in this codebase reaches the database through PostgREST. The app connects through Prisma as `postgres`, which owns the tables and has `rolbypassrls = true`; the browser's Supabase client is used for **auth only**; uploads go through the secret key server-side. So the correct number of policies is zero, and any policy written today would be a guess about a feature that does not exist.
+
+**The trap this avoids:** "public data needs a public read policy" sounds right and is wrong here. `/jobs` is public, but it is public *through the Next.js server*, which reads as `postgres`. Adding a `SELECT` policy for `anon` on `Job` would re-open a direct path to the table — including columns the app never selects — to buy nothing.
+
+**Revisit when:** a feature genuinely needs to read from the browser via supabase-js. Then one table gets one policy, deliberately.
+
+---
+
 ## 2026-09-12 — Keep result unions; do not adopt `lib/errors`
 
 **BUILD_PLAN v2, Appendix B:** *"Throw typed errors from lib/errors. Never return ad-hoc error strings."*

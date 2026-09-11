@@ -1,0 +1,92 @@
+name: CI
+
+# BUILD_PLAN v2, session 0.3. Until this existed, CLAUDE.md's "definition of
+# done" was enforced by nothing but memory — and the audit found a suite that
+# had been writing to a real database for months while believing it was mocked.
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  # A new push supersedes the run in flight for the same ref.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: typecheck · lint · unit · integration · build
+    runs-on: ubuntu-latest
+
+    services:
+      # Vanilla Postgres, not Supabase. The integration tests need real
+      # transactions and real row locks, which is all this provides and all
+      # they use — the app reaches the database only through Prisma.
+      #
+      # Every migration must apply here, including the RLS lockdown. That one
+      # references Supabase's `anon` and `authenticated` roles, which do not
+      # exist in this container, so its REVOKEs are guarded on the roles being
+      # present. This job is what keeps that guard honest.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: testpw
+          POSTGRES_DB: talent4u_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:testpw@localhost:5432/talent4u_test
+      DIRECT_URL: postgresql://postgres:testpw@localhost:5432/talent4u_test
+      # Presence-checked at module import (lib/auth/supabase.ts throws without
+      # them). Never used to reach Supabase in CI — nothing here signs in.
+      NEXT_PUBLIC_SUPABASE_URL: https://ci.supabase.invalid
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Floor set by Prisma 7 (^20.19 || ^22.12 || >=24), which is stricter
+          # than Next's own >=20.9.
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # The client is generated into a gitignored directory, so nothing
+      # typechecks before this. It is also the single most common local
+      # failure: a stale client produces dozens of phantom type errors.
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Integration tests
+        # The suite refuses to run unless the database names itself a test
+        # database. This one does; the guard is not bypassed here.
+        run: npm run test:int
+
+      # Last, because it is the slowest and because it genuinely needs the
+      # database: the landing page is prerendered and reads live counts, so a
+      # build against no database fails. Worth knowing rather than working
+      # around — it is a real deploy-time coupling.
+      - name: Build
+        run: npm run build

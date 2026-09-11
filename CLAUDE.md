@@ -104,26 +104,52 @@ Do not add dependencies without asking. Do not introduce a queue, cache layer, o
 ## Commands
 
 ```bash
+npm run check               # typecheck + lint + unit. Run before finishing any slice.
+
 npm run dev                 # next dev
 npm run db:generate         # prisma generate  <- run after ANY pull touching prisma/
 npm run typecheck           # tsc --noEmit     (~40s)
 npm run lint                # eslint           (~2m)
-npm test                    # vitest run       (~20s, 48 files)
-npx vitest run <file>       # one file
-npx vitest run -t "<name>"  # one test
+npm run test:unit           # vitest, "unit" project — mocked db, no network (~20s)
 npm run build               # prisma generate && next build  -- NEEDS A REACHABLE DATABASE
+
+npx vitest run --project unit <file>      # one file
+npx vitest run --project unit -t "<name>" # one test
+
+# Integration tests: REAL Postgres, and they TRUNCATE. They refuse to run unless
+# DATABASE_URL names a test database, so they cannot be pointed at .env by accident.
+npm run db:test:up          # throwaway postgres:16 on :55433 (needs Docker)
+DATABASE_URL="postgresql://postgres:testpw@localhost:55433/talent4u_test" npx prisma migrate deploy
+DATABASE_URL="postgresql://postgres:testpw@localhost:55433/talent4u_test" npm run test:int
+npm run db:test:down
+
 npm run db:deploy           # migrations, no shadow DB needed
-npm run db:migrate          # migrate dev -- ALSO needs SHADOW_DATABASE_URL (absent from .env.example)
+npm run db:migrate          # migrate dev -- ALSO needs SHADOW_DATABASE_URL
 npm run db:seed && npx tsx prisma/dev-auth-users.ts   # BOTH -- seeded users cannot sign in without the second
 ```
 
-There is **no CI**. Nothing gates these but you.
+**CI runs all of it** on every push and PR (`.github/workflows/ci.yml`): generate →
+migrate → typecheck → lint → unit → integration → build, against a Postgres service.
+
 
 ---
 
+## Two test projects, and why
+
+`unit` mocks `lib/db` at the module boundary — fast, no database, no network.
+`integration` (`tests/integration/`) runs against real Postgres, for rules enforced **in
+SQL** that cannot be proven anywhere else: the `SELECT … FOR UPDATE` behind the application
+quota and the post cap, the CHECK constraints and trigger behind the review lock, and RLS.
+
+A mocked test cannot prove a row lock even in principle — the race only exists across real
+connections. Isolation is by TRUNCATE between files, **not** rolled-back transactions:
+nesting the app's `$transaction` inside an outer one makes its row locks mean something
+different from production, and two "concurrent" queries on one connection are not
+concurrent. Slower, and the only option that means anything here.
+
 ## Conventions
 
-**The two that override everything else:** every authorization check happens **server-side** — UI gating is cosmetic only. Server Components by default; `"use client"` only when interactivity requires it (13 of 104 `.tsx` files today). All mutations go through Server Actions; there are only three route handlers in the whole app and none of them is a data API.
+**The two that override everything else:** every authorization check happens **server-side** — UI gating is cosmetic only. Server Components by default; `"use client"` only when interactivity requires it (13 of 104 `.tsx` files today). All mutations go through Server Actions. There are four route handlers — auth callback, cron digest, Stripe webhook, and the Team CSV export — and none is a data API; the export answers one content type and returns a file.
 
 The rest differ from what you would write by default:
 
@@ -207,6 +233,16 @@ assuming the rule is already satisfied. See `docs/AUDIT.md` §6.
 - Run migrations or a scale seed against production.
 - Mark a slice done with failing checks.
 - Add a `loading.tsx` above a public detail route — it costs that route its 404 status.
+- **Create a table without `ENABLE ROW LEVEL SECURITY` in the same migration.** Supabase
+  grants `anon` and `authenticated` full DML on everything in `public` by default and
+  serves it over PostgREST, so a table without RLS is readable *and writable* by anyone
+  holding the publishable key — which ships in every browser bundle. That is how every
+  gate in this product was bypassable until 2026-09-12. Default privileges are now
+  revoked, but RLS on the table itself is the part that must not be forgotten.
+- Write an RLS **policy** without a reason. The policy set is deliberately empty: the app
+  reads as `postgres` (BYPASSRLS), and the browser's Supabase client is for auth only. A
+  "public read" policy on a public table re-opens the direct path for nothing. See
+  `docs/DECISIONS.md`.
 
 ## Definition of done
 

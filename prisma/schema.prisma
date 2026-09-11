@@ -130,6 +130,7 @@ model FreelancerProfile {
   applications    Application[]
   engagements     Engagement[]
   savedJobs       SavedJob[]
+  portfolio       PortfolioItem[]
   reviewsGiven    Review[]            @relation("ReviewAuthorFreelancer")
   reviewsReceived Review[]            @relation("ReviewSubjectFreelancer")
 
@@ -376,6 +377,37 @@ model Application {
 // the toggle's idempotency: saving twice conflicts instead of duplicating,
 // and unsaving is a delete by the same key. Cascade on both sides — a
 // bookmark is pure pointer, never shared history.
+/// A piece of work a freelancer chooses to show.
+///
+/// The profile was a directory row — name, headline, rate, skills — and a
+/// directory row is not a reason to hire anyone. This is the unit that turns a
+/// profile into a case: an image, a title, and what it was.
+///
+/// imageUrl is REQUIRED. An item without one is a bullet point, and the whole
+/// purpose here is a card somebody wants to look at.
+model PortfolioItem {
+  id           String            @id @default(cuid())
+  freelancerId String
+  freelancer   FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String? @db.Text
+  /// Public Supabase Storage URL. Required — see above.
+  imageUrl    String
+  /// Optional "see it live". Validated as https, never rendered as a raw href
+  /// without it.
+  linkUrl     String?
+  /// Manual order, lowest first. Arranging your own case is the point, so this
+  /// is not createdAt.
+  position    Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The only read there is: one freelancer, in their chosen order.
+  @@index([freelancerId, position])
+}
+
 model SavedJob {
   freelancerId String
   jobId        String

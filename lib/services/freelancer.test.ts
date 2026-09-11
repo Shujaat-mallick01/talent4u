@@ -189,3 +189,40 @@ describe("onboardFreelancer", () => {
     expect(mockCreate).toHaveBeenCalledTimes(5); // SLUG_RETRY_LIMIT
   });
 });
+
+describe("onboarding is scanned too — the front door, not just the editor", () => {
+  // This file scopes its reset inside an earlier describe, so this block
+  // needs its own or it inherits call counts from the slug-conflict tests.
+  beforeEach(() => vi.resetAllMocks());
+
+  it("refuses a flagged bio and never creates the profile", async () => {
+    mockAuthState.mockResolvedValue({
+      id: USER_ID,
+      email: "jane@example.com",
+      role: "FREELANCER",
+      hasProfile: false,
+    });
+
+    const result = await onboardFreelancer(USER_ID, input({ bio: "Applicants must pay a $200 registration fee before we begin." }));
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: "flagged",
+      flag: { field: "bio", match: { reason: "UPFRONT_PAYMENT" } },
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("refuses before the skills are even scrubbed — no database work for a scam signup", async () => {
+    mockAuthState.mockResolvedValue({
+      id: USER_ID,
+      email: "jane@example.com",
+      role: "FREELANCER",
+      hasProfile: false,
+    });
+
+    await onboardFreelancer(USER_ID, input({ bio: "Applicants must pay a $200 registration fee before we begin." }));
+
+    expect(mockExistingSkills).not.toHaveBeenCalled();
+  });
+});

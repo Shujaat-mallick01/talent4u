@@ -46,7 +46,11 @@ const back = (notice: SettingsNotice): void => {
  * owns the write; if the session has gone stale it refuses and we say so.
  */
 export async function changeAccountPassword(formData: FormData): Promise<void> {
-  await requireUser();
+  const { user } = await requireUser();
+  // A credential write behind one button. The session is the proof here, so
+  // this is not a guessing oracle — but it is still an unbounded write loop.
+  const rateLimit = await checkRateLimit("profile-write", user.id);
+  if (!rateLimit.allowed) back("too_fast");
 
   const result = await changePassword(
     { password: str(formData, "password"), confirm: str(formData, "confirm") },
@@ -127,6 +131,11 @@ export async function saveProfileVisibility(formData: FormData): Promise<void> {
  */
 export async function saveJobDigest(formData: FormData): Promise<void> {
   const { user } = await requireUser();
+  // The one settings mutation that shipped without a limit, beside two that
+  // have one.
+  const rateLimit = await checkRateLimit("profile-write", user.id);
+  if (!rateLimit.allowed) back("too_fast");
+
   const result = await setJobDigestForUser(user.id, { optIn: formData.get("optIn") });
   if (!result.ok) {
     back("failed");
@@ -144,6 +153,10 @@ export async function saveJobDigest(formData: FormData): Promise<void> {
  */
 export async function deleteAccount(formData: FormData): Promise<void> {
   const { user } = await requireUser();
+  // Irreversible, and it calls Stripe on the way through. A wrong-email retry
+  // loop should not be able to hammer either.
+  const rateLimit = await checkRateLimit("profile-write", user.id);
+  if (!rateLimit.allowed) back("too_fast");
 
   const parsed = deleteAccountSchema.safeParse({
     confirmEmail: formData.get("confirmEmail"),

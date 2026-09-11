@@ -455,3 +455,124 @@
     color: var(--primary);
   }
 }
+/* ══ BRANDGUIDE volume three: "two registers" ════════════════════════════
+   The product owner's direction: expressive marketing, calm product. That is
+   two registers, and the danger in two registers is that they become two piles
+   of ad-hoc utilities that drift. So the expressive vocabulary is named,
+   opt-in, and lives only under .register-expressive — a product surface cannot
+   pick it up by accident, and a marketing surface has to ask for it.
+
+   WHAT IS AMENDED, and it is deliberately little:
+
+     1. TYPE     A fluid display tier ABOVE .t-display-1 (38px), which is a
+                 product heading size and was never a hero. Marketing gets
+                 .t-hero and .t-display-0, both clamp()-fluid.
+     2. MOTION   Entrance on scroll, via animation-timeline: view(). CSS only.
+     3. DEPTH    A soft neutral wash for hero grounds.
+
+   WHAT IS NOT, because these are what make the brand identifiable and the
+   reason a redesign usually destroys one:
+
+     - Signal Red stays scarce and stays a signal. Roughly one red thing per
+       view. "Expressive" here is earned with SIZE, SPACE and MOTION, not by
+       tinting everything — a palette where everything is gently branded is a
+       palette where nothing means anything (volume two).
+     - The Archivo/Inter pairing, the 8px rhythm, tabular numerals, the single
+       radius ramp, focus rings in Info blue: untouched.
+     - Borders or shadow, never both: still holds.
+
+   NO MOTION LIBRARY. The surfaces that want expressive motion are the public
+   ones, which are also the indexed ones where a 30-50KB bundle costs LCP and
+   therefore ranking; the surface that could afford the bundle is the dashboard,
+   which is the one asked to stay calm. So it earns its keep in neither place.
+   Everything below is CSS the browser already ships. */
+
+@layer components {
+  /* The opt-in marker. Put it on a marketing <main>; never on a dashboard. */
+  .register-expressive {
+    --reveal-distance: 16px;
+  }
+
+  /* ── Expressive type ──────────────────────────────────────────────────
+     Fluid rather than a stepped set, because a hero that is right at 1440
+     and right at 390 through two breakpoints is wrong at every width in
+     between. Tracking tightens as size grows, which is what keeps a large
+     Archivo headline from reading as loose. */
+  .register-expressive .t-hero {
+    font-family: var(--font-archivo), var(--font-sans), sans-serif;
+    font-weight: 800;
+    font-size: clamp(40px, 6.2vw, 76px);
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    text-wrap: balance;
+  }
+
+  .register-expressive .t-display-0 {
+    font-family: var(--font-archivo), var(--font-sans), sans-serif;
+    font-weight: 800;
+    font-size: clamp(30px, 3.6vw, 46px);
+    line-height: 1.1;
+    letter-spacing: -0.028em;
+    text-wrap: balance;
+  }
+
+  /* Lead paragraph under a hero. Larger than .t-body, and capped in ch so the
+     line length stays readable however wide the viewport gets. */
+  .register-expressive .t-lead {
+    font-size: clamp(17px, 1.35vw, 20px);
+    line-height: 1.55;
+    max-width: 58ch;
+    color: var(--muted-foreground);
+  }
+
+  /* ── Ground ───────────────────────────────────────────────────────────
+     A soft neutral wash, not a brand gradient. Two very low-opacity radial
+     stops over the page colour: enough to stop a large empty hero reading as
+     a blank document, nowhere near enough to compete with the one red thing
+     on the screen. Ink-based, so it inverts correctly in dark mode without a
+     second definition. */
+  .wash {
+    background-image:
+      radial-gradient(60rem 30rem at 15% -10%, color-mix(in srgb, var(--foreground) 5%, transparent), transparent 60%),
+      radial-gradient(45rem 28rem at 95% 0%, color-mix(in srgb, var(--primary) 4%, transparent), transparent 55%);
+  }
+
+  /* ── Entrance on scroll ───────────────────────────────────────────────
+     Default state is VISIBLE. The animation only applies where the browser
+     supports scroll-driven timelines, so a browser without them shows a
+     finished page rather than an empty one — the failure mode of every
+     JS-driven reveal that has ever shipped broken.
+
+     prefers-reduced-motion is already handled globally in @layer base: it cuts
+     duration to 0.01ms and HOLDS the end state, and the end state here is
+     opacity 1, so reduced-motion users correctly get the finished layout. */
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .register-expressive .reveal {
+        animation: t4u-reveal linear both;
+        animation-timeline: view();
+        /* Finished by the time it is a third of the way up the viewport, so
+           reading never waits on the animation. */
+        animation-range: entry 0% cover 26%;
+      }
+    }
+  }
+
+  @keyframes t4u-reveal {
+    from {
+      opacity: 0;
+      transform: translateY(var(--reveal-distance, 16px));
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* ── Marketing rhythm ─────────────────────────────────────────────────
+     Sections breathe more than product ones. One token, so "generous" is a
+     number rather than nine different guesses at py-16. */
+  .register-expressive .section-band {
+    padding-block: clamp(56px, 7vw, 112px);
+  }
+}

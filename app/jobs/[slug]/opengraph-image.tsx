@@ -1,6 +1,8 @@
 import { ImageResponse } from "next/og";
 
 import { getPublicJobBySlug } from "@/lib/db/job-browse";
+import { decideJobVisibility } from "@/lib/jobs/jsonld";
+import { earlyAccessCutoffFor } from "@/lib/pricing/plans";
 
 /**
  * The card a shared job link shows.
@@ -18,6 +20,27 @@ import { getPublicJobBySlug } from "@/lib/db/job-browse";
  * Falls back to the site card for a slug that does not resolve, rather than
  * erroring: a 404 page still gets shared, and a broken image is worse than a
  * generic one.
+ *
+ * Visibility is decided here, not assumed. getPublicJobBySlug returns ANY job
+ * by slug — its contract deliberately leaves status, the early-access window
+ * and the recruiter's standing to the caller — so without the check below this
+ * route would unfurl a full card for a DRAFT, for a post the safety scanner is
+ * holding, for one a moderator removed, or for one still inside its Pro-only
+ * window, every one of which 404s at /jobs/<slug>. A preview card is the
+ * surface where that matters most: it is read by the people who never open the
+ * link, and slugs are derived from titles, so they are guessable.
+ *
+ * The cutoff is the ANONYMOUS one, exactly as app/sitemap.ts uses, not the
+ * requester's. This image is rendered into other people's chats, so the viewer
+ * who matters is never the one who fetched it — and keeping the session out of
+ * the route means a Pro-personalised card can never be cached and handed to a
+ * stranger. The cost is that a Pro sharing an in-window job gets the generic
+ * card for up to EARLY_ACCESS_HOURS, which is the right way round: the job is
+ * Pro-only at that moment, and unfurling it in full would undercut the window
+ * we sell.
+ *
+ * CLOSED still gets its card. That page renders as an archive rather than a
+ * 404, and an archived role is a perfectly reasonable thing to share.
  */
 
 export const runtime = "nodejs";
@@ -48,7 +71,21 @@ const TIER_LABEL: Record<string, string> = {
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const job = await getPublicJobBySlug(slug).catch(() => null);
+  const found = await getPublicJobBySlug(slug).catch(() => null);
+
+  // The same pure decision the page makes, from the same row, so a card can
+  // never advertise a job whose page 404s.
+  const view = found
+    ? decideJobVisibility(
+        {
+          status: found.status,
+          publishedAt: found.publishedAt,
+          recruiterBanned: found.recruiter.isBanned || found.recruiter.deactivatedAt !== null,
+        },
+        earlyAccessCutoffFor(null, new Date()),
+      )
+    : "not-found";
+  const job = view === "not-found" ? null : found;
 
   const title = job?.title ?? "Commission-free work on Talent4u";
   const company = job?.recruiter.companyName ?? "Talent4u";

@@ -7,6 +7,7 @@ import { onProfileCreated } from "@/lib/services/notify";
 import { requireRole } from "@/lib/auth/guards";
 import { onboardFreelancer } from "@/lib/services/freelancer";
 import { freelancerOnboardingSchema } from "@/lib/validations/freelancer";
+import { safetyReasonPhrase } from "@/lib/services/profile-safety";
 
 /**
  * Server Action behind the freelancer onboarding form. requireRole runs first,
@@ -77,6 +78,14 @@ export async function submitFreelancerOnboarding(
     redirect(`/dashboard/freelancer`);
   }
 
+  if (result.reason === "flagged") {
+    return {
+      fieldErrors: {
+        [result.flag.field]: `This reads as ${safetyReasonPhrase(result.flag.match.reason)} ("${result.flag.match.matchedTerm}"), which a public profile cannot say. Reword it to continue.`,
+      },
+      formError: "Please fix the highlighted field.",
+    };
+  }
   if (result.reason === "no-valid-skills") {
     return { fieldErrors: { skills: "Choose at least one skill from the list." }, formError: null };
   }

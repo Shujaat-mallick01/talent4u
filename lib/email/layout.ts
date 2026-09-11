@@ -77,7 +77,14 @@ export function paragraph(text: string): string {
  * column of numbers lines up, the way it does everywhere else in the product.
  */
 export function jobList(
-  jobs: { title: string; companyName: string; budget: string | null; href: string }[],
+  jobs: {
+    title: string;
+    companyName: string;
+    /** Verification tier label, rendered beside the company on every row. */
+    tier: string;
+    budget: string | null;
+    href: string;
+  }[],
 ): string {
   if (jobs.length === 0) return "";
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:20px 0;border-top:1px solid ${LINE};">
@@ -85,7 +92,7 @@ ${jobs
   .map(
     (j) => `  <tr><td style="padding:14px 0;border-bottom:1px solid ${LINE};">
     <a href="${escapeHtml(j.href)}" style="font-family:${SANS};font-size:16px;line-height:22px;font-weight:600;color:${INK};text-decoration:none;">${escapeHtml(j.title)}</a>
-    <div style="margin-top:4px;font-family:${SANS};font-size:14px;line-height:20px;color:${SLATE};">${escapeHtml(j.companyName)}${
+    <div style="margin-top:4px;font-family:${SANS};font-size:14px;line-height:20px;color:${SLATE};">${escapeHtml(j.companyName)} &middot; ${escapeHtml(j.tier)}${
       j.budget
         ? ` &middot; <span style="font-family:${MONO};">${escapeHtml(j.budget)}</span>`
         : ""

@@ -20,6 +20,7 @@ import {
 import {
   applySubscriptionState,
   findUserIdByStripeCustomer,
+  syncFreelancerSearchBoost,
   getBillingState,
   linkStripeCustomer,
   setBillingCountryFromStripe,
@@ -470,6 +471,20 @@ async function applySubscription(
   if (result === "stale") {
     return { handled: true, detail: "older than the last event applied; skipped" };
   }
+
+  // Only on "applied". A stale or superseded event does not describe the row
+  // this account now holds, so ranking must not be rewritten from it.
+  //
+  // entitledPlanFrom, not state.plan: a PAST_DUE or CANCELED row still names
+  // the plan that was bought, and the boost has to follow what the account is
+  // ENTITLED to — the same function every other gate reads. A lapsed Pro stops
+  // outranking paying members on the same event that lapses them.
+  const boosted = entitledPlanFrom(state) === "FREELANCER_PRO";
+  const changed = await syncFreelancerSearchBoost(userId, boosted);
+  if (changed) {
+    console.info(`[billing] search boost ${boosted ? "on" : "off"} for user ${userId}`);
+  }
+
   return { handled: true, detail: `${state.plan} / ${state.status}` };
 }
 

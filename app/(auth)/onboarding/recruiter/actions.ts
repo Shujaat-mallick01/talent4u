@@ -7,6 +7,7 @@ import { onProfileCreated } from "@/lib/services/notify";
 import { requireRole } from "@/lib/auth/guards";
 import { onboardRecruiter } from "@/lib/services/recruiter";
 import { recruiterOnboardingSchema, validateLogo } from "@/lib/validations/recruiter";
+import { safetyReasonPhrase } from "@/lib/services/profile-safety";
 
 /**
  * Server Action behind the recruiter onboarding form. requireRole runs first,
@@ -63,6 +64,14 @@ export async function submitRecruiterOnboarding(
     redirect(`/dashboard/recruiter`);
   }
 
+  if (result.reason === "flagged") {
+    return {
+      fieldErrors: {
+        [result.flag.field]: `This reads as ${safetyReasonPhrase(result.flag.match.reason)} ("${result.flag.match.matchedTerm}"). Freelancers never pay to work here, so we cannot publish that. Reword it to continue.`,
+      },
+      formError: "Please fix the highlighted field.",
+    };
+  }
   if (result.reason === "logo-failed") {
     return { fieldErrors: { logo: result.message ?? "Logo upload failed." }, formError: null };
   }

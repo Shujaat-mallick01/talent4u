@@ -87,14 +87,14 @@ export default async function LandingPage() {
   const freeQuota = applicationQuotaForPlan("FREE") ?? 12;
 
   return (
-    <main id="main" className="flex-1">
+    <main id="main" className="register-expressive flex-1">
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       {/* Sections alternate Paper and the sunken page colour rather than being
           divided by hairlines. Volume one used a 1px rule between every band,
           which reads as a wireframe grid; a change of ground reads as a change
           of subject. */}
-      <section className="bg-card">
-        <div className="mx-auto grid w-full max-w-[var(--container-marketing)] gap-12 px-6 py-20 lg:grid-cols-12 lg:gap-16 lg:py-32">
+      <section className="wash bg-card">
+        <div className="section-band mx-auto grid w-full max-w-[var(--container-marketing)] gap-12 px-6 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-7">
             <div className="flex items-center gap-3">
               <Orbit className="size-7 text-primary" />
@@ -103,9 +103,9 @@ export default async function LandingPage() {
               </p>
             </div>
 
-            <h1 className="t-display-1 mt-6">Keep 100% of what you earn.</h1>
+            <h1 className="t-hero mt-7">Keep 100% of what you earn.</h1>
 
-            <p className="mt-6  t-body text-[color:var(--color-foreground)]/75">
+            <p className="t-lead mt-6">
               Companies pay a flat subscription to post. Freelancers apply and get hired directly.
               We take nothing from either side, because we are never holding the money in the first
               place.
@@ -126,7 +126,7 @@ export default async function LandingPage() {
           </div>
 
           {/* The signature: the arithmetic, done. */}
-          <aside className="lg:col-span-5">
+          <aside className="reveal lg:col-span-5">
             <div className="surface-card overflow-hidden">
               <p className="t-label border-b border-border px-5 py-3.5 text-muted-foreground">
                 On {usd.format(INVOICE)} of work
@@ -182,7 +182,7 @@ export default async function LandingPage() {
 
       {/* ── What we actually do ──────────────────────────────────────────── */}
       <section>
-        <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-20 lg:py-32">
+        <div className="section-band reveal mx-auto w-full max-w-[var(--container-marketing)] px-6">
           <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
             <div className="lg:col-span-4">
               <h2 className="t-display-2">What we do instead</h2>
@@ -216,7 +216,7 @@ export default async function LandingPage() {
 
       {/* ── How it works ─────────────────────────────────────────────────── */}
       <section className="bg-card">
-        <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-20 lg:py-32">
+        <div className="section-band reveal mx-auto w-full max-w-[var(--container-marketing)] px-6">
           <h2 className="t-display-2">How it works</h2>
 
           {/* Ordinals are earned here: this is a real sequence, and the order
@@ -238,7 +238,7 @@ export default async function LandingPage() {
 
       {/* ── The numbers, and the way out ─────────────────────────────────── */}
       <section>
-        <div className="mx-auto w-full max-w-[var(--container-marketing)] px-6 py-20 lg:py-32">
+        <div className="section-band reveal mx-auto w-full max-w-[var(--container-marketing)] px-6">
           <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
             <div className="lg:col-span-7">
               <h2 className="t-display-2">Start free. Stay free if you want to.</h2>

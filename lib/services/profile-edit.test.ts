@@ -492,3 +492,75 @@ describe("edit schemas", () => {
     expect(parsed).not.toHaveProperty("slug");
   });
 });
+
+describe("profile prose is scanned before it is published", () => {
+  // The hole this closes: publish a clean job, then move the scam into the
+  // profile prose beside it, which used to go live with no flag at all.
+  it("refuses a company description that trips the scanner, and writes nothing", async () => {
+    mockAuth.mockResolvedValue(account({ role: "RECRUITER" }));
+
+    const result = await updateCompanyProfileForUser(
+      USER_ID,
+      companyInput({ description: "Applicants must pay a $200 registration fee before we begin." }),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: "flagged",
+      flag: { field: "description", match: { reason: "UPFRONT_PAYMENT" } },
+    });
+    expect(mockWriteRecruiter).not.toHaveBeenCalled();
+  });
+
+  it("refuses a company NAME that trips the scanner too", async () => {
+    mockAuth.mockResolvedValue(account({ role: "RECRUITER" }));
+
+    const result = await updateCompanyProfileForUser(
+      USER_ID,
+      companyInput({ companyName: "Training Fee Recruitment" }),
+    );
+
+    expect(result).toMatchObject({ ok: false, reason: "flagged", flag: { field: "companyName" } });
+    expect(mockWriteRecruiter).not.toHaveBeenCalled();
+  });
+
+  it("refuses a flagged freelancer bio, and writes nothing", async () => {
+    const result = await updateFreelancerProfileForUser(
+      USER_ID,
+      freelancerInput({ bio: "Applicants must pay a $200 registration fee before we begin." }),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: "flagged",
+      flag: { field: "bio", match: { reason: "UPFRONT_PAYMENT" } },
+    });
+    expect(mockWriteFreelancer).not.toHaveBeenCalled();
+  });
+
+  it("refuses BEFORE the banned check has anything to say, but after it", async () => {
+    // Ordering matters: a banned recruiter is refused as banned, not as
+    // flagged, so the removed-employer message is the one they see.
+    mockAuth.mockResolvedValue(account({ role: "RECRUITER" }));
+    mockRecruiter.mockResolvedValue(recruiterProfile({ isBanned: true }));
+
+    const result = await updateCompanyProfileForUser(
+      USER_ID,
+      companyInput({ description: "Applicants must pay a $200 registration fee before we begin." }),
+    );
+
+    expect(result).toEqual({ ok: false, reason: "banned" });
+  });
+
+  it("leaves ordinary prose alone", async () => {
+    mockAuth.mockResolvedValue(account({ role: "RECRUITER" }));
+
+    const result = await updateCompanyProfileForUser(
+      USER_ID,
+      companyInput({ description: "We build high-volume Shopify storefronts for UK retailers." }),
+    );
+
+    expect(result).toMatchObject({ ok: true });
+    expect(mockWriteRecruiter).toHaveBeenCalled();
+  });
+});

@@ -7,6 +7,7 @@ import {
 import { getUserAuthState } from "@/lib/db/users";
 import type { FreelancerOnboardingInput } from "@/lib/validations/freelancer";
 
+import { scanProfileProse, type ProfileProseFlag } from "./profile-safety";
 import { conflictField, pickAvailableSlug, slugify as slugifyBase } from "./slug";
 
 /**
@@ -18,7 +19,8 @@ import { conflictField, pickAvailableSlug, slugify as slugifyBase } from "./slug
 
 export type OnboardFreelancerResult =
   | { ok: true; slug: string }
-  | { ok: false; reason: "wrong-role" | "already-onboarded" | "no-valid-skills" | "conflict" };
+  | { ok: false; reason: "wrong-role" | "already-onboarded" | "no-valid-skills" | "conflict" }
+  | { ok: false; reason: "flagged"; flag: ProfileProseFlag };
 
 // Slug collisions are expected under concurrency and are retried; a userId
 // collision means the account genuinely already has a profile. Everything
@@ -49,6 +51,16 @@ export async function onboardFreelancer(
   const state = await getUserAuthState(userId);
   if (!state || state.role !== "FREELANCER") return { ok: false, reason: "wrong-role" };
   if (state.hasProfile) return { ok: false, reason: "already-onboarded" };
+
+  // Same scan the editor applies. A freelancer profile is public indexed prose
+  // too, and "pay for my course first" is the same trigger category from the
+  // other side of the marketplace.
+  const flag = scanProfileProse([
+    { field: "bio", text: input.bio },
+    { field: "headline", text: input.headline },
+    { field: "displayName", text: input.displayName },
+  ]);
+  if (flag) return { ok: false, reason: "flagged", flag };
 
   // Scrub skills against the Skill table — never trust client-supplied slugs.
   const existing = await findExistingSkillSlugs(input.skills.map((s) => s.slug));

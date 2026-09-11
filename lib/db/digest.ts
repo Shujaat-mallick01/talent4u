@@ -1,5 +1,7 @@
 import { randomBytes } from "node:crypto";
 
+import type { RecruiterTier } from "@/lib/generated/prisma/enums";
+
 import { prisma } from "./client";
 
 /**
@@ -92,6 +94,13 @@ export type DigestJob = {
   slug: string;
   title: string;
   companyName: string;
+  /**
+   * CLAUDE.md requires the tier label on every job card, and a digest row IS a
+   * job card. It was the one card surface that shipped without it, so an
+   * unverified employer's post was mailed to every matching freelancer looking
+   * exactly like a verified one.
+   */
+  tier: RecruiterTier;
   budgetMinUsd: number | null;
   budgetMaxUsd: number | null;
   isRemote: boolean;
@@ -131,7 +140,7 @@ export async function matchingJobsForDigest(args: {
       budgetMinUsd: true,
       budgetMaxUsd: true,
       isRemote: true,
-      recruiter: { select: { companyName: true } },
+      recruiter: { select: { companyName: true, tier: true } },
       skills: { select: { skillId: true } },
     },
   });
@@ -142,6 +151,7 @@ export async function matchingJobsForDigest(args: {
       slug: job.slug,
       title: job.title,
       companyName: job.recruiter.companyName,
+      tier: job.recruiter.tier,
       budgetMinUsd: job.budgetMinUsd,
       budgetMaxUsd: job.budgetMaxUsd,
       isRemote: job.isRemote,

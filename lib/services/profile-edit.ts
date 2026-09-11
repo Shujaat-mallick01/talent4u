@@ -22,6 +22,8 @@ import type {
   FreelancerProfileEditInput,
 } from "@/lib/validations/profile-edit";
 
+import { scanProfileProse, type ProfileProseFlag } from "./profile-safety";
+
 /**
  * Profile editing business logic.
  *
@@ -63,7 +65,8 @@ export type UpdateFreelancerProfileResult =
        */
       approvalCleared: boolean;
     }
-  | { ok: false; reason: "wrong-role" | "no-profile" | "no-valid-skills" };
+  | { ok: false; reason: "wrong-role" | "no-profile" | "no-valid-skills" }
+  | { ok: false; reason: "flagged"; flag: ProfileProseFlag };
 
 /**
  * Saves a freelancer's public profile.
@@ -81,6 +84,15 @@ export async function updateFreelancerProfileForUser(
 
   const profile = await getFreelancerProfileForEdit(userId);
   if (!profile) return { ok: false, reason: "no-profile" };
+
+  // Public prose gets the same scan a job description gets — this page is the
+  // same kind of indexed surface, and was the way round the job scanner.
+  const flag = scanProfileProse([
+    { field: "bio", text: input.bio },
+    { field: "headline", text: input.headline },
+    { field: "displayName", text: input.displayName },
+  ]);
+  if (flag) return { ok: false, reason: "flagged", flag };
 
   // Scrub against the Skill table — a slug from the client is a suggestion,
   // never a fact. Same rule onboarding applies.
@@ -150,7 +162,8 @@ export function canEditVerificationEvidence(tier: RecruiterTier): boolean {
 
 export type UpdateCompanyProfileResult =
   | { ok: true; slug: string }
-  | { ok: false; reason: "wrong-role" | "no-profile" | "banned" };
+  | { ok: false; reason: "wrong-role" | "no-profile" | "banned" }
+  | { ok: false; reason: "flagged"; flag: ProfileProseFlag };
 
 /**
  * Saves the editable half of a company page: name, website, description,
@@ -169,6 +182,15 @@ export async function updateCompanyProfileForUser(
   // A removed employer keeps their record — that is the point of publishing
   // removals — but they do not get to rewrite it.
   if (profile.isBanned) return { ok: false, reason: "banned" };
+
+  // The hole this closes: a clean job post, then the scam moved into the
+  // company description, which renders beside every one of that company's
+  // cards and on an indexed public page.
+  const flag = scanProfileProse([
+    { field: "description", text: input.description },
+    { field: "companyName", text: input.companyName },
+  ]);
+  if (flag) return { ok: false, reason: "flagged", flag };
 
   await updateRecruiterProfile(profile.id, {
     companyName: input.companyName,

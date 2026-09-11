@@ -8,6 +8,22 @@ vi.mock("@/lib/db/report", () => ({
   hasOpenReportForTarget: vi.fn(),
 }));
 vi.mock("@/lib/auth/guards", () => ({ requireUser: vi.fn() }));
+/**
+ * This file imports a Server Action — the only test that does — and that action
+ * calls checkRateLimit before it parses anything. Unmocked, that reaches the
+ * REAL database on every run: the suite wrote a `report:` row, incremented it
+ * once per run, and started failing on the 21st run within an hour.
+ *
+ * It went unnoticed because the limiter FAILS OPEN (lib/services/rate-limit.ts:93),
+ * so while the database was unreachable these tests passed for the wrong reason.
+ *
+ * Mocked to allow, not to skip the rule: the limiter has its own suite in
+ * rate-limit.test.ts, and what this file is about is the action's auth,
+ * validation and redirect routing.
+ */
+vi.mock("@/lib/services/rate-limit", () => ({
+  checkRateLimit: vi.fn(async () => ({ allowed: true })),
+}));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);

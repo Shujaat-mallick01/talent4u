@@ -42,6 +42,11 @@ export type CandidateSearchView = {
    * is the asymmetry CLAUDE.md's tier table describes.
    */
   canInitiate: boolean;
+  /**
+   * Whether the CSV export link is worth rendering. Team-only, and cosmetic
+   * like every other flag on this view — the route re-checks it.
+   */
+  canExport: boolean;
 };
 
 export type CandidateSearchResult =
@@ -90,6 +95,7 @@ export async function searchCandidatesForUser(
       openJobs,
       threads,
       canInitiate: entitlements.recruiter.initiateMessages,
+      canExport: entitlements.recruiter.exportCandidates,
     },
   };
 }

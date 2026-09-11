@@ -9,6 +9,7 @@ import {
   updateFreelancerProfileForUser,
 } from "@/lib/services/profile-edit";
 import { freelancerProfileEditSchema } from "@/lib/validations/profile-edit";
+import { safetyReasonPhrase } from "@/lib/services/profile-safety";
 
 /**
  * Server Action behind the freelancer profile editor. requireRole runs before
@@ -95,6 +96,14 @@ export async function saveFreelancerProfile(
     redirect(`${PAGE}?notice=${notice}`);
   }
 
+  if (result.reason === "flagged") {
+    return {
+      fieldErrors: {
+        [result.flag.field]: `This reads as ${safetyReasonPhrase(result.flag.match.reason)} ("${result.flag.match.matchedTerm}"), which a public profile cannot say. Reword it and save again.`,
+      },
+      formError: "Nothing was saved — your profile is unchanged.",
+    };
+  }
   if (result.reason === "no-valid-skills") {
     return {
       fieldErrors: { skills: "Add at least one skill from the list before saving." },

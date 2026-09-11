@@ -136,3 +136,30 @@ describe("onboardRecruiter", () => {
     expect(mockCreate).toHaveBeenCalledTimes(5);
   });
 });
+
+describe("onboarding is scanned too — the front door, not just the editor", () => {
+  it("refuses a flagged company description and never creates the profile", async () => {
+    mockAuthState.mockResolvedValue(recruiter());
+
+    const result = await onboardRecruiter(
+      USER_ID,
+      input({ description: "Applicants must pay a $200 registration fee before we begin." }),
+      null,
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: "flagged",
+      flag: { field: "description", match: { reason: "UPFRONT_PAYMENT" } },
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("refuses before uploading the logo, so a refused signup orphans nothing", async () => {
+    mockAuthState.mockResolvedValue(recruiter());
+
+    await onboardRecruiter(USER_ID, input({ description: "Applicants must pay a $200 registration fee before we begin." }), logoFile());
+
+    expect(mockUpload).not.toHaveBeenCalled();
+  });
+});

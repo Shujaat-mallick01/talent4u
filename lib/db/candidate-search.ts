@@ -84,7 +84,10 @@ function buildWhere(filters: CandidateSearchFilters): Prisma.Sql {
   return Prisma.join(parts, " AND ");
 }
 
-async function scoredIds(filters: CandidateSearchFilters): Promise<ScoredRow[]> {
+async function scoredIds(
+  filters: CandidateSearchFilters,
+  pageSize: number,
+): Promise<ScoredRow[]> {
   const rankExpr = filters.q
     ? Prisma.sql`ts_rank(f."searchVector", websearch_to_tsquery('english', ${filters.q}))`
     : Prisma.sql`0::real`;
@@ -112,13 +115,24 @@ async function scoredIds(filters: CandidateSearchFilters): Promise<ScoredRow[]> 
     FROM scored
     ${after}
     ORDER BY "searchBoost" DESC, "rank" DESC, "createdAt" DESC, "id" DESC
-    LIMIT ${CANDIDATE_PAGE_SIZE + 1}
+    LIMIT ${pageSize + 1}
   `;
 }
 
-export async function searchCandidates(filters: CandidateSearchFilters) {
-  const scored = await scoredIds(filters);
-  const page = scored.slice(0, CANDIDATE_PAGE_SIZE);
+/**
+ * One page of ranked candidates.
+ *
+ * pageSize is a parameter rather than the constant because the CSV export runs
+ * the SAME query for a much larger page — one ranked result set, one set of
+ * filters, one wall in front of it. An export that built its own query would
+ * be a second place for the paid wall to be got wrong.
+ */
+export async function searchCandidates(
+  filters: CandidateSearchFilters,
+  pageSize: number = CANDIDATE_PAGE_SIZE,
+) {
+  const scored = await scoredIds(filters, pageSize);
+  const page = scored.slice(0, pageSize);
 
   if (page.length === 0) {
     return { candidates: [], hasMore: false, nextCursor: null };
@@ -159,7 +173,7 @@ export async function searchCandidates(filters: CandidateSearchFilters) {
   const last = page[page.length - 1];
   return {
     candidates,
-    hasMore: scored.length > CANDIDATE_PAGE_SIZE,
+    hasMore: scored.length > pageSize,
     nextCursor: {
       searchBoost: last.searchBoost,
       rank: Number(last.rank),

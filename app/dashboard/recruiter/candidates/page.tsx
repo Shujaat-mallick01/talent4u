@@ -182,7 +182,7 @@ export default async function CandidatesPage({
     );
   }
 
-  const { candidates, hasMore, nextCursor, countries, openJobs, threads, canInitiate } =
+  const { candidates, hasMore, nextCursor, countries, openJobs, threads, canInitiate, canExport } =
     result.view;
   const RETURN_TO = "/dashboard/recruiter/candidates";
   const skillGroups = await listSkillsGroupedByCategory();
@@ -204,12 +204,30 @@ export default async function CandidatesPage({
   return (
     <main id="main" className="flex-1">
       <div className="w-full px-6 py-8 lg:px-8">
-        <header className="mb-6">
-          <h1 className="t-display-2">Find candidates</h1>
-          <p className="measure mt-2 text-[15px] leading-[22px] text-muted-foreground">
-            Every freelancer with a live profile. Pro members appear first — that is what they pay
-            for, and it is the only thing that moves the order besides how well they match.
-          </p>
+        <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="t-display-2">Find candidates</h1>
+            <p className="mt-2 text-[15px] leading-[22px] text-muted-foreground">
+              Every freelancer with a live profile. Pro members appear first — that is what they
+              pay for, and it is the only thing that moves the order besides how well they match.
+            </p>
+          </div>
+          {/* A plain link, not a form: the response is a file, so there is
+              nothing to submit and nothing to do with the answer. Carries the
+              current filters so the CSV is the results on screen. Cosmetic —
+              the route re-checks the plan. */}
+          {canExport && candidates.length > 0 ? (
+            <a
+              href={`/api/recruiter/candidates/export?${searchQuery(filters).toString()}`}
+              className={cn(
+                "shrink-0 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted",
+                LINK_FOCUS,
+              )}
+              download
+            >
+              Export CSV
+            </a>
+          ) : null}
         </header>
 
         {notice ? (

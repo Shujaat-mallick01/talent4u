@@ -151,6 +151,9 @@ export async function publishExistingJob(formData: FormData): Promise<void> {
 
 export async function closeExistingJob(formData: FormData): Promise<void> {
   const { user } = await requireRole("RECRUITER");
+  const limit = await checkRateLimit("job-write", user.id);
+  if (!limit.allowed) redirect(`${DASHBOARD}?notice=too_fast`);
+
   const jobId = str(formData, "jobId");
   if (!jobId) redirect(`${DASHBOARD}?notice=not_found`);
 
@@ -164,6 +167,10 @@ const inboxPath = (jobId: string): string =>
 
 export async function decideApplication(formData: FormData): Promise<void> {
   const { user } = await requireRole("RECRUITER");
+  // Each decision can mail the applicant, so this reaches someone else inbox.
+  const limit = await checkRateLimit("application-write", user.id);
+  if (!limit.allowed) redirect(`${DASHBOARD}?notice=too_fast`);
+
   const jobId = str(formData, "jobId");
   const applicationId = str(formData, "applicationId");
   const decision = applicationDecisionSchema.safeParse(formData.get("decision"));
@@ -183,6 +190,9 @@ export async function decideApplication(formData: FormData): Promise<void> {
 
 export async function saveApplicationNote(formData: FormData): Promise<void> {
   const { user } = await requireRole("RECRUITER");
+  const limit = await checkRateLimit("application-write", user.id);
+  if (!limit.allowed) redirect(`${DASHBOARD}?notice=too_fast`);
+
   const jobId = str(formData, "jobId");
   const applicationId = str(formData, "applicationId");
   const note = recruiterNoteSchema.safeParse(str(formData, "note"));
@@ -208,6 +218,9 @@ export async function saveApplicationNote(formData: FormData): Promise<void> {
 
 export async function withdrawHeldJob(formData: FormData): Promise<void> {
   const { user } = await requireRole("RECRUITER");
+  const limit = await checkRateLimit("job-write", user.id);
+  if (!limit.allowed) redirect(`${DASHBOARD}?notice=too_fast`);
+
   const jobId = str(formData, "jobId");
   if (!jobId) redirect(`${DASHBOARD}?notice=not_found`);
 

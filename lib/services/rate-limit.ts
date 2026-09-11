@@ -24,6 +24,12 @@ import { clearRateLimit, hitRateLimit, rateLimitKey } from "@/lib/db/rate-limit"
  * mutations"; these three are the exceptions, and they are exceptions on
  * purpose rather than by omission.
  *
+ * Everything else IS limited. Eleven actions were missing one by oversight
+ * rather than by decision — the settings trio, four in the recruiter job and
+ * application flows, and the four engagement actions other than propose — and
+ * they now carry one. If you add an actions.ts, it needs a bucket unless it
+ * belongs on the list below.
+ *
  *   app/admin/actions.ts
  *     Moderation. Throttling the people who remove scam posts is a way to
  *     make an incident worse — the abuse case is a compromised staff account,
@@ -51,8 +57,21 @@ export const RATE_LIMITS = {
   outreach: { max: 40, windowSeconds: 24 * 60 * 60 },
   /** Per user. The active-post cap already binds; this stops draft-spamming. */
   "job-write": { max: 40, windowSeconds: 24 * 60 * 60 },
+  /**
+   * Per user. Inbox triage — shortlist, reject, private notes. Deliberately
+   * loose: a recruiter working through a popular job's applicants legitimately
+   * fires a lot of these in a sitting, and a limit that catches real triage is
+   * one that gets removed. It exists to stop a script, not a busy afternoon.
+   */
+  "application-write": { max: 200, windowSeconds: 60 * 60 },
   /** Per user. A report queue is only useful if it is not flooded. */
   report: { max: 20, windowSeconds: 60 * 60 },
+  /**
+   * Per user. The cheapest request in the product to repeat and the one with
+   * the most rows per response, so it is limited harder than anything else a
+   * paying customer touches. A real export is a handful a day.
+   */
+  "candidate-export": { max: 20, windowSeconds: 60 * 60 },
   /** Per user. Every one of these creates a Stripe session. */
   checkout: { max: 10, windowSeconds: 60 * 60 },
   /** Per user. Profile, company and settings writes together. */

@@ -7,6 +7,7 @@ import {
   matchingJobsForDigest,
 } from "@/lib/db/digest";
 import { EARLY_ACCESS_HOURS } from "@/lib/pricing/plans";
+import { recruiterTierBadge } from "@/lib/profile/badges";
 import { SITE_URL } from "@/lib/site-url";
 
 /**
@@ -103,6 +104,9 @@ export async function runJobDigest(
       jobs: jobs.map((j) => ({
         title: j.title,
         companyName: j.companyName,
+        // The same label the job cards and the share card use, so a tier can
+        // never read one way on the site and another in the inbox.
+        tier: recruiterTierBadge(j.tier).label,
         budget: budgetLabel(j.budgetMinUsd, j.budgetMaxUsd),
         slug: j.slug,
       })),

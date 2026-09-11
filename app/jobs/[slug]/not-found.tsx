@@ -16,9 +16,14 @@ import { EARLY_ACCESS_HOURS } from "@/lib/pricing/plans";
  * The 6-hour figure is read from the pricing config, never typed in — the same
  * constant the browse query filters on.
  *
- * Metadata is deliberately not exported: the route's own generateMetadata
- * already returns "Job not found" with robots noindex for this case, and it
- * stays the single source of that behaviour.
+ * KNOWN GAP: the browser title on this page is the site default, not "Job not
+ * found". It used to be the specific one, but only because the route answered
+ * 200 and the page's own generateMetadata applied. Now that it answers a real
+ * 404, Next renders this boundary and discards that metadata — and a
+ * not-found file may not export metadata of its own. A rendered <title> was
+ * tried and does not win against Next's head management. The correct status
+ * was worth more than the title; the heading on the page still says exactly
+ * what happened.
  */
 
 const REASONS = [

@@ -4,6 +4,7 @@ import { getUserAuthState } from "@/lib/db/users";
 import { uploadCompanyLogo } from "@/lib/storage/logos";
 import type { RecruiterOnboardingInput } from "@/lib/validations/recruiter";
 
+import { scanProfileProse, type ProfileProseFlag } from "./profile-safety";
 import { conflictField, pickAvailableSlug, slugify } from "./slug";
 
 /**
@@ -22,7 +23,8 @@ export type OnboardRecruiterResult =
       ok: false;
       reason: "wrong-role" | "already-onboarded" | "logo-failed" | "conflict";
       message?: string;
-    };
+    }
+  | { ok: false; reason: "flagged"; flag: ProfileProseFlag };
 
 export async function generateUniqueRecruiterSlug(companyName: string): Promise<string> {
   const base = slugify(companyName, "company");
@@ -38,6 +40,16 @@ export async function onboardRecruiter(
   const state = await getUserAuthState(userId);
   if (!state || state.role !== "RECRUITER") return { ok: false, reason: "wrong-role" };
   if (state.hasProfile) return { ok: false, reason: "already-onboarded" };
+
+  // Scanned here as well as on edit. Guarding only the editor would leave the
+  // front door open: a scam company would simply arrive with the text already
+  // in place and never edit it. Checked before the logo upload so a refused
+  // signup does not leave an orphaned object behind.
+  const flag = scanProfileProse([
+    { field: "description", text: input.description },
+    { field: "companyName", text: input.companyName },
+  ]);
+  if (flag) return { ok: false, reason: "flagged", flag };
 
   // Upload the logo only after the guards pass. If a later slug-exhaustion or
   // already-onboarded conflict aborts the create, the uploaded object is

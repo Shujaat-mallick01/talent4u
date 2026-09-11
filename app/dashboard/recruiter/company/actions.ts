@@ -9,6 +9,7 @@ import {
   updateCompanyProfileForUser,
 } from "@/lib/services/profile-edit";
 import { companyProfileEditSchema } from "@/lib/validations/profile-edit";
+import { safetyReasonPhrase } from "@/lib/services/profile-safety";
 
 /**
  * Server Action behind the company editor. requireRole runs before any
@@ -65,6 +66,16 @@ export async function saveCompanyProfile(
   const result = await updateCompanyProfileForUser(user.id, parsed.data);
   if (result.ok) redirect(`${PAGE}?notice=saved`);
 
+  if (result.reason === "flagged") {
+    // Kept in the form rather than redirected: the text is the thing that needs
+    // changing, and a redirect would throw away everything else they wrote.
+    return {
+      fieldErrors: {
+        [result.flag.field]: `This reads as ${safetyReasonPhrase(result.flag.match.reason)} ("${result.flag.match.matchedTerm}"). Freelancers never pay to work here, so a company page cannot say that. Reword it and save again.`,
+      },
+      formError: "Nothing was saved — your company page is unchanged.",
+    };
+  }
   if (result.reason === "banned") redirect(`${PAGE}?notice=banned`);
   if (result.reason === "no-profile") redirect("/onboarding/recruiter");
   // "wrong-role" is unreachable after requireRole; treat it as the retryable

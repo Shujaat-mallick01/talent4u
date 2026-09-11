@@ -47,6 +47,7 @@ const job = (over: Record<string, unknown> = {}) => ({
   slug: "senior-react",
   title: "Senior React Engineer",
   companyName: "Acme",
+  tier: "VERIFIED" as const,
   budgetMinUsd: 4000,
   budgetMaxUsd: 8000,
   isRemote: true,
@@ -201,5 +202,38 @@ describe("the mail itself", () => {
     expect(summary).toEqual({ considered: 0, sent: 0, noMatches: 0, failed: 0 });
     expect(mockMark).not.toHaveBeenCalled();
     expect(mockSend).not.toHaveBeenCalled();
+  });
+});
+
+describe("the tier label travels into the inbox", () => {
+  // CLAUDE.md: the label is on every job card and is never hidden. A digest row
+  // is a job card, and it was the one card surface that shipped without it.
+  it("labels each mailed job with its employer's verification tier", async () => {
+    mockDue.mockResolvedValue([person()]);
+    mockJobs.mockResolvedValue([
+      job({ slug: "a", tier: "UNVERIFIED" }),
+      job({ slug: "b", tier: "VERIFIED" }),
+      job({ slug: "c", tier: "TRUSTED" }),
+    ]);
+
+    await runJobDigest(NOW);
+
+    const jobs = mockSend.mock.calls[0][0].jobs;
+    expect(jobs.map((j: { tier: string }) => j.tier)).toEqual([
+      "Unverified",
+      "Verified",
+      "Trusted",
+    ]);
+  });
+
+  it("never mails an unlabelled job", async () => {
+    mockDue.mockResolvedValue([person()]);
+    mockJobs.mockResolvedValue([job({ tier: "UNVERIFIED" })]);
+
+    await runJobDigest(NOW);
+
+    for (const j of mockSend.mock.calls[0][0].jobs) {
+      expect(j.tier).toBeTruthy();
+    }
   });
 });

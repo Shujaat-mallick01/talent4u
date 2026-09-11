@@ -28,6 +28,7 @@ vi.mock("@/lib/db/subscription", () => ({
   linkStripeCustomer: vi.fn(),
   findUserIdByStripeCustomer: vi.fn(),
   applySubscriptionState: vi.fn(),
+  syncFreelancerSearchBoost: vi.fn(),
   setBillingCountryFromStripe: vi.fn(),
   userExists: vi.fn(),
 }));
@@ -35,6 +36,7 @@ vi.mock("@/lib/db/subscription", () => ({
 import {
   applySubscriptionState,
   findUserIdByStripeCustomer,
+  syncFreelancerSearchBoost,
   getBillingState,
   linkStripeCustomer,
   setBillingCountryFromStripe,
@@ -53,6 +55,7 @@ const mockState = vi.mocked(getBillingState);
 const mockApply = vi.mocked(applySubscriptionState);
 const mockByCustomer = vi.mocked(findUserIdByStripeCustomer);
 const mockExists = vi.mocked(userExists);
+const mockBoost = vi.mocked(syncFreelancerSearchBoost);
 
 const USER = "00000000-0000-4000-8000-000000000001";
 
@@ -75,7 +78,11 @@ const sub = (over: Partial<NonNullable<StoredSub>> = {}): StoredSub => ({
   stripeCustomerId: "cus_1",
   stripeSubscriptionId: "sub_1",
   priceRegion: "LOW",
-  currentPeriodEnd: new Date("2026-09-01T00:00:00Z"),
+  // Relative, not absolute. getBillingView reads the real clock
+  // (lib/services/billing.ts:160 nulls a period end that is in the past), so a
+  // hardcoded date here is a time bomb: this fixture was "2026-09-01" and the
+  // suite went red on its own on that date, with nothing having changed.
+  currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   cancelAtPeriodEnd: false,
   ...over,
 });
@@ -628,5 +635,46 @@ describe("getBillingView", () => {
     );
     const view = await getBillingView(USER);
     expect(view?.plan).toBe("FREE");
+  });
+});
+
+describe("the Pro search boost follows the subscription", () => {
+  // searchBoost is the first term candidate search sorts on, and it had no
+  // writer at all: the seed set it, account deletion cleared it, nothing in
+  // between. So "Pro members appear first" was sold and never delivered.
+  it("turns the boost on when a Pro subscription goes live", async () => {
+    await applyStripeEvent(event("customer.subscription.created", stripeSub()));
+    expect(mockBoost).toHaveBeenCalledWith(USER, true);
+  });
+
+  it("turns it off when the subscription is deleted", async () => {
+    await applyStripeEvent(event("customer.subscription.deleted", stripeSub()));
+    expect(mockBoost).toHaveBeenCalledWith(USER, false);
+  });
+
+  it("turns it off the moment a plan lapses, not when the period ends", async () => {
+    // A PAST_DUE row still names FREELANCER_PRO. Reading state.plan here would
+    // keep a lapsed member outranking people who are paying.
+    await applyStripeEvent(
+      event("customer.subscription.updated", stripeSub({ status: "past_due" })),
+    );
+    expect(mockBoost).toHaveBeenCalledWith(USER, false);
+  });
+
+  it("never boosts a recruiter plan", async () => {
+    stripeMocks.planForProduct.mockReturnValue("RECRUITER_GROWTH");
+    await applyStripeEvent(
+      event("customer.subscription.created", stripeSub({ metadata: { userId: USER, plan: "RECRUITER_GROWTH" } })),
+    );
+    expect(mockBoost).toHaveBeenCalledWith(USER, false);
+  });
+
+  it("does not rewrite ranking from an event that was not applied", async () => {
+    for (const outcome of ["stale", "superseded", "conflict"] as const) {
+      mockBoost.mockClear();
+      mockApply.mockResolvedValue(outcome);
+      await applyStripeEvent(event("customer.subscription.updated", stripeSub()));
+      expect(mockBoost, `${outcome} must not touch searchBoost`).not.toHaveBeenCalled();
+    }
   });
 });

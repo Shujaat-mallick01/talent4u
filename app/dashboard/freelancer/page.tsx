@@ -20,6 +20,7 @@ import {
 } from "@/lib/profile/badges";
 import { upsellLine } from "@/lib/pricing/catalogue";
 import { APPLICATION_WINDOW_DAYS, EARLY_ACCESS_HOURS } from "@/lib/pricing/plans";
+import { getApplicationAnalyticsForUser } from "@/lib/services/application-analytics";
 import { getApplicationQuotaStatus } from "@/lib/services/application";
 import { getViewerBand } from "@/lib/services/entitlements";
 import { profileStrength } from "@/lib/services/profile-strength";
@@ -61,10 +62,13 @@ export default async function FreelancerDashboardPage() {
   const profile = await getFreelancerProfileForEdit(user.id);
   if (!profile) redirect("/onboarding/freelancer");
 
-  const [applications, quota, band] = await Promise.all([
+  const [applications, quota, band, analytics] = await Promise.all([
     listApplicationsForFreelancer(profile.id),
     getApplicationQuotaStatus(user.id),
     getViewerBand(),
+    // Refuses without querying for a free account — the panel below is an
+    // upsell for them, and the numbers are never computed.
+    getApplicationAnalyticsForUser(user.id),
   ]);
   // One query for every row, not one per row.
   const threads = await mapApplicationConversations(
@@ -174,6 +178,65 @@ export default async function FreelancerDashboardPage() {
             note={strength.next ? `Next: ${strength.next.label}` : "Every item done"}
           />
         </MetricRow>
+
+        {/* ── Application analytics ────────────────────────────────────────
+            Pro only, and deliberately unflattering: "viewed" is a recruiter
+            opening an inbox, not somebody considering you. The gap between it
+            and "heard back" is the actionable part — lots of views and few
+            answers is a cover-letter problem, few views is a profile or
+            targeting one, and those have different fixes. */}
+        {analytics.ok && analytics.analytics.sent > 0 ? (
+          <section
+            aria-labelledby="analytics-heading"
+            className="surface-card mb-6 px-5 py-4"
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+              <h2 id="analytics-heading" className="t-label text-muted-foreground">
+                How your applications land · Pro
+              </h2>
+              <p className="text-[13px] text-muted-foreground">
+                Across all {analytics.analytics.sent} you have sent
+              </p>
+            </div>
+            <dl className="mt-3 grid gap-x-8 gap-y-3 sm:grid-cols-3">
+              <div>
+                <dt className="t-label text-muted-foreground">Opened by the company</dt>
+                <dd className="t-data mt-0.5 text-lg font-semibold">
+                  {analytics.analytics.viewedPercent}%{" "}
+                  <span className="text-[13px] font-normal text-muted-foreground">
+                    ({analytics.analytics.viewed} of {analytics.analytics.sent})
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt className="t-label text-muted-foreground">Actually answered</dt>
+                <dd className="t-data mt-0.5 text-lg font-semibold">
+                  {analytics.analytics.heardBackPercent}%{" "}
+                  <span className="text-[13px] font-normal text-muted-foreground">
+                    ({analytics.analytics.heardBack} replied or decided)
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt className="t-label text-muted-foreground">Typical wait for an answer</dt>
+                <dd className="t-data mt-0.5 text-lg font-semibold">
+                  {analytics.analytics.medianResponseDays === null ? (
+                    <span className="text-[15px] font-normal text-muted-foreground">
+                      Nobody has answered yet
+                    </span>
+                  ) : (
+                    <>
+                      {analytics.analytics.medianResponseDays}{" "}
+                      <span className="text-[13px] font-normal text-muted-foreground">
+                        days, median
+                      </span>
+                    </>
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </section>
+        ) : null}
 
         {/* One next step, never a checklist. The full list lives on the editor,
             where every item is a field you can actually fill in. */}

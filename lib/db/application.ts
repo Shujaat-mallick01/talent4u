@@ -249,3 +249,102 @@ export async function listApplicationsForFreelancer(freelancerId: string) {
     },
   });
 }
+
+/** What a freelancer's applications actually did, for the Pro analytics panel. */
+export type ApplicationOutcomeStats = {
+  sent: number;
+  /** A recruiter opened the application inbox it was sitting in. */
+  viewed: number;
+  /** Shortlisted or rejected — an actual answer, either way. */
+  decided: number;
+  /** Decided, OR somebody on the other side replied. */
+  heardBack: number;
+  /** Median days from sending to the first of those, over the ones that got one. */
+  medianResponseDays: number | null;
+};
+
+type OutcomeRow = {
+  sent: number;
+  viewed: number;
+  decided: number;
+  heard_back: number;
+  median_seconds: number | null;
+};
+
+/**
+ * One pass over this freelancer's applications.
+ *
+ * Raw SQL for two reasons Prisma cannot express: a median (percentile_cont)
+ * and a per-row "first response", which is the earliest of a decision and a
+ * reply from the other party and therefore a correlated subquery.
+ *
+ * "Heard back" is deliberately the SAME definition the platform metric uses
+ * (lib/db/metrics.ts freelancersWhoHeardBack): a decision, or a message from
+ * somebody who is not you. Two definitions of the same English phrase, one on
+ * the freelancer's dashboard and one on the admin's, is how a product ends up
+ * unable to answer its own support email.
+ *
+ * VIEWED is counted but never presented as good news — see the service. A
+ * recruiter opening an inbox is not a response, and a dashboard that treats it
+ * as one is measuring our own UI rather than the freelancer's prospects.
+ *
+ * COALESCE(decidedAt, updatedAt) matches the metric's treatment of rows
+ * decided before decidedAt existed; LEAST ignores NULLs in Postgres, so it
+ * yields whichever of the two responses actually happened first.
+ */
+export async function getApplicationOutcomeStats(args: {
+  freelancerId: string;
+  userId: string;
+}): Promise<ApplicationOutcomeStats> {
+  const { freelancerId, userId } = args;
+
+  const rows = await prisma.$queryRaw<OutcomeRow[]>`
+    WITH mine AS (
+      SELECT
+        a."createdAt" AS created_at,
+        a."viewedAt"  AS viewed_at,
+        CASE
+          WHEN a."status" IN ('SHORTLISTED', 'REJECTED')
+          THEN COALESCE(a."decidedAt", a."updatedAt")
+        END AS decided_at,
+        (
+          SELECT min(m."createdAt")
+          FROM "Message" m
+          JOIN "Conversation" c ON c."id" = m."conversationId"
+          WHERE c."applicationId" = a."id"
+            AND m."senderId" <> ${userId}::uuid
+        ) AS replied_at
+      FROM "Application" a
+      WHERE a."freelancerId" = ${freelancerId}
+    ),
+    responded AS (
+      SELECT
+        created_at,
+        viewed_at,
+        decided_at,
+        LEAST(decided_at, replied_at) AS responded_at
+      FROM mine
+    )
+    SELECT
+      count(*)::int AS "sent",
+      count(*) FILTER (WHERE viewed_at IS NOT NULL)::int AS "viewed",
+      count(*) FILTER (WHERE decided_at IS NOT NULL)::int AS "decided",
+      count(*) FILTER (WHERE responded_at IS NOT NULL)::int AS "heard_back",
+      percentile_cont(0.5) WITHIN GROUP (
+        ORDER BY EXTRACT(EPOCH FROM (responded_at - created_at))
+      ) FILTER (WHERE responded_at IS NOT NULL) AS "median_seconds"
+    FROM responded
+  `;
+
+  const row = rows[0] ?? { sent: 0, viewed: 0, decided: 0, heard_back: 0, median_seconds: null };
+  return {
+    sent: row.sent,
+    viewed: row.viewed,
+    decided: row.decided,
+    heardBack: row.heard_back,
+    medianResponseDays:
+      row.median_seconds === null
+        ? null
+        : Math.round((Number(row.median_seconds) / 86_400) * 10) / 10,
+  };
+}

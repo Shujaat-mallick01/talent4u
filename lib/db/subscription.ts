@@ -344,3 +344,41 @@ export async function setBillingCountryFromStripe(
     data: { billingCountry: country.trim().toUpperCase() },
   });
 }
+
+/**
+ * Points FreelancerProfile.searchBoost at "this account has an active Pro
+ * subscription", which is the first term candidate search sorts on.
+ *
+ * The column is denormalized because the ranking query cannot afford a join
+ * through User -> Subscription on every search, and the schema names the
+ * Stripe webhook as its single writer. It had no writer at all until now: the
+ * seed set it, account deletion cleared it, and nothing in between — so for
+ * every real user it was permanently false while the pricing page sold
+ * "search boost" and the recruiter UI said "Pro members appear first".
+ *
+ * Three properties worth keeping if this is ever rewritten:
+ *
+ *   Idempotent   The WHERE carries the value being written, so a redelivered
+ *                webhook matches no rows and writes nothing. The conditional
+ *                update IS the lock, as elsewhere in this file.
+ *
+ *   Role-safe    A recruiter's account has no FreelancerProfile, so a
+ *                RECRUITER_GROWTH subscription matches nothing rather than
+ *                needing a role check here.
+ *
+ *   Erasure-safe A deleted account is excluded, so a redelivered Pro event
+ *                arriving after anonymisation cannot flip a field back on a
+ *                profile that has been erased.
+ *
+ * Returns whether a row actually changed, which is what the caller logs.
+ */
+export async function syncFreelancerSearchBoost(
+  userId: string,
+  boosted: boolean,
+): Promise<boolean> {
+  const { count } = await prisma.freelancerProfile.updateMany({
+    where: { userId, searchBoost: { not: boosted }, user: { deletedAt: null } },
+    data: { searchBoost: boosted },
+  });
+  return count > 0;
+}

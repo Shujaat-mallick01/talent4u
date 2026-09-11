@@ -82,6 +82,11 @@ export async function confirmEngagement(formData: FormData): Promise<void> {
   const { user } = await requireUser();
   const page = pageFor(user.role);
 
+  // Bounded by the per-engagement uniques already, but every one of these
+  // writes shared state and most of them mail the other party.
+  const limit = await checkRateLimit("message", user.id);
+  if (!limit.allowed) redirect(`${page}?notice=too_fast`);
+
   // The figures the page rendered travel with the click, so the service can
   // prove the party agreed to THESE terms and not to whatever the proposer
   // amended them to afterwards.
@@ -104,6 +109,11 @@ export async function declineEngagement(formData: FormData): Promise<void> {
   const { user } = await requireUser();
   const page = pageFor(user.role);
 
+  // Bounded by the per-engagement uniques already, but every one of these
+  // writes shared state and most of them mail the other party.
+  const limit = await checkRateLimit("message", user.id);
+  if (!limit.allowed) redirect(`${page}?notice=too_fast`);
+
   const result = await declineEngagementForUser(user.id, str(formData, "engagementId"));
   redirect(`${page}?notice=${result.ok ? "declined" : noticeFor(result.reason)}`);
 }
@@ -111,6 +121,11 @@ export async function declineEngagement(formData: FormData): Promise<void> {
 export async function amendEngagementTerms(formData: FormData): Promise<void> {
   const { user } = await requireUser();
   const page = pageFor(user.role);
+
+  // Bounded by the per-engagement uniques already, but every one of these
+  // writes shared state and most of them mail the other party.
+  const limit = await checkRateLimit("message", user.id);
+  if (!limit.allowed) redirect(`${page}?notice=too_fast`);
 
   const parsed = engagementTermsSchema.safeParse({
     statedRateUsd: num(formData, "statedRateUsd"),
@@ -129,6 +144,11 @@ export async function amendEngagementTerms(formData: FormData): Promise<void> {
 export async function writeReview(formData: FormData): Promise<void> {
   const { user } = await requireUser();
   const page = pageFor(user.role);
+
+  // Bounded by the per-engagement uniques already, but every one of these
+  // writes shared state and most of them mail the other party.
+  const limit = await checkRateLimit("message", user.id);
+  if (!limit.allowed) redirect(`${page}?notice=too_fast`);
 
   const parsed = writeReviewSchema.safeParse({
     engagementId: str(formData, "engagementId"),

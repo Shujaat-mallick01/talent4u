@@ -449,7 +449,14 @@ export function notifyJobDigest(args: {
   to: string;
   displayName: string;
   unsubscribeUrl: string;
-  jobs: { title: string; companyName: string; budget: string | null; slug: string }[];
+  jobs: {
+    title: string;
+    companyName: string;
+    /** Verification tier label. Required on every job card — email included. */
+    tier: string;
+    budget: string | null;
+    slug: string;
+  }[];
 }): Promise<NotifyOutcome> {
   const { to, displayName, unsubscribeUrl, jobs } = args;
 
@@ -481,7 +488,7 @@ export function notifyJobDigest(args: {
       "",
       ...jobs.map(
         (j) =>
-          `${j.title} — ${j.companyName}${j.budget ? ` (${j.budget})` : ""}\n${url(`/jobs/${j.slug}`)}`,
+          `${j.title} — ${j.companyName} (${j.tier})${j.budget ? ` · ${j.budget}` : ""}\n${url(`/jobs/${j.slug}`)}`,
       ),
     ],
     action: { label: "See every open job", href: url("/jobs") },

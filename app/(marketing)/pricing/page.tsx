@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { countryName } from "@/lib/geo/countries";
 import { BAND_SPECS, isReducedBand } from "@/lib/pricing/bands";
+import { BETA_FREE_ACCESS, BETA_NOTE } from "@/lib/pricing/beta";
 import {
   freelancerPlanCards,
   recruiterPlanCards,
@@ -37,16 +38,18 @@ function PlanColumn({ card, highlight }: { card: PlanCard; highlight?: boolean }
   return (
     <div
       className={cn(
-        "surface-card flex flex-col p-6",
+        "surface-card flex flex-col p-6 transition-all duration-200",
         // The featured plan is marked with a ring rather than a border, so it
         // does not become the one surface on the page carrying both a border
         // and a shadow. One red element per view, and on this page it is this.
-        highlight && "ring-1 ring-primary",
+        highlight && "ring-1 ring-primary shadow-md",
       )}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="t-subhead">{card.copy.name}</h3>
-        {card.price.isReduced ? (
+        {BETA_FREE_ACCESS ? (
+          <span className="t-label text-primary font-medium">Free in Beta</span>
+        ) : card.price.isReduced ? (
           <span className="t-label text-success">Regional price</span>
         ) : null}
       </div>
@@ -55,13 +58,20 @@ function PlanColumn({ card, highlight }: { card: PlanCard; highlight?: boolean }
 
       <p className="mt-5 flex items-baseline gap-1.5">
         <span className="t-data tabular text-[32px] leading-none text-foreground">
-          {card.price.display}
+          {BETA_FREE_ACCESS ? "Free" : card.price.display}
         </span>
-        {card.price.cents > 0 ? (
+        {!BETA_FREE_ACCESS && card.price.cents > 0 ? (
           <span className="text-[15px] text-muted-foreground">/month</span>
         ) : null}
       </p>
-      {card.price.isReduced ? (
+      {/* The eventual price stays visible, struck through. Saying "free" while
+          hiding what it will cost is how a free beta turns into a complaint the
+          day it ends. */}
+      {BETA_FREE_ACCESS && card.price.cents > 0 ? (
+        <p className="mt-1.5 text-[13px] leading-[18px] text-muted-foreground">
+          <span className="tabular line-through">{card.price.display}/month</span> once beta ends
+        </p>
+      ) : !BETA_FREE_ACCESS && card.price.isReduced ? (
         <p className="mt-1.5 text-[13px] leading-[18px] text-muted-foreground">
           <span className="tabular line-through">{card.listPrice.display}</span> standard
         </p>
@@ -81,9 +91,27 @@ function PlanColumn({ card, highlight }: { card: PlanCard; highlight?: boolean }
         ))}
       </ul>
 
-      <p className="t-label mt-6 text-muted-foreground">
-        {card.price.cents === 0 ? "Free, no card" : "Subscribe from your dashboard"}
-      </p>
+      <div className="mt-6 pt-2">
+        {BETA_FREE_ACCESS ? (
+          <Button
+            className="w-full"
+            variant={highlight ? "default" : "outline"}
+            render={<Link href="/signup">Get started free</Link>}
+          />
+        ) : card.price.cents === 0 ? (
+          <Button
+            className="w-full"
+            variant="outline"
+            render={<Link href="/signup">Free, no card</Link>}
+          />
+        ) : (
+          <Button
+            className="w-full"
+            variant={highlight ? "default" : "outline"}
+            render={<Link href="/dashboard/billing">Subscribe</Link>}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -106,6 +134,21 @@ export default async function PricingPage() {
             0% commission on anyone&apos;s earnings. We do not hold, escrow, or transmit money
             between users — so there is nothing for us to take a percentage of.
           </p>
+          {BETA_FREE_ACCESS ? (
+            <div className="mx-auto mt-6 max-w-xl rounded-2xl border border-primary/20 bg-primary/5 p-4 text-left sm:text-center">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                Public Beta
+              </span>
+              <p className="mt-2 text-[15px] font-semibold leading-[22px] text-foreground">
+                {BETA_NOTE}
+              </p>
+              <p className="mt-1 text-[13px] leading-[20px] text-muted-foreground">
+                No credit card, no stealth trial that becomes a bill. The prices below are what we
+                intend to charge later, shown now so nothing is a surprise.
+              </p>
+            </div>
+          ) : null}
           {reduced ? (
             <p className="mx-auto mt-5 max-w-xl rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-[15px] leading-[22px] text-success">
               {BAND_SPECS[band].note}
@@ -119,7 +162,9 @@ export default async function PricingPage() {
         <section className="mt-12">
           <h2 className="t-subhead">For freelancers</h2>
           <p className="mt-1.5 text-[15px] leading-[22px] text-muted-foreground">
-            Browsing and applying is free. Pro is for people applying every week.
+            {BETA_FREE_ACCESS
+              ? "Everything below is switched on for every freelancer, including Pro."
+              : "Browsing and applying is free. Pro is for people applying every week."}
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {freelancer.map((card) => (
@@ -135,7 +180,9 @@ export default async function PricingPage() {
         <section className="mt-12">
           <h2 className="t-subhead">For companies</h2>
           <p className="mt-1.5 text-[15px] leading-[22px] text-muted-foreground">
-            Post free. Candidate search, filters, and pipelines are the paid features.
+            {BETA_FREE_ACCESS
+              ? "Everything below is switched on for every company. Verification still applies — an unverified company gets one post until verified."
+              : "Post free. Candidate search, filters, and pipelines are the paid features."}
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
             {recruiter.map((card) => (

@@ -12,6 +12,7 @@ import {
   listPublicFreelancers,
   parseDirectoryPage,
 } from "@/lib/db/directory";
+import { coverImagesFor } from "@/lib/db/portfolio";
 import { countryName } from "@/lib/geo/countries";
 import { upsellLine } from "@/lib/pricing/catalogue";
 import { freelancerVerificationBadge } from "@/lib/profile/badges";
@@ -83,6 +84,8 @@ export default async function FreelancersIndexPage({
     // reader gets STANDARD, the honest default for an unknown country.
     getViewerBand(),
   ]);
+
+  const coverMap = await coverImagesFor(profiles.map((p) => p.id));
 
   const growth = upsellLine("RECRUITER_GROWTH", band);
   const noun = profiles.length === 1 ? "person" : "people";
@@ -163,76 +166,73 @@ export default async function FreelancersIndexPage({
             )
           ) : (
             <>
-              {/* Column captions sit above the rule so the rows below keep one
-                  continuous hairline. Hidden from assistive tech because each
-                  cell carries its own label. */}
-              <div aria-hidden className="mt-6 hidden gap-x-6 px-4 pb-2 md:flex">
-                <span className={cn("t-label text-muted-foreground", COL_PERSON)}>Specialist</span>
-                <span className={cn("t-label text-right text-muted-foreground", COL_RATE)}>
-                  Rate USD
-                </span>
-                <span className={cn("t-label text-right text-muted-foreground", COL_COUNTRY)}>
-                  Country
-                </span>
-              </div>
-
-              {/* Rows sharing one hairline, never cards floating with gaps. */}
-              <ul className="rowset mt-6 md:mt-0">
+              {/* Responsive showcase card grid */}
+              <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {profiles.map((profile) => {
                   const badge = freelancerVerificationBadge(profile.verification);
+                  const coverUrl = coverMap.get(profile.id);
                   return (
-                    <li key={profile.id} className="row-hover px-4 py-4">
-                      <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
-                        {/* The avatar lives inside the Specialist column so
-                            the caption strip above stays aligned to the rows.
-                            Fixed width, never grows: the headline beside it
-                            reflows instead. */}
-                        <div className={cn("flex items-start gap-3", COL_PERSON)}>
-                          <Avatar
-                            name={profile.displayName}
-                            src={profile.avatarUrl}
-                            size="md"
-                            shape="person"
+                    <li
+                      key={profile.id}
+                      className="surface-card flex flex-col justify-between overflow-hidden border border-border/70 hover:border-foreground/20 hover:shadow-md transition-all duration-200"
+                    >
+                      {coverUrl ? (
+                        <div className="aspect-[16/10] w-full overflow-hidden bg-muted">
+                          {/* eslint-disable-next-line @next/next/no-img-element --
+                              Supabase Storage serves these from a bucket host that
+                              next.config.ts does not whitelist for next/image. */}
+                          <img
+                            src={coverUrl}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            className="size-full object-cover transition-transform duration-300 hover:scale-[1.02]"
                           />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <h3 className="text-[16px] font-semibold leading-[22px]">
-                                <Link
-                                  href={`/freelancers/${profile.slug}`}
-                                  className={cn("hover:underline", LINK_FOCUS)}
-                                >
-                                  {profile.displayName}
-                                </Link>
-                              </h3>
-                              {/* Verification is never softened, here or anywhere. */}
-                              <ProfileBadge spec={badge} />
+                        </div>
+                      ) : null}
+
+                      <div className="p-5 flex flex-col flex-1 justify-between gap-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3">
+                            <Avatar
+                              name={profile.displayName}
+                              src={profile.avatarUrl}
+                              size="md"
+                              shape="person"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <h3 className="text-[16px] font-semibold leading-[22px]">
+                                  <Link
+                                    href={`/freelancers/${profile.slug}`}
+                                    className={cn("hover:underline", LINK_FOCUS)}
+                                  >
+                                    {profile.displayName}
+                                  </Link>
+                                </h3>
+                                <ProfileBadge spec={badge} />
+                              </div>
+                              <p className="mt-1.5 text-[14px] leading-[20px] text-muted-foreground line-clamp-2">
+                                {profile.headline}
+                              </p>
                             </div>
-                            <p className="mt-1 text-[15px] leading-[22px] text-muted-foreground">
-                              {profile.headline}
-                            </p>
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 md:shrink-0">
-                          <div className={cn(NUM_CELL, COL_RATE)}>
-                            <span className="t-label text-muted-foreground md:sr-only">Rate</span>
+                        <div className="flex items-baseline justify-between pt-3 border-t border-border/50 text-[13px]">
+                          <div>
+                            <span className="text-muted-foreground mr-1.5 font-medium">Rate:</span>
                             {profile.hourlyRateUsd ? (
-                              <span className="t-data whitespace-nowrap">
+                              <span className="font-semibold text-foreground">
                                 ${profile.hourlyRateUsd.toLocaleString("en-US")}/hr
                               </span>
                             ) : (
-                              <span className="t-data text-muted-foreground">
-                                <span aria-hidden>—</span>
-                                <span className="sr-only">Rate not listed</span>
-                              </span>
+                              <span className="text-muted-foreground">On request</span>
                             )}
                           </div>
 
-                          <div className={cn(NUM_CELL, COL_COUNTRY)}>
-                            <span className="t-label text-muted-foreground md:sr-only">Country</span>
-                            <span className="t-data">
-                              {countryName(profile.country) ?? profile.country}
-                            </span>
+                          <div className="text-muted-foreground font-medium">
+                            {countryName(profile.country) ?? profile.country}
                           </div>
                         </div>
                       </div>

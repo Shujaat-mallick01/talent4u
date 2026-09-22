@@ -10,6 +10,18 @@ const stripeMocks = vi.hoisted(() => ({
   planForProduct: vi.fn(() => null as string | null),
 }));
 
+const betaMock = vi.hoisted(() => ({
+  freeAccess: false,
+}));
+
+vi.mock("@/lib/pricing/beta", () => ({
+  get BETA_FREE_ACCESS() {
+    return betaMock.freeAccess;
+  },
+  BETA_NOTE: "Free while in beta",
+  effectivePlanForBeta: (_role: unknown, actual: string) => actual,
+}));
+
 vi.mock("@/lib/billing/stripe", () => ({
   stripeConfigured: stripeMocks.configured,
   stripeProductId: stripeMocks.productId,
@@ -149,6 +161,18 @@ describe("startCheckout", () => {
       reason: "manage-in-portal",
     });
     expect(stripeMocks.checkoutCreate).not.toHaveBeenCalled();
+  });
+
+  it("refuses checkout when beta free access is enabled", async () => {
+    betaMock.freeAccess = true;
+    try {
+      expect(await startCheckout(USER, "FREELANCER_PRO")).toEqual({
+        ok: false,
+        reason: "beta-free",
+      });
+    } finally {
+      betaMock.freeAccess = false;
+    }
   });
 
   it("allows checkout again once the subscription is genuinely cancelled", async () => {

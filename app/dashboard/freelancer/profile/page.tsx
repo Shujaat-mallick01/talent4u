@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { ProfileBadge } from "@/components/profile/profile-badge";
+import { Button } from "@/components/ui/button";
 import { IconCheck } from "@/components/ui/icon";
 import { Notice } from "@/components/ui/notice";
 import { requireRole } from "@/lib/auth/guards";
@@ -67,9 +68,16 @@ export default async function FreelancerProfileEditPage({
     <main id="main" className="flex-1">
       <div className="mx-auto w-full max-w-3xl px-6 py-8 lg:px-8">
         <header className="mb-6 pb-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="t-heading">Edit your profile</h1>
-            <ProfileBadge spec={freelancerVerificationBadge(profile.verification)} />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="t-heading">Edit your profile</h1>
+              <ProfileBadge spec={freelancerVerificationBadge(profile.verification)} />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link href="/dashboard/freelancer/portfolio">Manage portfolio</Link>}
+            />
           </div>
           {/* The slug is set once and never moves, so say so here rather than
               letting somebody discover it by renaming and losing their links. */}

@@ -31,6 +31,11 @@ const COPY: Record<BillingNoticeCode, BillingNoticeCopy> = {
     tone: "error",
     message: "Checkout could not be opened. Nothing was charged. Try again in a moment.",
   },
+  beta_free: {
+    tone: "info",
+    message:
+      "Nothing to pay. Talent4u is free while it is in beta — every feature is switched on for everyone, and there is no card to add. We will give plenty of notice before that changes.",
+  },
   checkout_unavailable: {
     tone: "error",
     message: "Payments are not switched on for this deployment yet.",

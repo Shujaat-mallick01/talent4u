@@ -1,6 +1,7 @@
 import { cache } from "react";
 
 import { entitledPlanFrom } from "@/lib/billing/subscription-state";
+import { effectivePlanForBeta } from "@/lib/pricing/beta";
 import type { PlanTier, UserRole } from "@/lib/generated/prisma/enums";
 import { Prisma } from "@/lib/generated/prisma/client";
 
@@ -17,11 +18,17 @@ import { prisma } from "./client";
  * webhooks that were keeping it alive.
  */
 export async function getUserPlan(userId: string): Promise<PlanTier> {
-  const sub = await prisma.subscription.findUnique({
-    where: { userId },
-    select: { plan: true, status: true, currentPeriodEnd: true },
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      role: true,
+      subscription: { select: { plan: true, status: true, currentPeriodEnd: true } },
+    },
   });
-  return entitledPlanFrom(sub);
+  // Beta applies HERE, at plan resolution, and nowhere else — getEntitlements
+  // stays pure and its audit suite stays green because it is simply handed a
+  // different plan. See lib/pricing/beta.ts.
+  return effectivePlanForBeta(user?.role, entitledPlanFrom(user?.subscription));
 }
 
 /**
@@ -52,7 +59,7 @@ export const getEntitlementContext = cache(async (userId: string) => {
   // FREE rather than keeping paid capabilities alive, and so does a row whose
   // period ended long enough ago that we have plainly stopped hearing from
   // Stripe about it.
-  const plan: PlanTier = entitledPlanFrom(user.subscription);
+  const plan: PlanTier = effectivePlanForBeta(user.role, entitledPlanFrom(user.subscription));
 
   return {
     role: user.role,

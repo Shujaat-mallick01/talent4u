@@ -27,6 +27,7 @@ import {
   userExists,
   type BillingState,
 } from "@/lib/db/subscription";
+import { BETA_FREE_ACCESS, BETA_NOTE } from "@/lib/pricing/beta";
 import { COUNTRIES } from "@/lib/geo/countries";
 import type { PlanTier, SubscriptionStatus, UserRole } from "@/lib/generated/prisma/enums";
 import { BAND_SPECS, bandForCountry, type PriceBand } from "@/lib/pricing/bands";
@@ -171,7 +172,7 @@ export async function getBillingView(userId: string): Promise<BillingView | null
     bandLabel: BAND_SPECS[band].label,
     bandNote: BAND_SPECS[band].note,
     options,
-    available: stripeConfigured(),
+    available: !BETA_FREE_ACCESS && stripeConfigured(),
   };
 }
 
@@ -180,6 +181,7 @@ export type CheckoutResult =
   | {
       ok: false;
       reason:
+        | "beta-free"
         | "unavailable"
         | "no-account"
         | "not-purchasable"
@@ -201,6 +203,11 @@ const CANCEL_PATH = "/dashboard/billing?notice=checkout_cancelled";
  * it. The UI is cosmetic; the caller is curl.
  */
 export async function startCheckout(userId: string, plan: PlanTier): Promise<CheckoutResult> {
+  // Nothing is for sale during the free beta. Refused here rather than by
+  // hiding the button: a checkout session created now would take real money
+  // for something the product is currently giving away, and the button is not
+  // the security boundary for anything else either.
+  if (BETA_FREE_ACCESS) return { ok: false, reason: "beta-free" };
   if (!stripeConfigured()) return { ok: false, reason: "unavailable" };
 
   const account = await getBillingState(userId);

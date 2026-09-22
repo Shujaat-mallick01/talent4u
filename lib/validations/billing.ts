@@ -21,6 +21,7 @@ export const checkoutSchema = z.object({
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
 export const BILLING_NOTICE_CODES = [
+  "beta_free",
   "checkout_failed",
   "checkout_unavailable",
   "not_purchasable",

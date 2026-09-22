@@ -39,6 +39,7 @@ export async function startCheckoutAction(formData: FormData): Promise<void> {
 
   const result = await startCheckout(user.id, parsed.data.plan);
   if (!result.ok) {
+    if (result.reason === "beta-free") back("beta_free");
     if (result.reason === "unavailable") back("checkout_unavailable");
     if (result.reason === "not-purchasable") back("not_purchasable");
     if (result.reason === "already-on-plan") back("already_on_plan");
